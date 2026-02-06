@@ -1,17 +1,19 @@
-
 {
   "accountAssociation": {
     "header": "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ",
-    "payload": "eydomainI6ImJhc2UtYXNjZW50LnZlcmNlbC5hcHAifQ",
+    "payload": "eyJkb21haW4iOiJiYXNlLWFzY2VudC52ZXJjZWwuYXBwIn0",
     "signature": "MHQCHQCvF7X..."
   },
   "frame": {
     "version": "1",
     "name": "Base Ascent",
-    "iconUrl": "https://base-ascent.vercel.app/icon.png",
+    "iconUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png",
     "homeUrl": "https://base-ascent.vercel.app",
-    "imageUrl": "https://base-ascent.vercel.app/og-image.png",
-    "buttonText": "Play Ascent",
-    "deepLinkUrl": "https://base-ascent.vercel.app"
+    "imageUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png",
+    "buttonText": "ASCEND TO NEW HEIGHTS",
+    "deepLinkUrl": "https://base-ascent.vercel.app",
+    "splashImageUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png",
+    "splashBackgroundColor": "#000000",
+    "webhookUrl": "https://base-ascent.vercel.app/api/frame-webhook"
   }
 }

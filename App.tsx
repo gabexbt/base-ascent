@@ -6,6 +6,8 @@ import { formatUnits, erc20Abi } from 'viem';
 import { coinbaseWallet } from 'wagmi/connectors';
 import GameEngine from './components/GameEngine';
 import LoadingScreen from './components/LoadingScreen';
+import { PaymentModal } from './components/PaymentModal';
+import { FarcasterProvider, useFarcaster } from './context/FarcasterContext';
 import { useCasterContract } from './hooks/useCasterContract';
 import { GameStatus, Player, LeaderboardEntry, Tab } from './types';
 import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS } from './constants';
@@ -53,7 +55,12 @@ const MainApp: React.FC = () => {
   const [taskTimers, setTaskTimers] = useState<Record<string, { time: number, focused: boolean }>>({});
   const [copied, setCopied] = useState(false);
   const [uploadingScore, setUploadingScore] = useState(false);
-  
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentType, setPaymentType] = useState<'miner' | 'flex' | null>(null);
+  const [minerUpgradeLevel, setMinerUpgradeLevel] = useState<number>(0);
+  const [flexType, setFlexType] = useState<'altitude' | 'xp'>('altitude');
+
+  const { frameContext, isLoading: isFarcasterLoading } = useFarcaster();
   const { address } = useAccount();
   const { payStartFee, paySubmitFee, isPending } = useCasterContract();
 
@@ -71,30 +78,19 @@ const MainApp: React.FC = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const sdk = (window as any).farcaster?.sdk;
-      let fid = 12345, username = 'player.eth', pfp = '', referrer = undefined;
-      
-      if (sdk) {
-        const context = await sdk.context;
-        if (context?.user) {
-          fid = context.user.fid;
-          username = context.user.username || `user_${fid}`;
-          pfp = context.user.pfpUrl || '';
-        }
-        const params = new URLSearchParams(context?.location?.search || window.location.search);
-        referrer = parseInt(params.get('r') || '0') || undefined;
-      }
-      
-      const data = await PlayerService.getPlayer(fid, username, pfp, referrer);
+      let fid = frameContext.user.fid || 12345;
+      let username = frameContext.user.username || 'player.eth';
+      let pfpUrl = frameContext.user.pfpUrl || '';
+      let referrer = frameContext.referrerFid;
+
+      const data = await PlayerService.getPlayer(fid, username, pfpUrl, referrer);
       setPlayer(data);
-      const board = await PlayerService.getLeaderboard(rankingType);
+      const board = await PlayerService.getLeaderboard(15);
       setLeaderboard(board);
-      if (data) {
-        const rank = await PlayerService.getPlayerRank(data.fid, rankingType);
-        setPlayerRank(rank);
-      }
-    } catch (e) { console.error("Load Error:", e); }
-  }, [rankingType]);
+    } catch (e) {
+      console.error("Load Error:", e);
+    }
+  }, [frameContext]);
 
   useEffect(() => { loadData().then(() => setTimeout(() => setLoading(false), 3000)); }, [loadData]);
 
@@ -108,7 +104,6 @@ const MainApp: React.FC = () => {
             next[taskId].time -= 1;
             changed = true;
             if (next[taskId].time === 0) {
-              PlayerService.completeTask(player!.fid, taskId, 500).then(() => loadData());
               delete next[taskId];
             }
           }
@@ -147,28 +142,24 @@ const MainApp: React.FC = () => {
     }
   };
 
-  const handleUpgradeMiner = async () => {
+  const handleUpgradeMiner = async (level: number) => {
     if (!player) return;
-    try {
-      await payStartFee();
-      await PlayerService.upgradeMiner(player.fid);
-      await loadData();
-    } catch (e) {}
+    setMinerUpgradeLevel(level);
+    setPaymentType('miner');
+    setPaymentModalOpen(true);
   };
 
   const handleUploadHighScore = async () => {
     if (!player) return;
-    setUploadingScore(true);
-    try {
-      const isFree = (rankingType === 'skill' && !player.hasFreeFlexAltitudeUsed) || (rankingType === 'grind' && !player.hasFreeFlexExperienceUsed);
-      if (!isFree) await paySubmitFee(); 
-      await PlayerService.setHasUploaded(player.fid, rankingType);
-      await loadData();
-    } catch(e) {
-      console.error(e);
-    } finally {
-      setUploadingScore(false);
-    }
+    setFlexType(rankingType === 'skill' ? 'altitude' : 'xp');
+    setPaymentType('flex');
+    setPaymentModalOpen(true);
+  };
+
+  const handlePaymentSuccess = async (txHash: string) => {
+    if (!player) return;
+    await loadData();
+    setPaymentModalOpen(false);
   };
 
   const currentMiner = MINER_LEVELS[player?.minerLevel || 0];
@@ -180,13 +171,26 @@ const MainApp: React.FC = () => {
     return Math.floor(hours * currentMiner.xpPerHour);
   }, [player, currentMiner]);
 
-  if (loading) return <LoadingScreen />;
+  if (loading || isFarcasterLoading) return <LoadingScreen />;
 
   return (
     <div className="h-screen bg-black text-white font-mono flex flex-col items-center overflow-hidden antialiased select-none">
+      <PaymentModal
+        isOpen={paymentModalOpen}
+        type={paymentType}
+        level={minerUpgradeLevel}
+        flexType={flexType}
+        fid={player?.fid}
+        walletAddress={frameContext.user.walletAddress || address}
+        onClose={() => {
+          setPaymentModalOpen(false);
+          setPaymentType(null);
+        }}
+        onSuccess={handlePaymentSuccess}
+      />
       <header className="w-full max-w-md px-6 py-4 flex justify-between items-center border-b border-white/10 bg-black shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <img src={player?.pfp || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full border border-white/20" alt="" />
+          <img src={player?.pfpUrl || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full border border-white/20" alt="" />
           <div>
             <div className="text-sm font-bold">@{player?.username}</div>
             <div className="text-[9px] opacity-40 uppercase tracking-widest">FID: {player?.fid}</div>
@@ -218,7 +222,7 @@ const MainApp: React.FC = () => {
                     <p className="text-[11px] opacity-40 uppercase tracking-[0.4em] font-black mt-2">ASCEND TO NEW HEIGHTS</p>
                   </div>
                   <div className="flex flex-col items-center w-full mt-auto mb-6 gap-6">
-                    <button onClick={handleStartGame} disabled={isPending} className="w-full max-w-[320px] py-5 border-[3px] border-white bg-white text-black font-black text-lg uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all">
+                    <button onClick={() => { setPaymentType(null); handleStartGame(); }} disabled={isPending} className="w-full max-w-[320px] py-5 border-[3px] border-white bg-white text-black font-black text-lg uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all">
                       {isPending ? 'SYNCING...' : 'Tap to Start'}
                     </button>
                     <div className="grid grid-cols-2 gap-3 w-full max-w-[320px]">
@@ -258,7 +262,7 @@ const MainApp: React.FC = () => {
                       <div className="text-xl font-black italic uppercase">MINER STATUS: LOCKED</div>
                       <p className="text-[10px] opacity-40 font-bold uppercase px-6 leading-relaxed">Unlock to start earning XP passively.</p>
                     </div>
-                    <button onClick={handleUpgradeMiner} className="w-full py-6 bg-white text-black font-black text-xl uppercase rounded-3xl active:scale-95 transition-all">Unlock Miner ($1.00)</button>
+                    <button onClick={() => handleUpgradeMiner(1)} className="w-full py-6 bg-white text-black font-black text-xl uppercase rounded-3xl active:scale-95 transition-all">Unlock Miner ($1.00)</button>
                   </div>
                 ) : (
                   <>
@@ -274,7 +278,7 @@ const MainApp: React.FC = () => {
                     </div>
                     <div className="w-full space-y-4">
                       {nextMiner ? (
-                        <button onClick={handleUpgradeMiner} className="w-full py-5 border-2 border-white font-black text-lg hover:bg-white hover:text-black transition-all rounded-3xl">Upgrade to Lvl {player.minerLevel + 1} [${nextMiner.cost.toFixed(2)} USDC]</button>
+                        <button onClick={() => handleUpgradeMiner(player.minerLevel + 1)} className="w-full py-5 border-2 border-white font-black text-lg hover:bg-white hover:text-black transition-all rounded-3xl">Upgrade to Lvl {player.minerLevel + 1} [${nextMiner.cost.toFixed(2)} USDC]</button>
                       ) : (
                         <div className="py-5 border-2 border-dashed border-white/20 text-center opacity-30 font-black rounded-3xl uppercase">Max Level Reached</div>
                       )}
@@ -297,10 +301,10 @@ const MainApp: React.FC = () => {
                     <div key={entry.fid} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl">
                       <div className="flex items-center gap-4">
                         <span className="text-[10px] font-black opacity-30">{idx + 1}</span>
-                        <img src={entry.pfp || `https://picsum.photos/seed/${entry.fid}/32/32`} className="w-8 h-8 rounded-full opacity-60 border border-white/10" />
+                        <img src={entry.pfpUrl || `https://picsum.photos/seed/${entry.fid}/32/32`} className="w-8 h-8 rounded-full opacity-60 border border-white/10" />
                         <div className="text-sm font-bold">@{entry.username}</div>
                       </div>
-                      <div className="text-lg font-black italic">{entry.value.toLocaleString()}</div>
+                      <div className="text-lg font-black italic">{rankingType === 'skill' ? entry.highScore : entry.totalXp.toLocaleString()}</div>
                     </div>
                   ))}
                </div>
@@ -313,7 +317,7 @@ const MainApp: React.FC = () => {
                     {uploadingScore ? 'Processing...' : (
                       <>
                         <span className="text-white uppercase tracking-wider">FLEX {rankingType === 'skill' ? 'ALTITUDE' : 'EXPERIENCE'}</span> 
-                        {((rankingType === 'skill' && player?.hasFreeFlexAltitudeUsed) || (rankingType === 'grind' && player?.hasFreeFlexExperienceUsed)) && ( <span className="text-gray-500 ml-2">($0.1 USDC)</span> )}
+                        {((rankingType === 'skill' && player?.hasUsedAltitudeFlex) || (rankingType === 'grind' && player?.hasUsedXpFlex)) && ( <span className="text-gray-500 ml-2">($0.1 USDC)</span> )}
                       </>
                     )}
                   </button>
@@ -334,8 +338,8 @@ const MainApp: React.FC = () => {
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
                   <h3 className="text-xs font-black uppercase opacity-30 text-center mb-4 tracking-[0.2em]">INVITE RECRUITS</h3>
                   <div className="flex items-center justify-between bg-black/50 border border-white/10 p-4 rounded-[28px] text-center mb-3">
-                    <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{player?.referralsCount}</span></div>
-                    <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{player?.referralXp} XP</span></div>
+                    <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{player?.referralCount}</span></div>
+                    <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{player?.referralXpEarned} XP</span></div>
                   </div>
                   <div onClick={handleCopy} className="p-4 bg-white/5 border border-white/20 rounded-2xl text-[9px] opacity-40 text-center tracking-widest uppercase cursor-pointer hover:bg-white/10 transition-all active:scale-98">
                     {copied ? 'COPIED!' : `base-ascent/r/${player?.fid}`}
@@ -352,8 +356,8 @@ const MainApp: React.FC = () => {
                      ].map(t => (
                         <div key={t.id} className="w-full p-4 border border-white/10 rounded-[28px] flex items-center justify-between bg-black/50">
                            <div className="text-left"><div className="text-[10px] font-black uppercase">{t.l}</div><div className="text-[8px] opacity-40">+500 XP</div></div>
-                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={player?.completedTasks?.includes(t.id) || taskTimers[t.id]?.time > 0} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95">
-                              {player?.completedTasks?.includes(t.id) ? 'DONE' : taskTimers[t.id]?.time > 0 ? `SYNCING ${taskTimers[t.id].time}s` : 'CLAIM XP'}
+                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={false &&(t.id) || taskTimers[t.id]?.time > 0} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95">
+                              {false &&(t.id) ? 'DONE' : taskTimers[t.id]?.time > 0 ? `SYNCING ${taskTimers[t.id].time}s` : 'CLAIM XP'}
                            </button>
                         </div>
                      ))}
@@ -378,6 +382,12 @@ const MainApp: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <WagmiProvider config={config}><QueryClientProvider client={queryClient}><MainApp /></QueryClientProvider></WagmiProvider>
+  <WagmiProvider config={config}>
+    <QueryClientProvider client={queryClient}>
+      <FarcasterProvider>
+        <MainApp />
+      </FarcasterProvider>
+    </QueryClientProvider>
+  </WagmiProvider>
 );
 export default App;

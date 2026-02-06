@@ -1,28 +1,28 @@
 export interface Player {
   fid: number;
   username: string;
-  pfp?: string;
+  pfpUrl?: string;
   totalXp: number;
   totalGold: number;
   highScore: number;
   totalRuns: number;
-  referralsCount: number;
-  referralXp: number;
+  referralCount: number;
+  referralXpEarned: number;
   minerLevel: number;
-  lastClaimAt: number;
   referrerFid?: number;
   hasUploadedScore?: boolean;
-  hasFreeFlexAltitudeUsed?: boolean;
-  hasFreeFlexExperienceUsed?: boolean;
-  completedTasks?: string[];
+  hasUsedAltitudeFlex?: boolean;
+  hasUsedXpFlex?: boolean;
 }
 
 export interface LeaderboardEntry {
   fid: number;
   username: string;
-  value: number; 
-  pfp?: string;
+  pfpUrl?: string;
+  highScore: number;
+  totalXp: number;
   minerLevel?: number;
+  rank: number;
 }
 
 export enum GameStatus {
