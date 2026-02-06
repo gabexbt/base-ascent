@@ -1,0 +1,17 @@
+
+{
+  "accountAssociation": {
+    "header": "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ",
+    "payload": "eydomainI6ImJhc2UtYXNjZW50LnZlcmNlbC5hcHAifQ",
+    "signature": "MHQCHQCvF7X..."
+  },
+  "frame": {
+    "version": "1",
+    "name": "Base Ascent",
+    "iconUrl": "https://base-ascent.vercel.app/icon.png",
+    "homeUrl": "https://base-ascent.vercel.app",
+    "imageUrl": "https://base-ascent.vercel.app/og-image.png",
+    "buttonText": "Play Ascent",
+    "deepLinkUrl": "https://base-ascent.vercel.app"
+  }
+}
