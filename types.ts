@@ -13,6 +13,8 @@ export interface Player {
   hasUploadedScore?: boolean;
   hasUsedAltitudeFlex?: boolean;
   hasUsedXpFlex?: boolean;
+  lastClaimAt: number;
+  walletAddress?: string;
 }
 
 export interface LeaderboardEntry {
@@ -35,7 +37,7 @@ export enum GameStatus {
 
 export enum Tab {
   ASCENT = 'ASCENT',
-  MINER = 'MINER',
+  HARDWARE = 'HARDWARE',
   RANKINGS = 'RANKINGS',
   PROFILE = 'PROFILE'
 }

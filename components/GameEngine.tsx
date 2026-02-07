@@ -86,14 +86,16 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
   }, []);
 
   const spawnBlock = useCallback((width: number, y: number, currentScore: number) => {
-    let baseSpeed = 1.6;
-    if (currentScore < 5) {
-      baseSpeed = 1.6 + (currentScore * 0.12);
+    let baseSpeed = 1.2;
+    if (currentScore < 3) {
+      baseSpeed = 1.2 + (currentScore * 0.1);
+    } else if (currentScore < 10) {
+      baseSpeed = 1.5 + (currentScore * 0.15);
     } else {
-      const swing = Math.sin(currentScore * 0.7) * 0.45;
-      baseSpeed = 3.5 + (Math.log10(currentScore) * 1.8) + swing;
+      const swing = Math.sin(currentScore * 0.5) * 0.3;
+      baseSpeed = 3.0 + (Math.log10(currentScore) * 1.2) + swing;
     }
-    const finalSpeed = Math.min(baseSpeed, 9.2);
+    const finalSpeed = Math.min(baseSpeed, 7.5);
 
     currentBlockRef.current = {
       x: Math.random() > 0.5 ? 0 : GAME_WIDTH - width,
@@ -218,21 +220,20 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
     ctx.translate(sx, cameraYRef.current + sy);
 
     blocksRef.current.forEach((b, i) => {
-      const isLatest = i === blocksRef.current.length - 1;
       const gradient = ctx.createLinearGradient(b.x, b.y, b.x, b.y + BLOCK_HEIGHT);
       if (b.isPerfectHit) {
         ctx.shadowBlur = 20; ctx.shadowColor = GOLD_NEON;
         gradient.addColorStop(0, '#FFFFFF'); gradient.addColorStop(0.4, GOLD_NEON); gradient.addColorStop(1, '#B8860B');
       } else {
         ctx.shadowBlur = 0;
-        gradient.addColorStop(0, isLatest ? WHITE : 'rgba(255,255,255,0.1)');
-        gradient.addColorStop(1, isLatest ? '#AAAAAA' : 'rgba(150,150,150,0.05)');
+        gradient.addColorStop(0, WHITE);
+        gradient.addColorStop(1, '#CCCCCC');
       }
       ctx.fillStyle = gradient;
       ctx.fillRect(b.x, b.y, b.width, BLOCK_HEIGHT - 6);
       ctx.strokeStyle = b.isPerfectHit ? GOLD_NEON : WHITE;
       ctx.lineWidth = b.isPerfectHit ? 2 : 1;
-      if (isLatest || b.isPerfectHit) ctx.strokeRect(b.x, b.y, b.width, BLOCK_HEIGHT - 6);
+      ctx.strokeRect(b.x, b.y, b.width, BLOCK_HEIGHT - 6);
     });
 
     if (currentBlockRef.current) {

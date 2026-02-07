@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS players (
   referral_count integer DEFAULT 0,
   referral_xp_earned integer DEFAULT 0,
   wallet_address text,
+  last_claim_at timestamptz DEFAULT now(),
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

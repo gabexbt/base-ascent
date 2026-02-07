@@ -17,16 +17,16 @@ export const FLEX_FEE_USDC = '0.10';
 export const DEV_WALLET = '0x0000000000000000000000000000000000000000'; 
 export const USDC_BASE_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
 
-export const XP_PER_BLOCK = 25;
+export const XP_PER_BLOCK = 10;
 export const GOLD_PER_BLOCK = 20;
 
 export const MINER_LEVELS: Record<number, { cost: number; multiplier: number; xpPerHour: number }> = {
   0: { cost: 0, multiplier: 1.0, xpPerHour: 0 },
-  1: { cost: 1.0, multiplier: 1.5, xpPerHour: 100 },
-  2: { cost: 2.0, multiplier: 1.8, xpPerHour: 250 },
-  3: { cost: 3.5, multiplier: 2.2, xpPerHour: 500 },
-  4: { cost: 5.0, multiplier: 2.6, xpPerHour: 1000 },
-  5: { cost: 10.0, multiplier: 3.0, xpPerHour: 2500 },
+  1: { cost: 0.99, multiplier: 1.2, xpPerHour: 1200 },
+  2: { cost: 1.25, multiplier: 1.4, xpPerHour: 3000 },
+  3: { cost: 1.49, multiplier: 1.6, xpPerHour: 6000 },
+  4: { cost: 1.75, multiplier: 1.8, xpPerHour: 9000 },
+  5: { cost: 1.99, multiplier: 2.0, xpPerHour: 12000 },
 };
 
 export const LOADING_MESSAGES = [

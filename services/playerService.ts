@@ -62,6 +62,7 @@ export const PlayerService = {
     if (!p) return;
 
     const newHighScore = height > p.high_score ? height : p.high_score;
+    const hasNewHighScore = height > p.high_score;
 
     if (p.referrer_fid) {
       const kickback = Math.floor(xp * 0.1);
@@ -75,6 +76,7 @@ export const PlayerService = {
         total_gold: p.total_gold + gold,
         total_runs: p.total_runs + 1,
         high_score: newHighScore,
+        has_uploaded_score: hasNewHighScore ? false : p.has_uploaded_score,
         updated_at: new Date().toISOString(),
       })
       .eq('fid', fid);
@@ -176,6 +178,46 @@ export const PlayerService = {
     }));
   },
 
+  async getPlayerRank(fid: number, type: 'skill' | 'grind'): Promise<number> {
+    const orderBy = type === 'skill' ? 'high_score' : 'total_xp';
+    const { data } = await supabase
+      .from('players')
+      .select('fid')
+      .order(orderBy, { ascending: false });
+
+    if (!data) return 0;
+    const index = data.findIndex(p => p.fid === fid);
+    return index >= 0 ? index + 1 : 0;
+  },
+
+  async claimPassiveXp(fid: number): Promise<void> {
+    const { data: p } = await supabase
+      .from('players')
+      .select('*')
+      .eq('fid', fid)
+      .maybeSingle();
+
+    if (!p || p.miner_level === 0) return;
+
+    const now = Date.now();
+    const lastClaim = new Date(p.last_claim_at).getTime();
+    const hoursElapsed = (now - lastClaim) / 3600000;
+
+    const { cost, multiplier, xpPerHour } = MINER_LEVELS[p.miner_level];
+    const passiveXp = Math.floor(hoursElapsed * xpPerHour);
+
+    if (passiveXp > 0) {
+      await supabase
+        .from('players')
+        .update({
+          total_xp: p.total_xp + passiveXp,
+          last_claim_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('fid', fid);
+    }
+  },
+
   async recordTransaction(fid: number, amountUsdc: string, transactionType: string, transactionHash: string, metadata?: any) {
     const { data: player } = await supabase
       .from('players')
@@ -216,6 +258,8 @@ export const PlayerService = {
       hasUploadedScore: db.has_uploaded_score,
       hasUsedAltitudeFlex: db.has_used_altitude_flex,
       hasUsedXpFlex: db.has_used_xp_flex,
+      lastClaimAt: new Date(db.last_claim_at).getTime(),
+      walletAddress: db.wallet_address,
     };
   }
 };

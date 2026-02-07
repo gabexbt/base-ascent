@@ -31,54 +31,87 @@ export const FarcasterProvider: React.FC<{ children: ReactNode }> = ({ children 
   useEffect(() => {
     const initializeFarcaster = async () => {
       try {
-        if (typeof window !== 'undefined' && window.parent !== window) {
-          const response = await fetch(
-            `https://api.warpcast.com/v2/frames/context`,
-            { method: 'POST' }
-          );
+        const sdk = (window as any).farcasterFrameSDK;
 
-          if (response.ok) {
-            const data = await response.json();
-            const urlParams = new URLSearchParams(window.location.search);
-            const referrerFid = urlParams.get('referrer');
+        if (sdk) {
+          await sdk.actions.ready();
+          const context = await sdk.context;
 
-            setFrameContext({
-              user: {
-                fid: data.interactor?.fid,
-                username: data.interactor?.username,
-                pfpUrl: data.interactor?.pfpUrl,
-                walletAddress: data.interactor?.walletAddress || data.interactor?.custody_address,
-              },
-              frameMessage: data,
-              referrerFid: referrerFid ? parseInt(referrerFid) : undefined,
-              isReady: true,
-            });
-          } else {
-            setFrameContext((prev) => ({
-              ...prev,
-              isReady: true,
-              error: 'Failed to fetch frame context',
-            }));
-          }
-        } else {
-          setFrameContext((prev) => ({
-            ...prev,
+          const urlParams = new URLSearchParams(window.location.search);
+          const pathSegments = window.location.pathname.split('/');
+          const referrerFid = urlParams.get('referrer') || (pathSegments[1] === 'r' ? pathSegments[2] : null);
+
+          setFrameContext({
+            user: {
+              fid: context.user?.fid,
+              username: context.user?.username,
+              pfpUrl: context.user?.pfpUrl,
+              walletAddress: context.user?.addresses?.[0] || context.user?.custodyAddress,
+            },
+            frameMessage: context,
+            referrerFid: referrerFid ? parseInt(referrerFid) : undefined,
             isReady: true,
-          }));
+          });
+          setIsLoading(false);
+        } else {
+          console.log('Running in development mode with mock data');
+          setFrameContext({
+            user: {
+              fid: 12345,
+              username: 'player.eth',
+              pfpUrl: 'https://picsum.photos/40/40',
+              walletAddress: undefined,
+            },
+            isReady: true,
+          });
+          setIsLoading(false);
         }
       } catch (error) {
         console.error('Farcaster initialization error:', error);
-        setFrameContext((prev) => ({
-          ...prev,
+        console.log('Falling back to development mode');
+        setFrameContext({
+          user: {
+            fid: 12345,
+            username: 'player.eth',
+            pfpUrl: 'https://picsum.photos/40/40',
+            walletAddress: undefined,
+          },
           isReady: true,
           error: error instanceof Error ? error.message : 'Unknown error',
-        }));
-      } finally {
+        });
         setIsLoading(false);
       }
     };
 
-    initializeFarcaster();
+    if (typeof window !== 'undefined') {
+      if ((window as any).farcasterFrameSDK) {
+        initializeFarcaster();
+      } else {
+        const checkSDK = setInterval(() => {
+          if ((window as any).farcasterFrameSDK) {
+            clearInterval(checkSDK);
+            initializeFarcaster();
+          }
+        }, 100);
+
+        setTimeout(() => {
+          clearInterval(checkSDK);
+          if (!(window as any).farcasterFrameSDK) {
+            console.log('SDK not loaded, using development mode');
+            setFrameContext({
+              user: {
+                fid: 12345,
+                username: 'player.eth',
+                pfpUrl: 'https://picsum.photos/40/40',
+                walletAddress: undefined,
+              },
+              isReady: true,
+            });
+            setIsLoading(false);
+          }
+        }, 3000);
+      }
+    }
   }, []);
 
   return (
