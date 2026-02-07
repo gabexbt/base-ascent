@@ -15,7 +15,7 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
       <div className="flex-1 flex flex-col justify-center gap-4 w-full">
         <div className="space-y-1">
           <div className="text-[10px] opacity-40 uppercase font-black tracking-[0.4em]">{isHighScore ? 'NEW HIGH SCORE!' : 'ASCENT COMPLETE'}</div>
-          <div className="text-5xl sm:text-6xl font-black italic text-[#FFD700] tracking-tighter uppercase drop-shadow-[0_0_20px_rgba(255,215,0,0.6)] leading-tight">
+          <div className={`text-5xl sm:text-6xl font-black italic tracking-tighter uppercase drop-shadow-[0_0_20px_rgba(255,215,0,0.6)] leading-tight ${isHighScore ? 'text-[#FFD700]' : 'text-white'}`}>
             {isHighScore ? 'LEGENDARY' : 'GAME OVER'}
           </div>
         </div>

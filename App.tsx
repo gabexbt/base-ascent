@@ -328,7 +328,11 @@ const MainApp: React.FC = () => {
       if (!hasUsedFree) {
         // Free first time
         await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns);
-        await PlayerService.markFlexUsed(player.fid, type);
+        if (type === 'altitude') {
+          await PlayerService.syncAltitude(player.fid);
+        } else {
+          await PlayerService.syncXp(player.fid);
+        }
         await PlayerService.recordTransaction(player.fid, '0', `${type}_flex_free`, 'free', { flex_type: type });
       } else {
         // Paid subsequent times
@@ -342,6 +346,11 @@ const MainApp: React.FC = () => {
         hash = transactionId;
 
         await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns);
+        if (type === 'altitude') {
+          await PlayerService.syncAltitude(player.fid);
+        } else {
+          await PlayerService.syncXp(player.fid);
+        }
         await PlayerService.recordTransaction(player.fid, '0.10', `${type}_flex_paid`, hash, { flex_type: type });
       }
       await loadData();
@@ -525,6 +534,14 @@ const MainApp: React.FC = () => {
             </div>
           ) : activeTab === Tab.RANKINGS ? (
             <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+               <div className="flex justify-between items-center shrink-0 pr-4">
+                 <h2 className="text-3xl font-black italic uppercase tracking-tighter ml-4">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
+                 <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
+                    <button onClick={() => setRankingType('skill')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
+                    <button onClick={() => setRankingType('grind')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
+                  </div>
+               </div>
+
                <div className="shrink-0 px-4 py-3 border border-white/10 bg-white/5 rounded-3xl space-y-2 text-left">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-white"></div>
@@ -536,13 +553,6 @@ const MainApp: React.FC = () => {
                       : "This leaderboard rewards dedication and consistent play. It tracks your Total XP, which is a combination of your gameplay, active referrals, and earnings from your AutoMiner. Every action you take in the game builds this score over time. The Top 20 leaders here will qualify for an upcoming airdrop."
                     }
                   </p>
-               </div>
-               <div className="flex justify-between items-center shrink-0 pr-4">
-                 <h2 className="text-3xl font-black italic uppercase tracking-tighter ml-4">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
-                 <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
-                    <button onClick={() => setRankingType('skill')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
-                    <button onClick={() => setRankingType('grind')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
-                  </div>
                </div>
 
                <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">

@@ -10,11 +10,14 @@ export interface Player {
   referralXpEarned: number;
   minerLevel: number;
   referrerFid?: number;
-  hasUploadedScore?: boolean;
-  hasUsedAltitudeFlex?: boolean;
-  hasUsedXpFlex?: boolean;
+  hasUploadedScore?: boolean; // Deprecated but kept for compatibility if needed
+  leaderboardHighScore: number;
+  leaderboardTotalXp: number;
+  hasUsedAltitudeFlex: boolean;
+  hasUsedXpFlex: boolean;
   completedTasks?: string[];
   lastClaimAt: number;
+  bankedPassiveXp: number;
   walletAddress?: string;
 }
 

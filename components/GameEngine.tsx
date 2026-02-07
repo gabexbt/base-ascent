@@ -88,22 +88,13 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
   const spawnBlock = useCallback((width: number, y: number, currentScore: number) => {
     let baseSpeed = 1.0;
     
-    if (currentScore < 10) {
-      // Very slow start
-      baseSpeed = 3.0 + (currentScore * 0.1); // 3.0 -> 4.0
-    } else if (currentScore < 20) {
-      // Ramp up
-      baseSpeed = 4.0 + ((currentScore - 10) * 0.2); // 4.0 -> 6.0
-    } else if (currentScore < 40) {
-      // Steady / Slight increase
-      baseSpeed = 6.0 + ((currentScore - 20) * 0.05); // 6.0 -> 7.0
-    } else if (currentScore < 50) {
-      // Ramp up again
-      baseSpeed = 7.0 + ((currentScore - 40) * 0.15); // 7.0 -> 8.5
+    if (currentScore < 50) {
+      // Good playable speed start (6.0), very slow ramp to 7.0 over 50 levels
+      baseSpeed = 6.0 + (currentScore * 0.02); 
     } else {
-      // Max speed with swings
+      // Ramp up after 50
       const swing = Math.sin(currentScore * 0.5) * 0.5;
-      baseSpeed = 8.5 + (Math.log10(currentScore - 40) * 1.0) + swing;
+      baseSpeed = 7.0 + ((currentScore - 50) * 0.1) + swing;
     }
     
     const finalSpeed = Math.min(baseSpeed, 12.0);

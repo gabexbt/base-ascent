@@ -19,14 +19,17 @@ export const PlayerService = {
           total_xp: 0,
           total_gold: 0,
           high_score: 0,
+          leaderboard_high_score: 0,
+          leaderboard_total_xp: 0,
           total_runs: 0,
           referral_count: 0,
           referral_xp_earned: 0,
           miner_level: 0,
           referrer_fid: (referrerFid && referrerFid !== fid) ? referrerFid : null,
-          has_uploaded_score: false,
           has_used_altitude_flex: false,
           has_used_xp_flex: false,
+          banked_passive_xp: 0,
+          last_claim_at: new Date().toISOString()
         };
 
         const { data: created, error: createError } = await supabase
@@ -69,8 +72,6 @@ export const PlayerService = {
     }
 
     const newHighScore = Math.max(highScore, p.high_score);
-    // If we are syncing, we are effectively uploading the score if it's a new high
-    const isNewHighScore = newHighScore > p.high_score;
     
     // Update object
     const updates: any = {
@@ -79,11 +80,6 @@ export const PlayerService = {
       high_score: newHighScore,
       updated_at: new Date().toISOString(),
     };
-
-    // If new high score, mark as NOT uploaded (requires flex/pay to sync to leaderboard)
-    if (isNewHighScore) {
-      updates.has_uploaded_score = false;
-    }
     
     // Only update total_runs if provided and greater than current
     if (totalRuns !== undefined && totalRuns > (p.total_runs || 0)) {
@@ -96,21 +92,60 @@ export const PlayerService = {
       .eq('fid', fid);
   },
 
-  async upgradeMiner(fid: number, level: number) {
-    // First claim any pending XP at the old rate so we don't apply new rate to history
-    await this.claimPassiveXp(fid);
+  // Syncs the current actual high score to the leaderboard (Flex)
+  async syncAltitude(fid: number) {
+    const { data: p } = await supabase.from('players').select('high_score').eq('fid', fid).maybeSingle();
+    if (!p) return;
 
+    await supabase
+      .from('players')
+      .update({
+        leaderboard_high_score: p.high_score,
+        has_used_altitude_flex: true,
+        last_synced_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('fid', fid);
+  },
+
+  // Syncs the current actual total XP to the leaderboard (Flex)
+  async syncXp(fid: number) {
+    const { data: p } = await supabase.from('players').select('total_xp').eq('fid', fid).maybeSingle();
+    if (!p) return;
+
+    await supabase
+      .from('players')
+      .update({
+        leaderboard_total_xp: p.total_xp,
+        has_used_xp_flex: true,
+        last_synced_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('fid', fid);
+  },
+
+  async upgradeMiner(fid: number, level: number) {
     const { data: p } = await supabase
       .from('players')
-      .select('miner_level')
+      .select('miner_level, last_claim_at, banked_passive_xp')
       .eq('fid', fid)
       .maybeSingle();
 
     if (p && p.miner_level < level) {
+      // Bank existing pending XP before upgrading rate
+      const now = Date.now();
+      const lastClaim = new Date(p.last_claim_at).getTime();
+      const hoursElapsed = (now - lastClaim) / 3600000;
+      
+      const { xpPerHour } = MINER_LEVELS[p.miner_level];
+      const pendingXp = Math.floor(hoursElapsed * xpPerHour);
+      const newBankedXp = (p.banked_passive_xp || 0) + pendingXp;
+
       await supabase
         .from('players')
         .update({
           miner_level: level,
+          banked_passive_xp: newBankedXp,
           last_claim_at: new Date().toISOString(), // Reset claim timer to now
           updated_at: new Date().toISOString(),
         })
@@ -118,32 +153,34 @@ export const PlayerService = {
     }
   },
 
-  async markFlexUsed(fid: number, type: 'altitude' | 'xp') {
-    const column = type === 'altitude' ? 'has_used_altitude_flex' : 'has_used_xp_flex';
-    const updates: any = {
-      [column]: true,
-      updated_at: new Date().toISOString(),
-    };
-    
-    // Also mark as uploaded if altitude flex
-    if (type === 'altitude') {
-      updates.has_uploaded_score = true;
+  async claimPassiveXp(fid: number): Promise<void> {
+    const { data: p } = await supabase
+      .from('players')
+      .select('*')
+      .eq('fid', fid)
+      .maybeSingle();
+
+    if (!p) return;
+
+    const now = Date.now();
+    const lastClaim = new Date(p.last_claim_at).getTime();
+    const hoursElapsed = (now - lastClaim) / 3600000;
+
+    const { xpPerHour } = MINER_LEVELS[p.miner_level];
+    const currentPendingXp = Math.floor(hoursElapsed * xpPerHour);
+    const totalClaimable = (p.banked_passive_xp || 0) + currentPendingXp;
+
+    if (totalClaimable > 0) {
+      await supabase
+        .from('players')
+        .update({
+          total_xp: p.total_xp + totalClaimable,
+          banked_passive_xp: 0,
+          last_claim_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('fid', fid);
     }
-
-    await supabase
-      .from('players')
-      .update(updates)
-      .eq('fid', fid);
-  },
-
-  async markScoreUploaded(fid: number) {
-    await supabase
-      .from('players')
-      .update({
-        has_uploaded_score: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('fid', fid);
   },
 
   async incrementReferralCount(referrerFid: number) {
@@ -184,15 +221,17 @@ export const PlayerService = {
   },
 
   async getLeaderboard(limit: number = 15, sortBy: 'skill' | 'grind' = 'skill'): Promise<LeaderboardEntry[]> {
-    const orderBy = sortBy === 'skill' ? 'high_score' : 'total_xp';
+    // Sort by the Leaderboard Snapshot columns
+    const orderBy = sortBy === 'skill' ? 'leaderboard_high_score' : 'leaderboard_total_xp';
     let query = supabase
       .from('players')
-      .select('fid, username, pfp_url, miner_level, high_score, total_xp')
+      .select('fid, username, pfp_url, miner_level, leaderboard_high_score, leaderboard_total_xp')
       .order(orderBy, { ascending: false })
       .limit(limit);
 
+    // Only show players who have Flexed (synced)
     if (sortBy === 'skill') {
-      query = query.eq('has_uploaded_score', true);
+      query = query.eq('has_used_altitude_flex', true);
     } else {
       query = query.eq('has_used_xp_flex', true);
     }
@@ -204,22 +243,22 @@ export const PlayerService = {
       fid: d.fid,
       username: d.username,
       pfpUrl: d.pfp_url,
-      highScore: d.high_score,
-      totalXp: d.total_xp,
+      highScore: d.leaderboard_high_score, // Map snapshot to display
+      totalXp: d.leaderboard_total_xp,     // Map snapshot to display
       minerLevel: d.miner_level,
       rank: index + 1,
     }));
   },
 
   async getPlayerRank(fid: number, type: 'skill' | 'grind'): Promise<number> {
-    const orderBy = type === 'skill' ? 'high_score' : 'total_xp';
+    const orderBy = type === 'skill' ? 'leaderboard_high_score' : 'leaderboard_total_xp';
     let query = supabase
       .from('players')
       .select('fid')
       .order(orderBy, { ascending: false });
 
     if (type === 'skill') {
-      query = query.eq('has_uploaded_score', true);
+      query = query.eq('has_used_altitude_flex', true);
     } else {
       query = query.eq('has_used_xp_flex', true);
     }
@@ -229,34 +268,6 @@ export const PlayerService = {
     if (!data) return 0;
     const index = data.findIndex(p => p.fid === fid);
     return index >= 0 ? index + 1 : 0;
-  },
-
-  async claimPassiveXp(fid: number): Promise<void> {
-    const { data: p } = await supabase
-      .from('players')
-      .select('*')
-      .eq('fid', fid)
-      .maybeSingle();
-
-    if (!p || p.miner_level === 0) return;
-
-    const now = Date.now();
-    const lastClaim = new Date(p.last_claim_at).getTime();
-    const hoursElapsed = (now - lastClaim) / 3600000;
-
-    const { cost, multiplier, xpPerHour } = MINER_LEVELS[p.miner_level];
-    const passiveXp = Math.floor(hoursElapsed * xpPerHour);
-
-    if (passiveXp > 0) {
-      await supabase
-        .from('players')
-        .update({
-          total_xp: p.total_xp + passiveXp,
-          last_claim_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('fid', fid);
-    }
   },
 
   async completeTask(fid: number, taskId: string, xpReward: number) {
@@ -284,18 +295,13 @@ export const PlayerService = {
   },
 
   async recordTransaction(fid: number, amountUsdc: string, transactionType: string, transactionHash: string, metadata?: any) {
-    const { data: player } = await supabase
-      .from('players')
-      .select('id')
-      .eq('fid', fid)
-      .maybeSingle();
+    const { data: player } = await supabase.from('players').select('fid').eq('fid', fid).maybeSingle();
 
     if (player) {
       await supabase
         .from('transactions')
         .insert([
           {
-            player_id: player.id,
             fid,
             amount_usdc: amountUsdc,
             transaction_type: transactionType,
@@ -315,16 +321,19 @@ export const PlayerService = {
       totalXp: db.total_xp,
       totalGold: db.total_gold,
       highScore: db.high_score,
+      leaderboardHighScore: db.leaderboard_high_score || 0,
+      leaderboardTotalXp: db.leaderboard_total_xp || 0,
       totalRuns: db.total_runs,
       referralCount: db.referral_count,
       referralXpEarned: db.referral_xp_earned,
       minerLevel: db.miner_level,
       referrerFid: db.referrer_fid,
-      hasUploadedScore: db.has_uploaded_score,
+      hasUploadedScore: db.has_uploaded_score, // Keep for compat
       hasUsedAltitudeFlex: db.has_used_altitude_flex,
       hasUsedXpFlex: db.has_used_xp_flex,
       completedTasks: db.completed_tasks || [],
       lastClaimAt: new Date(db.last_claim_at).getTime(),
+      bankedPassiveXp: db.banked_passive_xp || 0,
       walletAddress: db.wallet_address,
     };
   }
