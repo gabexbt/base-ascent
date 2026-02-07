@@ -431,6 +431,7 @@ const MainApp: React.FC = () => {
               {status === GameStatus.PLAYING ? (
                 <GameEngine isActive={true} onGameOver={handleGameOver} multiplier={currentMiner.multiplier} />
               ) : status === GameStatus.GAMEOVER && gameOverData ? (
+<<<<<<< HEAD
                 <div className="flex-1 flex flex-col justify-center gap-8 text-center animate-in zoom-in">
                   <div className="space-y-2">
                     <h2 className="text-xs opacity-50 uppercase font-black tracking-widest">ASCENT COMPLETE</h2>
@@ -466,6 +467,16 @@ const MainApp: React.FC = () => {
                     <button onClick={handleGoHome} className="w-full bg-white/10 text-white py-4 font-black text-sm uppercase rounded-2xl active:scale-95">Back to Hub</button>
                   </div>
                 </div>
+=======
+                <GameOver 
+                  score={gameOverData.score}
+                  xpGained={gameOverData.xp}
+                  goldGained={gameOverData.gold}
+                  isHighScore={player && gameOverData.score >= player.highScore && gameOverData.score > 0}
+                  onPlayAgain={handlePlayAgain}
+                  onGoHome={handleGoHome}
+                />
+>>>>>>> main
               ) : status === GameStatus.IDLE ? (
                 <div className="flex-1 flex flex-col items-center gap-2 text-center">
                    <div className="flex flex-col items-center z-10 w-full px-2 mt-8">
@@ -480,8 +491,8 @@ const MainApp: React.FC = () => {
                     </button>
                     <div className="grid grid-cols-2 gap-3 w-full max-w-[320px]">
                       <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center">
-                        <div className="text-[8px] opacity-30 uppercase font-black">XP Bonus</div>
-                        <div className="text-xl font-black italic">{currentMiner.multiplier.toFixed(1)}x</div>
+                        <div className="text-[8px] opacity-30 uppercase font-black">Miner Level</div>
+                        <div className="text-xl font-black italic">LVL {player?.minerLevel || 0}</div>
                       </div>
                       <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center">
                         <div className="text-[8px] opacity-30 uppercase font-black">High Score</div>
@@ -544,6 +555,15 @@ const MainApp: React.FC = () => {
             </div>
           ) : activeTab === Tab.RANKINGS ? (
             <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+               <div className="shrink-0 px-4 py-3 border border-white/10 bg-white/5 rounded-3xl space-y-2 text-left">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-white"></div>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">LEADERBOARD RULES</h3>
+                  </div>
+                  <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
+                    FLEX YOUR STATS TO SECURE YOUR POSITION. SYNCING UPDATES THE PUBLIC BOARD WITHOUT CONSUMING YOUR ASSETS. SECURE YOUR POSITION FOR THE AIRDROP (TOP 20).
+                  </p>
+               </div>
                <div className="flex justify-between items-center shrink-0 pr-4">
                  <h2 className="text-3xl font-black italic uppercase tracking-tighter ml-4">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
                  <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
@@ -577,7 +597,10 @@ const MainApp: React.FC = () => {
                <div className="shrink-0 p-4 border border-white/10 bg-white/5 rounded-3xl space-y-4">
                   <div className="flex justify-between items-center px-2">
                      <div className="text-[10px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
-                     <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank || 0} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
+                     <div className="flex items-center gap-3">
+                        <span className={`text-[9px] font-bold uppercase ${syncStatus === 'SYNCED' ? 'text-green-400' : 'text-yellow-400'}`}>{syncStatus}</span>
+                        <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank || 0} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
+                     </div>
                   </div>
                   <button onClick={handleFlex} disabled={processingPayment} className="w-full py-4 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-2xl active:scale-95 disabled:opacity-50">
                     {processingPayment ? 'Processing...' : (
@@ -612,7 +635,7 @@ const MainApp: React.FC = () => {
                   <h3 className="text-2xl font-black italic uppercase opacity-40 mb-5 tracking-widest">STATS</h3>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-6 w-full text-center">
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Altitude Record</span><span className="text-xl font-black italic block">{player?.highScore || 0} Meters</span></div>
-                     <div><span className="text-[9px] font-black opacity-30 uppercase">Sync Status</span><span className={`text-[10px] font-bold block uppercase ${syncStatus === 'SYNCED' ? 'text-green-400' : 'text-yellow-400'}`}>{syncStatus}</span></div>
+                     <div><span className="text-[9px] font-black opacity-30 uppercase">Miner Level</span><span className="text-xl font-black italic block">LVL {player?.minerLevel || 0}</span></div>
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Total XP</span><span className="text-xl font-black italic block">{player?.totalXp.toLocaleString()}</span></div>
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Total Games</span><span className="text-xl font-black italic block">{player?.totalRuns}</span></div>
                   </div>
