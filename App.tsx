@@ -86,7 +86,6 @@ const MainApp: React.FC = () => {
   const { frameContext, isLoading: isFarcasterLoading } = useFarcaster();
   const { address } = useAccount();
   const { isPending } = useCasterContract();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     // Preload audio tracks
@@ -95,20 +94,6 @@ const MainApp: React.FC = () => {
       const audio = new Audio(src);
       audio.preload = 'auto';
     });
-  }, []);
-
-  const playRandomTrack = useCallback(() => {
-    const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
-    const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-    const audio = new Audio(randomTrack);
-    audio.volume = 0.5;
-    audio.loop = true;
-    audio.play().catch(e => console.log("Audio play failed:", e));
-    audioRef.current = audio;
   }, []);
 
   const stopAudio = useCallback(() => {
@@ -352,11 +337,7 @@ const MainApp: React.FC = () => {
         });
         hash = transactionId;
 
-<<<<<<< Updated upstream
-        await PlayerService.updatePlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore);
-=======
         await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore);
->>>>>>> Stashed changes
         await PlayerService.recordTransaction(player.fid, '0.10', `${type}_flex_paid`, hash, { flex_type: type });
       }
       await loadData();
@@ -369,13 +350,9 @@ const MainApp: React.FC = () => {
   };
 
   const handleGameOver = async (score: number, xp: number, gold: number) => {
-<<<<<<< Updated upstream
     stopAudio();
-    setGameOverData({ score, xp, gold });
-=======
     const isNewHighScore = player ? score > player.highScore : false;
     setGameOverData({ score, xp, gold, isNewHighScore });
->>>>>>> Stashed changes
     if (player) {
       // Update local state
       const updatedPlayer = {
