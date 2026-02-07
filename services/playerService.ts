@@ -12,19 +12,26 @@ export const PlayerService = {
         .maybeSingle();
 
       if (!data) {
+        // Try to recover from leaderboard if player missing but stats exist
+        const { data: existingStats } = await supabase
+          .from('leaderboard')
+          .select('*')
+          .eq('fid', fid)
+          .maybeSingle();
+
         const newPlayer = {
           fid,
           username,
           pfp_url: pfpUrl,
-          total_xp: 0,
+          total_xp: existingStats?.total_xp || 0,
           total_gold: 0,
-          high_score: 0,
+          high_score: existingStats?.high_score || 0,
           total_runs: 0,
           referral_count: 0,
           referral_xp_earned: 0,
-          miner_level: 0,
+          miner_level: existingStats?.miner_level || 0,
           referrer_fid: (referrerFid && referrerFid !== fid) ? referrerFid : null,
-          has_uploaded_score: false,
+          has_uploaded_score: !!existingStats,
           has_used_altitude_flex: false,
           has_used_xp_flex: false,
         };
@@ -80,6 +87,19 @@ export const PlayerService = {
         updated_at: new Date().toISOString(),
       })
       .eq('fid', fid);
+
+    // Sync to leaderboard table
+    await supabase
+      .from('leaderboard')
+      .upsert({
+        fid: fid,
+        username: p.username,
+        pfp_url: p.pfp_url,
+        high_score: newHighScore,
+        total_xp: p.total_xp + xp,
+        miner_level: p.miner_level,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'fid' });
   },
 
   async upgradeMiner(fid: number, level: number) {
@@ -160,7 +180,7 @@ export const PlayerService = {
 
   async getLeaderboard(limit: number = 15): Promise<LeaderboardEntry[]> {
     const { data, error } = await supabase
-      .from('players')
+      .from('leaderboard')
       .select('fid, username, pfp_url, miner_level, high_score, total_xp')
       .order('high_score', { ascending: false })
       .order('total_xp', { ascending: false })

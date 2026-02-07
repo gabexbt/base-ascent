@@ -64,38 +64,49 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
         osc.type = 'square';
         osc.frequency.setValueAtTime(120, now);
         osc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
-        gain.gain.setValueAtTime(0.04, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        gain.gain.setValueAtTime(0.007, now);
+        gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.1);
         osc.start(now); osc.stop(now + 0.1);
       } else if (type === 'perfect') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(523.25, now);
         osc.frequency.linearRampToValueAtTime(1046.50, now + 0.15);
-        gain.gain.setValueAtTime(0.12, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        gain.gain.setValueAtTime(0.02, now);
+        gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.3);
         osc.start(now); osc.stop(now + 0.3);
       } else if (type === 'fail') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(80, now);
         osc.frequency.linearRampToValueAtTime(30, now + 0.5);
-        gain.gain.setValueAtTime(0.05, now);
-        gain.gain.linearRampToValueAtTime(0.001, now + 0.5);
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.linearRampToValueAtTime(0.0005, now + 0.5);
         osc.start(now); osc.stop(now + 0.5);
       }
     } catch (e) {}
   }, []);
 
   const spawnBlock = useCallback((width: number, y: number, currentScore: number) => {
-    let baseSpeed = 1.2;
-    if (currentScore < 3) {
-      baseSpeed = 1.2 + (currentScore * 0.1);
-    } else if (currentScore < 10) {
-      baseSpeed = 1.5 + (currentScore * 0.15);
+    let baseSpeed = 1.0;
+    
+    if (currentScore < 10) {
+      // Very slow start
+      baseSpeed = 0.5 + (currentScore * 0.1); // 0.5 -> 1.5
+    } else if (currentScore < 20) {
+      // Ramp up
+      baseSpeed = 1.5 + ((currentScore - 10) * 0.2); // 1.5 -> 3.5
+    } else if (currentScore < 40) {
+      // Steady / Slight increase
+      baseSpeed = 3.5 + ((currentScore - 20) * 0.05); // 3.5 -> 4.5
+    } else if (currentScore < 50) {
+      // Ramp up again
+      baseSpeed = 4.5 + ((currentScore - 40) * 0.15); // 4.5 -> 6.0
     } else {
-      const swing = Math.sin(currentScore * 0.5) * 0.3;
-      baseSpeed = 3.0 + (Math.log10(currentScore) * 1.2) + swing;
+      // Max speed with swings
+      const swing = Math.sin(currentScore * 0.5) * 0.5;
+      baseSpeed = 6.0 + (Math.log10(currentScore - 40) * 1.0) + swing;
     }
-    const finalSpeed = Math.min(baseSpeed, 7.5);
+    
+    const finalSpeed = Math.min(baseSpeed, 8.5);
 
     currentBlockRef.current = {
       x: Math.random() > 0.5 ? 0 : GAME_WIDTH - width,
