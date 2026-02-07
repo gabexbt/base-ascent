@@ -48,7 +48,7 @@ const LoadingScreen: React.FC = () => {
         if (prev >= 100) return 100;
         return prev + 1;
       });
-    }, 60);
+    }, 20);
 
     return () => {
       clearInterval(msgInterval);

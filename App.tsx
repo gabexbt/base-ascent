@@ -75,6 +75,9 @@ const MainApp: React.FC = () => {
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
+    query: {
+      refetchInterval: 5000,
+    }
   });
 
   const usdcBalanceFormatted = useMemo(() => {
@@ -84,12 +87,22 @@ const MainApp: React.FC = () => {
 
   const loadData = useCallback(async () => {
     try {
-      let fid = frameContext.user.fid || 12345;
-      let username = frameContext.user.username || 'player.eth';
-      let pfpUrl = frameContext.user.pfpUrl || '';
+      if (!frameContext.isReady) return;
+      
+      let fid = frameContext.user.fid;
+      let username = frameContext.user.username;
+      let pfpUrl = frameContext.user.pfpUrl;
       let referrer = frameContext.referrerFid;
 
-      const data = await PlayerService.getPlayer(fid, username, pfpUrl, referrer);
+      // Fallback for non-frame environments (browser testing) ONLY if fid is missing
+      if (!fid) {
+         console.log("No FID found, using fallback (dev mode)");
+         fid = 18350;
+         username = 'dev-preview';
+         pfpUrl = 'https://placehold.co/400';
+      }
+
+      const data = await PlayerService.getPlayer(fid, username || 'unknown', pfpUrl, referrer);
       setPlayer(data);
       const board = await PlayerService.getLeaderboard(15);
       setLeaderboard(board);
@@ -103,7 +116,18 @@ const MainApp: React.FC = () => {
     }
   }, [frameContext, rankingType]);
 
-  useEffect(() => { loadData().then(() => setTimeout(() => setLoading(false), 2000)); }, [loadData]);
+  // Wait for frame context to be ready before loading data
+  useEffect(() => { 
+    if (frameContext.isReady) {
+       loadData();
+    }
+  }, [loadData, frameContext.isReady]);
+  
+  // Separate loading state management
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 2500); // Fixed 2.5s load to ensure 100% bar
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -141,7 +165,7 @@ const MainApp: React.FC = () => {
         if (verifyingTaskId) setHasLeftWindow(true);
       } else {
         if (verifyingTaskId && hasLeftWindow) {
-          setTaskTimers(prev => ({ ...prev, [verifyingTaskId]: { time: 15, focused: true } }));
+          setTaskTimers(prev => ({ ...prev, [verifyingTaskId]: { time: 10, focused: true } }));
           setVerifyingTaskId(null);
           setHasLeftWindow(false);
         }
@@ -154,7 +178,7 @@ const MainApp: React.FC = () => {
 
     const handleFocus = () => {
       if (verifyingTaskId && hasLeftWindow) {
-        setTaskTimers(prev => ({ ...prev, [verifyingTaskId]: { time: 15, focused: true } }));
+        setTaskTimers(prev => ({ ...prev, [verifyingTaskId]: { time: 10, focused: true } }));
         setVerifyingTaskId(null);
         setHasLeftWindow(false);
       }
@@ -184,9 +208,13 @@ const MainApp: React.FC = () => {
     if (isStarting) return;
     setIsStarting(true);
     try {
+      // Force status update
       setStatus(GameStatus.PLAYING);
       setGameOverData(null);
-    } catch (e) { setStatus(GameStatus.IDLE); }
+    } catch (e) { 
+      console.error("Start Error:", e);
+      setStatus(GameStatus.IDLE); 
+    }
     setTimeout(() => setIsStarting(false), 500);
   };
 
@@ -223,6 +251,7 @@ const MainApp: React.FC = () => {
       await loadData();
     } catch (e) {
       console.error(e);
+      setProcessingPayment(false);
     } finally {
       setProcessingPayment(false);
     }
@@ -253,7 +282,9 @@ const MainApp: React.FC = () => {
       }
       await loadData();
     } catch (e) {
-      console.error(e);
+      console.error("Payment Error:", e);
+      // Reset processing state on error so button isn't stuck
+      setProcessingPayment(false);
     } finally {
       setProcessingPayment(false);
     }
@@ -310,7 +341,7 @@ const MainApp: React.FC = () => {
   if (loading || isFarcasterLoading) return <LoadingScreen />;
 
   return (
-    <div className="h-screen bg-black text-white font-mono flex flex-col items-center overflow-hidden antialiased select-none">
+    <div className="h-[100dvh] bg-black text-white font-mono flex flex-col items-center overflow-hidden antialiased select-none">
       <header className="w-full max-w-md px-6 py-4 flex justify-between items-center border-b border-white/10 bg-black shrink-0 z-20">
         <div className="flex items-center gap-3">
           <img src={player?.pfpUrl || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full border border-white/20" alt="" />
@@ -348,10 +379,10 @@ const MainApp: React.FC = () => {
                     <div className="w-full h-[220px] flex items-center justify-center animate-pulse duration-[2000ms]">
                        <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.6]" alt="ASCENT" />
                     </div>
-                    <p className="text-[11px] opacity-40 uppercase tracking-[0.4em] font-black mt-2">ASCEND TO NEW HEIGHTS</p>
+                    <p className="text-[11px] opacity-40 uppercase tracking-[0.4em] font-black mt-6">ASCEND TO NEW HEIGHTS</p>
                   </div>
                   <div className="flex flex-col items-center w-full mt-auto mb-6 gap-6">
-                    <button onClick={() => { setPaymentType(null); handleStartGame(); }} disabled={isPending || isStarting} className="w-full max-w-[320px] py-5 border-[3px] border-white bg-white text-black font-black text-lg uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50">
+                    <button onClick={() => { handleStartGame(); }} disabled={isPending || isStarting} className="w-full max-w-[320px] py-5 border-[3px] border-white bg-white text-black font-black text-lg uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50">
                       {isPending ? 'SYNCING...' : 'Tap to Start'}
                     </button>
                     <div className="grid grid-cols-2 gap-3 w-full max-w-[320px]">
@@ -369,13 +400,13 @@ const MainApp: React.FC = () => {
               ) : <div className="flex-1 flex flex-col items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>}
             </div>
           ) : activeTab === Tab.HARDWARE ? (
-            <div className="flex-1 flex flex-col gap-6 overflow-hidden items-center">
+            <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar items-center pb-8">
               <h2 className="text-4xl font-black italic tracking-tighter uppercase text-center w-full">Hardware</h2>
-              <div className="p-5 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-center">
+              <div className="p-5 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-center shrink-0">
                 <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">AUTO MINER</h3>
                 <p className="text-[10px] leading-relaxed opacity-40 uppercase font-bold">Upgrade your miner to farm more XP to reach the leaderboard and qualify for the airdrop.</p>
               </div>
-              <div className="p-8 border border-white/10 bg-white/5 rounded-[40px] w-full flex-1 flex flex-col items-center justify-center gap-8">
+              <div className="p-8 border border-white/10 bg-white/5 rounded-[40px] w-full flex-1 flex flex-col items-center justify-center gap-8 shrink-0">
                 {player?.minerLevel === 0 ? (
                   <div className="flex flex-col items-center gap-6 w-full text-center">
                     <div className="w-20 h-20 border-2 border-dashed border-white/20 rounded-full flex items-center justify-center opacity-30"><Icons.Hardware /></div>
@@ -394,13 +425,13 @@ const MainApp: React.FC = () => {
                       </div>
                       <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center justify-center">
                         <div className="text-[9px] opacity-40 font-black uppercase tracking-wider mb-1">Rate</div>
-                        <div className="text-xl font-black italic">{currentMiner.xpPerHour.toLocaleString()} XP/H</div>
+                        <div className="text-xl font-black italic">{currentMiner.xpPerHour.toLocaleString()} XP/HR</div>
                       </div>
                     </div>
                     
-                    <div className="w-full p-8 bg-black/50 border border-white/10 rounded-[32px] flex flex-col justify-center gap-2 items-center text-center flex-1">
+                    <div className="w-full p-8 bg-[#111] border border-white/10 rounded-[32px] flex flex-col justify-center gap-2 items-center text-center shrink-0">
                       <div className="text-xs opacity-40 font-black uppercase tracking-widest">Unclaimed Earnings</div>
-                      <div className="text-5xl font-black italic text-center tracking-tighter">+{passiveEarnings}</div>
+                      <div className="text-4xl font-black italic text-center tracking-tighter">+{passiveEarnings}</div>
                       <div className="text-xs font-bold uppercase opacity-30">XP Generated</div>
                       <button onClick={handleClaim} disabled={passiveEarnings === 0} className="mt-auto w-full py-4 bg-white text-black font-black text-lg rounded-2xl active:scale-95 disabled:opacity-20 transition-all uppercase">Claim to Wallet</button>
                     </div>
@@ -420,9 +451,9 @@ const MainApp: React.FC = () => {
             </div>
           ) : activeTab === Tab.RANKINGS ? (
             <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-               <div className="flex justify-between items-end shrink-0">
-                 <h2 className="text-4xl font-black italic uppercase tracking-tighter ml-4">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
-                 <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1">
+               <div className="flex justify-between items-center shrink-0 pr-4">
+                 <h2 className="text-3xl font-black italic uppercase tracking-tighter ml-4">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
+                 <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
                     <button onClick={() => setRankingType('skill')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
                     <button onClick={() => setRankingType('grind')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
                   </div>
