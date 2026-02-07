@@ -261,10 +261,13 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
         ctx.fillStyle = `rgba(255,215,0,${p.life * 0.8})`;
         ctx.fillRect(0, p.y - 1, GAME_WIDTH, 3);
       } else if (p.type === 'text') {
-        ctx.fillStyle = `rgba(255,255,255,${p.life})`;
+        ctx.fillStyle = `rgba(255,215,0,${p.life})`; // Gold text
+        ctx.shadowColor = 'rgba(255,215,0,0.5)';
+        ctx.shadowBlur = 10;
         ctx.font = `italic 900 ${14 * p.scale}px 'JetBrains Mono'`;
         ctx.textAlign = 'center';
         ctx.fillText(p.text!, p.x, p.y);
+        ctx.shadowBlur = 0;
       } else {
         ctx.fillStyle = GOLD_NEON; ctx.globalAlpha = p.life;
         ctx.fillRect(p.x, p.y, p.scale, p.scale); ctx.globalAlpha = 1;

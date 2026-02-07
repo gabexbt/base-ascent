@@ -77,9 +77,13 @@ export const PlayerService = {
       total_xp: totalXp,
       total_gold: totalGold,
       high_score: newHighScore,
-      has_uploaded_score: isNewHighScore ? true : undefined, // If new high score, mark as uploaded (since we are syncing)
       updated_at: new Date().toISOString(),
     };
+
+    // If new high score, mark as NOT uploaded (requires flex/pay to sync to leaderboard)
+    if (isNewHighScore) {
+      updates.has_uploaded_score = false;
+    }
     
     // Only update total_runs if provided and greater than current
     if (totalRuns !== undefined && totalRuns > (p.total_runs || 0)) {
@@ -116,12 +120,19 @@ export const PlayerService = {
 
   async markFlexUsed(fid: number, type: 'altitude' | 'xp') {
     const column = type === 'altitude' ? 'has_used_altitude_flex' : 'has_used_xp_flex';
+    const updates: any = {
+      [column]: true,
+      updated_at: new Date().toISOString(),
+    };
+    
+    // Also mark as uploaded if altitude flex
+    if (type === 'altitude') {
+      updates.has_uploaded_score = true;
+    }
+
     await supabase
       .from('players')
-      .update({
-        [column]: true,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq('fid', fid);
   },
 
@@ -174,11 +185,19 @@ export const PlayerService = {
 
   async getLeaderboard(limit: number = 15, sortBy: 'skill' | 'grind' = 'skill'): Promise<LeaderboardEntry[]> {
     const orderBy = sortBy === 'skill' ? 'high_score' : 'total_xp';
-    const { data, error } = await supabase
+    let query = supabase
       .from('players')
       .select('fid, username, pfp_url, miner_level, high_score, total_xp')
       .order(orderBy, { ascending: false })
       .limit(limit);
+
+    if (sortBy === 'skill') {
+      query = query.eq('has_uploaded_score', true);
+    } else {
+      query = query.eq('has_used_xp_flex', true);
+    }
+
+    const { data, error } = await query;
 
     if (error) return [];
     return data.map((d, index) => ({
@@ -194,10 +213,18 @@ export const PlayerService = {
 
   async getPlayerRank(fid: number, type: 'skill' | 'grind'): Promise<number> {
     const orderBy = type === 'skill' ? 'high_score' : 'total_xp';
-    const { data } = await supabase
+    let query = supabase
       .from('players')
       .select('fid')
       .order(orderBy, { ascending: false });
+
+    if (type === 'skill') {
+      query = query.eq('has_uploaded_score', true);
+    } else {
+      query = query.eq('has_used_xp_flex', true);
+    }
+
+    const { data } = await query;
 
     if (!data) return 0;
     const index = data.findIndex(p => p.fid === fid);

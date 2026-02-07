@@ -179,7 +179,7 @@ const MainApp: React.FC = () => {
     if (frameContext.isReady) {
        loadData();
     }
-  }, [loadData, frameContext.isReady]);
+  }, [loadData, frameContext.isReady, activeTab]);
   
   // Separate loading state management
   useEffect(() => {
@@ -411,7 +411,7 @@ const MainApp: React.FC = () => {
     if (rankingType === 'skill') {
       return player.hasUploadedScore ? 'SYNCED' : 'UNSYNCED';
     }
-    return 'SYNCED';
+    return player.hasUsedXpFlex ? 'SYNCED' : 'UNSYNCED';
   }, [player, rankingType]);
 
   if (loading || isFarcasterLoading) return <LoadingScreen />;
