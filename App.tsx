@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider, createConfig, http, useAccount, useReadContract } from 'wagmi';
-import { baseSepolia } from 'viem/chains';
+import { base } from 'viem/chains';
 import { formatUnits, erc20Abi } from 'viem';
 import { coinbaseWallet } from 'wagmi/connectors';
 import GameEngine from './components/GameEngine';
@@ -15,9 +15,9 @@ import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS } from './constants';
 import { PlayerService } from './services/playerService';
 
 const config = createConfig({
-  chains: [baseSepolia],
+  chains: [base],
   connectors: [coinbaseWallet({ appName: 'Base Ascent' })],
-  transports: { [baseSepolia.id]: http(process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://sepolia.base.org') },
+  transports: { [base.id]: http(process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org') },
 });
 
 const queryClient = new QueryClient();
