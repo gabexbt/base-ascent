@@ -155,6 +155,10 @@ const MainApp: React.FC = () => {
              // Take max, assuming local has played more
              mergedPlayer.totalXp = localData.totalXp;
           }
+          // Restore totalRuns from local storage if greater than DB (prevents reset)
+          if (localData.totalRuns > mergedPlayer.totalRuns) {
+             mergedPlayer.totalRuns = localData.totalRuns;
+          }
         }
         setPlayer(mergedPlayer);
         
@@ -323,7 +327,7 @@ const MainApp: React.FC = () => {
       let hash = 'free';
       if (!hasUsedFree) {
         // Free first time
-        await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore);
+        await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns);
         await PlayerService.markFlexUsed(player.fid, type);
         await PlayerService.recordTransaction(player.fid, '0', `${type}_flex_free`, 'free', { flex_type: type });
       } else {
@@ -337,7 +341,7 @@ const MainApp: React.FC = () => {
         });
         hash = transactionId;
 
-        await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore);
+        await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns);
         await PlayerService.recordTransaction(player.fid, '0.10', `${type}_flex_paid`, hash, { flex_type: type });
       }
       await loadData();
@@ -366,8 +370,12 @@ const MainApp: React.FC = () => {
       // Save to localStorage for persistence across sessions
       localStorage.setItem(`player_stats_${player.fid}`, JSON.stringify({
         highScore: updatedPlayer.highScore,
-        totalXp: updatedPlayer.totalXp
+        totalXp: updatedPlayer.totalXp,
+        totalRuns: updatedPlayer.totalRuns
       }));
+      
+      // Auto-save run count to DB in background (best effort)
+      PlayerService.syncPlayerStats(player.fid, updatedPlayer.totalXp, updatedPlayer.totalGold, updatedPlayer.highScore, updatedPlayer.totalRuns).catch(console.error);
     }
     setStatus(GameStatus.GAMEOVER);
   };

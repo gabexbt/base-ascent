@@ -12,26 +12,19 @@ export const PlayerService = {
         .maybeSingle();
 
       if (!data) {
-        // Try to recover from leaderboard if player missing but stats exist
-        const { data: existingStats } = await supabase
-          .from('leaderboard')
-          .select('*')
-          .eq('fid', fid)
-          .maybeSingle();
-
         const newPlayer = {
           fid,
           username,
           pfp_url: pfpUrl,
-          total_xp: existingStats?.total_xp || 0,
+          total_xp: 0,
           total_gold: 0,
-          high_score: existingStats?.high_score || 0,
+          high_score: 0,
           total_runs: 0,
           referral_count: 0,
           referral_xp_earned: 0,
-          miner_level: existingStats?.miner_level || 0,
+          miner_level: 0,
           referrer_fid: (referrerFid && referrerFid !== fid) ? referrerFid : null,
-          has_uploaded_score: !!existingStats,
+          has_uploaded_score: false,
           has_used_altitude_flex: false,
           has_used_xp_flex: false,
         };
@@ -59,10 +52,10 @@ export const PlayerService = {
     }
   },
 
-  async syncPlayerStats(fid: number, totalXp: number, totalGold: number, highScore: number) {
+  async syncPlayerStats(fid: number, totalXp: number, totalGold: number, highScore: number, totalRuns?: number) {
     const { data: p } = await supabase
       .from('players')
-      .select('high_score, total_xp, referrer_fid')
+      .select('high_score, total_xp, referrer_fid, total_runs')
       .eq('fid', fid)
       .maybeSingle();
 
@@ -78,30 +71,25 @@ export const PlayerService = {
     const newHighScore = Math.max(highScore, p.high_score);
     // If we are syncing, we are effectively uploading the score if it's a new high
     const isNewHighScore = newHighScore > p.high_score;
+    
+    // Update object
+    const updates: any = {
+      total_xp: totalXp,
+      total_gold: totalGold,
+      high_score: newHighScore,
+      has_uploaded_score: isNewHighScore ? true : undefined, // If new high score, mark as uploaded (since we are syncing)
+      updated_at: new Date().toISOString(),
+    };
+    
+    // Only update total_runs if provided and greater than current
+    if (totalRuns !== undefined && totalRuns > (p.total_runs || 0)) {
+        updates.total_runs = totalRuns;
+    }
 
     await supabase
       .from('players')
-      .update({
-        total_xp: totalXp,
-        total_gold: totalGold,
-        high_score: newHighScore,
-        has_uploaded_score: isNewHighScore ? true : undefined, // If new high score, mark as uploaded (since we are syncing)
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq('fid', fid);
-
-    // Sync to leaderboard table
-    await supabase
-      .from('leaderboard')
-      .upsert({
-        fid: fid,
-        username: p.username,
-        pfp_url: p.pfp_url,
-        high_score: newHighScore,
-        total_xp: p.total_xp + xp,
-        miner_level: p.miner_level,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'fid' });
   },
 
   async upgradeMiner(fid: number, level: number) {
@@ -187,7 +175,7 @@ export const PlayerService = {
   async getLeaderboard(limit: number = 15, sortBy: 'skill' | 'grind' = 'skill'): Promise<LeaderboardEntry[]> {
     const orderBy = sortBy === 'skill' ? 'high_score' : 'total_xp';
     const { data, error } = await supabase
-      .from('leaderboard')
+      .from('players')
       .select('fid, username, pfp_url, miner_level, high_score, total_xp')
       .order(orderBy, { ascending: false })
       .limit(limit);
