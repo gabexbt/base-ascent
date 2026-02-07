@@ -90,23 +90,23 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
     
     if (currentScore < 10) {
       // Very slow start
-      baseSpeed = 0.5 + (currentScore * 0.1); // 0.5 -> 1.5
+      baseSpeed = 3.0 + (currentScore * 0.1); // 3.0 -> 4.0
     } else if (currentScore < 20) {
       // Ramp up
-      baseSpeed = 1.5 + ((currentScore - 10) * 0.2); // 1.5 -> 3.5
+      baseSpeed = 4.0 + ((currentScore - 10) * 0.2); // 4.0 -> 6.0
     } else if (currentScore < 40) {
       // Steady / Slight increase
-      baseSpeed = 3.5 + ((currentScore - 20) * 0.05); // 3.5 -> 4.5
+      baseSpeed = 6.0 + ((currentScore - 20) * 0.05); // 6.0 -> 7.0
     } else if (currentScore < 50) {
       // Ramp up again
-      baseSpeed = 4.5 + ((currentScore - 40) * 0.15); // 4.5 -> 6.0
+      baseSpeed = 7.0 + ((currentScore - 40) * 0.15); // 7.0 -> 8.5
     } else {
       // Max speed with swings
       const swing = Math.sin(currentScore * 0.5) * 0.5;
-      baseSpeed = 6.0 + (Math.log10(currentScore - 40) * 1.0) + swing;
+      baseSpeed = 8.5 + (Math.log10(currentScore - 40) * 1.0) + swing;
     }
     
-    const finalSpeed = Math.min(baseSpeed, 8.5);
+    const finalSpeed = Math.min(baseSpeed, 12.0);
 
     currentBlockRef.current = {
       x: Math.random() > 0.5 ? 0 : GAME_WIDTH - width,
