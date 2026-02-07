@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import sdk from '@farcaster/frame-sdk';
 
 interface FrameContext {
   user: {
@@ -7,15 +8,13 @@ interface FrameContext {
     pfpUrl?: string;
     walletAddress?: string;
   };
-  frameMessage?: any;
+  context?: any;
   referrerFid?: number;
   isReady: boolean;
-  error?: string;
 }
 
 interface FarcasterContextType {
   frameContext: FrameContext;
-  setFrameContext: (context: FrameContext) => void;
   isLoading: boolean;
 }
 
@@ -29,93 +28,48 @@ export const FarcasterProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const initializeFarcaster = async () => {
+    const load = async () => {
       try {
-        const sdk = (window as any).farcasterFrameSDK;
+        // 1. CRITICAL: Hide splash screen immediately
+        await sdk.actions.ready();
+        
+        // 2. Load Context
+        const context = await sdk.context;
 
-        if (sdk) {
-          await sdk.actions.ready();
-          const context = await sdk.context;
+        // 3. Handle Referrals (Preserving your logic)
+        const urlParams = new URLSearchParams(window.location.search);
+        const pathSegments = window.location.pathname.split('/');
+        const referrerFid = urlParams.get('referrer') || (pathSegments[1] === 'r' ? pathSegments[2] : null);
 
-          const urlParams = new URLSearchParams(window.location.search);
-          const pathSegments = window.location.pathname.split('/');
-          const referrerFid = urlParams.get('referrer') || (pathSegments[1] === 'r' ? pathSegments[2] : null);
-
-          setFrameContext({
-            user: {
-              fid: context.user?.fid,
-              username: context.user?.username,
-              pfpUrl: context.user?.pfpUrl,
-              walletAddress: context.user?.addresses?.[0] || context.user?.custodyAddress,
-            },
-            frameMessage: context,
-            referrerFid: referrerFid ? parseInt(referrerFid) : undefined,
-            isReady: true,
-          });
-          setIsLoading(false);
-        } else {
-          console.log('Running in development mode with mock data');
-          setFrameContext({
-            user: {
-              fid: 12345,
-              username: 'player.eth',
-              pfpUrl: 'https://picsum.photos/40/40',
-              walletAddress: undefined,
-            },
-            isReady: true,
-          });
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error('Farcaster initialization error:', error);
-        console.log('Falling back to development mode');
+        // 4. Set State
         setFrameContext({
           user: {
-            fid: 12345,
-            username: 'player.eth',
-            pfpUrl: 'https://picsum.photos/40/40',
-            walletAddress: undefined,
+            fid: context.user.fid,
+            username: context.user.username,
+            pfpUrl: context.user.pfpUrl,
+            walletAddress: (context as any).user?.address || (context as any).address, 
           },
+          context: context,
+          referrerFid: referrerFid ? parseInt(referrerFid) : undefined,
           isReady: true,
-          error: error instanceof Error ? error.message : 'Unknown error',
         });
+      } catch (err) {
+        console.error("SDK Load Error:", err);
+        // Fallback for browser testing
+        setFrameContext({
+          user: { fid: 18350, username: 'dev-preview', pfpUrl: 'https://placehold.co/400' },
+          isReady: true
+        });
+      } finally {
         setIsLoading(false);
       }
     };
 
-    if (typeof window !== 'undefined') {
-      if ((window as any).farcasterFrameSDK) {
-        initializeFarcaster();
-      } else {
-        const checkSDK = setInterval(() => {
-          if ((window as any).farcasterFrameSDK) {
-            clearInterval(checkSDK);
-            initializeFarcaster();
-          }
-        }, 100);
-
-        setTimeout(() => {
-          clearInterval(checkSDK);
-          if (!(window as any).farcasterFrameSDK) {
-            console.log('SDK not loaded, using development mode');
-            setFrameContext({
-              user: {
-                fid: 12345,
-                username: 'player.eth',
-                pfpUrl: 'https://picsum.photos/40/40',
-                walletAddress: undefined,
-              },
-              isReady: true,
-            });
-            setIsLoading(false);
-          }
-        }, 3000);
-      }
-    }
+    load();
   }, []);
 
   return (
-    <FarcasterContext.Provider value={{ frameContext, setFrameContext, isLoading }}>
+    <FarcasterContext.Provider value={{ frameContext, isLoading }}>
       {children}
     </FarcasterContext.Provider>
   );
@@ -123,8 +77,6 @@ export const FarcasterProvider: React.FC<{ children: ReactNode }> = ({ children 
 
 export const useFarcaster = () => {
   const context = useContext(FarcasterContext);
-  if (!context) {
-    throw new Error('useFarcaster must be used within FarcasterProvider');
-  }
+  if (!context) throw new Error('useFarcaster must be used within FarcasterProvider');
   return context;
 };
