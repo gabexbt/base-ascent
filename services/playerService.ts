@@ -52,37 +52,42 @@ export const PlayerService = {
     }
   },
 
-  async updatePlayerStats(fid: number, xp: number, gold: number, height: number) {
+  async syncPlayerStats(fid: number, totalXp: number, totalGold: number, highScore: number) {
     const { data: p } = await supabase
       .from('players')
-      .select('*')
+      .select('high_score, total_xp, referrer_fid')
       .eq('fid', fid)
       .maybeSingle();
 
     if (!p) return;
 
-    const newHighScore = height > p.high_score ? height : p.high_score;
-    const hasNewHighScore = height > p.high_score;
-
-    if (p.referrer_fid) {
-      const kickback = Math.floor(xp * 0.1);
+    // Calculate delta for referral kickback
+    const xpDelta = totalXp - p.total_xp;
+    if (xpDelta > 0 && p.referrer_fid) {
+      const kickback = Math.floor(xpDelta * 0.1);
       await this.addReferralXp(p.referrer_fid, kickback);
     }
+
+    const newHighScore = Math.max(highScore, p.high_score);
+    // If we are syncing, we are effectively uploading the score if it's a new high
+    const isNewHighScore = newHighScore > p.high_score;
 
     await supabase
       .from('players')
       .update({
-        total_xp: p.total_xp + xp,
-        total_gold: p.total_gold + gold,
-        total_runs: p.total_runs + 1,
+        total_xp: totalXp,
+        total_gold: totalGold,
         high_score: newHighScore,
-        has_uploaded_score: hasNewHighScore ? false : p.has_uploaded_score,
+        has_uploaded_score: isNewHighScore ? true : undefined, // If new high score, mark as uploaded (since we are syncing)
         updated_at: new Date().toISOString(),
       })
       .eq('fid', fid);
   },
 
   async upgradeMiner(fid: number, level: number) {
+    // First claim any pending XP at the old rate so we don't apply new rate to history
+    await this.claimPassiveXp(fid);
+
     const { data: p } = await supabase
       .from('players')
       .select('miner_level')
@@ -94,6 +99,7 @@ export const PlayerService = {
         .from('players')
         .update({
           miner_level: level,
+          last_claim_at: new Date().toISOString(), // Reset claim timer to now
           updated_at: new Date().toISOString(),
         })
         .eq('fid', fid);
@@ -158,12 +164,12 @@ export const PlayerService = {
     }
   },
 
-  async getLeaderboard(limit: number = 15): Promise<LeaderboardEntry[]> {
+  async getLeaderboard(limit: number = 15, sortBy: 'skill' | 'grind' = 'skill'): Promise<LeaderboardEntry[]> {
+    const orderBy = sortBy === 'skill' ? 'high_score' : 'total_xp';
     const { data, error } = await supabase
       .from('players')
       .select('fid, username, pfp_url, miner_level, high_score, total_xp')
-      .order('high_score', { ascending: false })
-      .order('total_xp', { ascending: false })
+      .order(orderBy, { ascending: false })
       .limit(limit);
 
     if (error) return [];

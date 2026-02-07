@@ -50,6 +50,7 @@ interface GameOverData {
   score: number;
   xp: number;
   gold: number;
+  isNewHighScore: boolean;
 }
 
 const MainApp: React.FC = () => {
@@ -66,6 +67,21 @@ const MainApp: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playRandomTrack = useCallback(() => {
+    const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
+    const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    const audio = new Audio(randomTrack);
+    audio.volume = 0.7;
+    audio.loop = true;
+    audio.play().catch(e => console.log("Audio play failed:", e));
+    audioRef.current = audio;
+  }, []);
 
   const { frameContext, isLoading: isFarcasterLoading } = useFarcaster();
   const { address } = useAccount();
@@ -135,14 +151,35 @@ const MainApp: React.FC = () => {
       }
 
       const data = await PlayerService.getPlayer(fid, username || 'unknown', pfpUrl, referrer);
-      setPlayer(data);
-      const board = await PlayerService.getLeaderboard(15);
-      setLeaderboard(board);
+      
+      // Load local high score / xp if available (persistence fix)
+      const localStore = localStorage.getItem(`player_stats_${fid}`);
+      let localData = localStore ? JSON.parse(localStore) : null;
 
       if (data) {
+        let mergedPlayer = { ...data };
+        if (localData) {
+          if (localData.highScore > mergedPlayer.highScore) {
+             mergedPlayer.highScore = localData.highScore;
+             // If local is higher, it means we haven't synced/flexed yet
+             mergedPlayer.hasUploadedScore = false; 
+          }
+          // We can also merge totalXp if needed, but since we have offline farming, 
+          // relying on DB + claim is safer. However, if they played and didn't sync:
+          if (localData.totalXp > mergedPlayer.totalXp) {
+             // Take max, assuming local has played more
+             mergedPlayer.totalXp = localData.totalXp;
+          }
+        }
+        setPlayer(mergedPlayer);
+        
         const rank = await PlayerService.getPlayerRank(data.fid, rankingType);
         setPlayerRank(rank);
       }
+
+      const board = await PlayerService.getLeaderboard(15, rankingType);
+      setLeaderboard(board);
+
     } catch (e) {
       console.error("Load Error:", e);
     }
@@ -301,7 +338,7 @@ const MainApp: React.FC = () => {
       let hash = 'free';
       if (!hasUsedFree) {
         // Free first time
-        await PlayerService.updatePlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore); // Sync local stats
+        await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore);
         await PlayerService.markFlexUsed(player.fid, type);
         await PlayerService.recordTransaction(player.fid, '0', `${type}_flex_free`, 'free', { flex_type: type });
       } else {
@@ -315,7 +352,11 @@ const MainApp: React.FC = () => {
         });
         hash = transactionId;
 
+<<<<<<< Updated upstream
         await PlayerService.updatePlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore);
+=======
+        await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore);
+>>>>>>> Stashed changes
         await PlayerService.recordTransaction(player.fid, '0.10', `${type}_flex_paid`, hash, { flex_type: type });
       }
       await loadData();
@@ -328,16 +369,28 @@ const MainApp: React.FC = () => {
   };
 
   const handleGameOver = async (score: number, xp: number, gold: number) => {
+<<<<<<< Updated upstream
     stopAudio();
     setGameOverData({ score, xp, gold });
+=======
+    const isNewHighScore = player ? score > player.highScore : false;
+    setGameOverData({ score, xp, gold, isNewHighScore });
+>>>>>>> Stashed changes
     if (player) {
-      // Update local state only - database sync happens via Flex buttons
-      setPlayer(prev => prev ? ({
-        ...prev,
-        totalXp: prev.totalXp + xp,
-        highScore: Math.max(prev.highScore, score),
-        totalRuns: prev.totalRuns + 1
-      }) : null);
+      // Update local state
+      const updatedPlayer = {
+        ...player,
+        totalXp: player.totalXp + xp,
+        highScore: Math.max(player.highScore, score),
+        totalRuns: player.totalRuns + 1
+      };
+      setPlayer(updatedPlayer);
+
+      // Save to localStorage for persistence across sessions
+      localStorage.setItem(`player_stats_${player.fid}`, JSON.stringify({
+        highScore: updatedPlayer.highScore,
+        totalXp: updatedPlayer.totalXp
+      }));
     }
     setStatus(GameStatus.GAMEOVER);
   };
@@ -405,6 +458,21 @@ const MainApp: React.FC = () => {
                   <div className="space-y-2">
                     <h2 className="text-xs opacity-50 uppercase font-black tracking-widest">ASCENT COMPLETE</h2>
                     <div className="text-6xl font-black italic text-white tracking-tighter uppercase">GAME OVER</div>
+                    {gameOverData.isNewHighScore && (
+                      <div className="inline-block px-4 py-1 bg-[#FFD700] text-black text-xs font-black uppercase tracking-widest rounded-full animate-bounce mt-2">
+                        New High Score!
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 w-full max-w-[320px] mx-auto">
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center">
+                       <span className="text-[10px] opacity-40 uppercase font-black tracking-wider">Altitude</span>
+                       <span className="text-2xl font-black italic text-white">{gameOverData.score}m</span>
+                    </div>
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center">
+                       <span className="text-[10px] opacity-40 uppercase font-black tracking-wider">XP Earned</span>
+                       <span className="text-2xl font-black italic text-[#FFD700]">+{gameOverData.xp}</span>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4 w-full max-w-[320px] mx-auto">
                     <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center">
@@ -546,6 +614,18 @@ const MainApp: React.FC = () => {
                       </>
                     )}
                   </button>
+               </div>
+               <div className="p-4 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-left shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-white"></div>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">LEADERBOARD RULES</h3>
+                  </div>
+                  <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
+                    {rankingType === 'skill' 
+                      ? "This leaderboard is strictly for those who want to prove their skill. It ranks players based on their highest single-run score. Focus on precision and survival to climb the rankings. The Top 20 players will qualify for an upcoming airdrop."
+                      : "This leaderboard rewards dedication and consistent play. It tracks your Total XP, which is a combination of your gameplay, active referrals, and earnings from your AutoMiner. Every action you take in the game builds this score over time. The Top 20 leaders here will qualify for an upcoming airdrop."
+                    }
+                  </p>
                </div>
             </div>
           ) : (
