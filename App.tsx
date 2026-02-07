@@ -371,8 +371,8 @@ const MainApp: React.FC = () => {
           ) : activeTab === Tab.RANKINGS ? (
             <div className="flex-1 flex flex-col gap-4 overflow-hidden">
                <div className="flex justify-between items-end shrink-0">
-                  <h2 className="text-4xl font-black italic uppercase tracking-tighter">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
-                  <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1">
+                 <h2 className="text-4xl font-black italic uppercase tracking-tighter ml-4">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
+                 <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1">
                     <button onClick={() => setRankingType('skill')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
                     <button onClick={() => setRankingType('grind')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
                   </div>
