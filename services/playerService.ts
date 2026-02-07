@@ -192,9 +192,9 @@ export const PlayerService = {
       .limit(limit);
 
     if (sortBy === 'skill') {
-      // query = query.eq('has_uploaded_score', true);
+      query = query.eq('has_uploaded_score', true);
     } else {
-      // query = query.eq('has_used_xp_flex', true);
+      query = query.eq('has_used_xp_flex', true);
     }
 
     const { data, error } = await query;
@@ -219,9 +219,9 @@ export const PlayerService = {
       .order(orderBy, { ascending: false });
 
     if (type === 'skill') {
-      // query = query.eq('has_uploaded_score', true);
+      query = query.eq('has_uploaded_score', true);
     } else {
-      // query = query.eq('has_used_xp_flex', true);
+      query = query.eq('has_used_xp_flex', true);
     }
 
     const { data } = await query;
