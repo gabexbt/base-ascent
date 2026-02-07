@@ -1,16 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider, createConfig, http, useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { WagmiProvider, createConfig, http, useAccount, useReadContract } from 'wagmi';
 import { base } from 'viem/chains';
-import { formatUnits, parseUnits, erc20Abi } from 'viem';
+import { formatUnits, erc20Abi } from 'viem';
 import { coinbaseWallet } from 'wagmi/connectors';
+import { pay, getPaymentStatus } from '@base-org/account';
 import GameEngine from './components/GameEngine';
 import LoadingScreen from './components/LoadingScreen';
 import GameOver from './components/GameOver';
 import { FarcasterProvider, useFarcaster } from './context/FarcasterContext';
 import { useCasterContract } from './hooks/useCasterContract';
 import { GameStatus, Player, LeaderboardEntry, Tab } from './types';
-import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS, FLEX_FEE_USDC, DEV_WALLET } from './constants';
+import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS } from './constants';
+import { IS_TESTNET, RECIPIENT_WALLET } from './network';
 import { PlayerService } from './services/playerService';
 
 const config = createConfig({
@@ -68,7 +70,37 @@ const MainApp: React.FC = () => {
   const { frameContext, isLoading: isFarcasterLoading } = useFarcaster();
   const { address } = useAccount();
   const { isPending } = useCasterContract();
-  const { writeContractAsync } = useWriteContract();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Preload audio tracks
+    const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
+    tracks.forEach(src => {
+      const audio = new Audio(src);
+      audio.preload = 'auto';
+    });
+  }, []);
+
+  const playRandomTrack = useCallback(() => {
+    const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
+    const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    const audio = new Audio(randomTrack);
+    audio.volume = 0.5;
+    audio.loop = true;
+    audio.play().catch(e => console.log("Audio play failed:", e));
+    audioRef.current = audio;
+  }, []);
+
+  const stopAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+  }, []);
 
   const { data: usdcBalanceValue } = useReadContract({
     address: USDC_BASE_ADDRESS as `0x${string}`,
@@ -199,7 +231,7 @@ const MainApp: React.FC = () => {
     if (player?.completedTasks?.includes(taskId)) return;
     window.open(url, '_blank');
     setVerifyingTaskId(taskId);
-    setHasLeftWindow(false);
+    setHasLeftWindow(true);
   };
 
   const [isStarting, setIsStarting] = useState(false);
@@ -207,6 +239,7 @@ const MainApp: React.FC = () => {
   const handleStartGame = async () => {
     if (isStarting) return;
     setIsStarting(true);
+    playRandomTrack();
     try {
       // Force status update
       setStatus(GameStatus.PLAYING);
@@ -214,6 +247,7 @@ const MainApp: React.FC = () => {
     } catch (e) { 
       console.error("Start Error:", e);
       setStatus(GameStatus.IDLE); 
+      stopAudio();
     }
     setTimeout(() => setIsStarting(false), 500);
   };
@@ -237,17 +271,17 @@ const MainApp: React.FC = () => {
     if (!player) return;
     setProcessingPayment(true);
     try {
-      const cost = MINER_LEVELS[level].cost;
-      const hash = await writeContractAsync({
-        address: USDC_BASE_ADDRESS as `0x${string}`,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [DEV_WALLET as `0x${string}`, parseUnits(cost.toString(), 6)],
+      const cost = MINER_LEVELS[level].cost.toFixed(2);
+      // @ts-ignore
+      const { transactionId } = await pay({
+        amount: cost,
+        currency: 'USDC',
+        to: RECIPIENT_WALLET,
+        testnet: IS_TESTNET
       });
-      // In production, you'd wait for receipt here using useWaitForTransactionReceipt
-      // For responsiveness, we'll optimistically update after hash generation or wait a bit
+
       await PlayerService.upgradeMiner(player.fid, level);
-      await PlayerService.recordTransaction(player.fid, cost.toString(), 'miner_purchase', hash, { miner_level: level });
+      await PlayerService.recordTransaction(player.fid, cost, 'miner_purchase', transactionId || 'base-pay', { miner_level: level });
       await loadData();
     } catch (e) {
       console.error(e);
@@ -264,6 +298,7 @@ const MainApp: React.FC = () => {
     
     setProcessingPayment(true);
     try {
+      let hash = 'free';
       if (!hasUsedFree) {
         // Free first time
         await PlayerService.updatePlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore); // Sync local stats
@@ -271,19 +306,21 @@ const MainApp: React.FC = () => {
         await PlayerService.recordTransaction(player.fid, '0', `${type}_flex_free`, 'free', { flex_type: type });
       } else {
         // Paid subsequent times
-        const hash = await writeContractAsync({
-          address: USDC_BASE_ADDRESS as `0x${string}`,
-          abi: erc20Abi,
-          functionName: 'transfer',
-          args: [DEV_WALLET as `0x${string}`, parseUnits(FLEX_FEE_USDC, 6)],
+        // @ts-ignore
+        const { transactionId } = await pay({
+          amount: '0.10',
+          currency: 'USDC',
+          to: RECIPIENT_WALLET,
+          testnet: IS_TESTNET
         });
+        hash = transactionId;
+
         await PlayerService.updatePlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore);
-        await PlayerService.recordTransaction(player.fid, FLEX_FEE_USDC, `${type}_flex_paid`, hash, { flex_type: type });
+        await PlayerService.recordTransaction(player.fid, '0.10', `${type}_flex_paid`, hash, { flex_type: type });
       }
       await loadData();
     } catch (e) {
       console.error("Payment Error:", e);
-      // Reset processing state on error so button isn't stuck
       setProcessingPayment(false);
     } finally {
       setProcessingPayment(false);
@@ -291,6 +328,7 @@ const MainApp: React.FC = () => {
   };
 
   const handleGameOver = async (score: number, xp: number, gold: number) => {
+    stopAudio();
     setGameOverData({ score, xp, gold });
     if (player) {
       // Update local state only - database sync happens via Flex buttons
@@ -368,6 +406,16 @@ const MainApp: React.FC = () => {
                     <h2 className="text-xs opacity-50 uppercase font-black tracking-widest">ASCENT COMPLETE</h2>
                     <div className="text-6xl font-black italic text-white tracking-tighter uppercase">GAME OVER</div>
                   </div>
+                  <div className="grid grid-cols-2 gap-4 w-full max-w-[320px] mx-auto">
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center">
+                       <span className="text-[10px] opacity-40 uppercase font-black tracking-wider">Altitude</span>
+                       <span className="text-2xl font-black italic">{gameOverData.score}m</span>
+                    </div>
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center">
+                       <span className="text-[10px] opacity-40 uppercase font-black tracking-wider">XP Earned</span>
+                       <span className="text-2xl font-black italic">+{gameOverData.xp}</span>
+                    </div>
+                  </div>
                   <div className="space-y-4 w-full">
                     <button onClick={handlePlayAgain} className="w-full bg-white text-black py-6 font-black text-xl uppercase rounded-3xl active:scale-95">Play Again</button>
                     <button onClick={handleGoHome} className="w-full bg-white/10 text-white py-4 font-black text-sm uppercase rounded-2xl active:scale-95">Back to Hub</button>
@@ -424,9 +472,9 @@ const MainApp: React.FC = () => {
                         <div className="text-2xl font-black italic">LVL {player?.minerLevel}</div>
                       </div>
                       <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center justify-center">
-                        <div className="text-[9px] opacity-40 font-black uppercase tracking-wider mb-1">Rate</div>
-                        <div className="text-xl font-black italic">{currentMiner.xpPerHour.toLocaleString()} XP/HR</div>
-                      </div>
+                  <div className="text-[9px] opacity-40 font-black uppercase tracking-wider mb-1">Rate</div>
+                  <div className="text-xl font-black italic text-center">{currentMiner.xpPerHour.toLocaleString()} XP/HR</div>
+                </div>
                     </div>
                     
                     <div className="w-full p-8 bg-[#111] border border-white/10 rounded-[32px] flex flex-col justify-center gap-2 items-center text-center shrink-0">
@@ -458,6 +506,17 @@ const MainApp: React.FC = () => {
                     <button onClick={() => setRankingType('grind')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
                   </div>
                </div>
+               
+               <div className="p-4 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-left shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-white"></div>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">LEADERBOARD RULES</h3>
+                  </div>
+                  <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
+                    Flex your stats to secure your position. Syncing updates the public board without consuming your assets. Secure your position for the airdrop (Top 20).
+                  </p>
+               </div>
+
                <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
                   {leaderboard.map((entry, idx) => (
                     <div key={entry.fid} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl">
@@ -475,12 +534,12 @@ const MainApp: React.FC = () => {
                      <div className="text-[10px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
                      <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank || 0} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
                   </div>
-                  <button onClick={handleFlex} disabled={processingPayment} className="w-full py-4 border-2 border-white bg-black hover:bg-white hover:text-black transition-all font-black text-sm uppercase rounded-2xl active:scale-95 disabled:opacity-50">
+                  <button onClick={handleFlex} disabled={processingPayment} className="w-full py-4 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-2xl active:scale-95 disabled:opacity-50">
                     {processingPayment ? 'Processing...' : (
                       <>
-                        <span className="text-white uppercase tracking-wider">FLEX {rankingType === 'skill' ? 'ALTITUDE' : 'EXPERIENCE'}</span>
+                        <span className="uppercase tracking-wider">FLEX {rankingType === 'skill' ? 'ALTITUDE' : 'EXPERIENCE'}</span>
                         {((rankingType === 'skill' && player?.hasUsedAltitudeFlex) || (rankingType === 'grind' && player?.hasUsedXpFlex)) ? (
-                           <span className="text-gray-500 ml-2">($0.1 USDC)</span>
+                           <span className="opacity-50 ml-2">($0.1 USDC)</span>
                         ) : (
                            <span className="text-green-400 ml-2">(FREE)</span>
                         )}
