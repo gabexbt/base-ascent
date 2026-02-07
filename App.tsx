@@ -431,52 +431,14 @@ const MainApp: React.FC = () => {
               {status === GameStatus.PLAYING ? (
                 <GameEngine isActive={true} onGameOver={handleGameOver} multiplier={currentMiner.multiplier} />
               ) : status === GameStatus.GAMEOVER && gameOverData ? (
-<<<<<<< HEAD
-                <div className="flex-1 flex flex-col justify-center gap-8 text-center animate-in zoom-in">
-                  <div className="space-y-2">
-                    <h2 className="text-xs opacity-50 uppercase font-black tracking-widest">ASCENT COMPLETE</h2>
-                    <div className="text-6xl font-black italic text-white tracking-tighter uppercase">GAME OVER</div>
-                    {gameOverData.isNewHighScore && (
-                      <div className="inline-block px-4 py-1 bg-[#FFD700] text-black text-xs font-black uppercase tracking-widest rounded-full animate-bounce mt-2">
-                        New High Score!
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 w-full max-w-[320px] mx-auto">
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center">
-                       <span className="text-[10px] opacity-40 uppercase font-black tracking-wider">Altitude</span>
-                       <span className="text-2xl font-black italic text-white">{gameOverData.score}m</span>
-                    </div>
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center">
-                       <span className="text-[10px] opacity-40 uppercase font-black tracking-wider">XP Earned</span>
-                       <span className="text-2xl font-black italic text-[#FFD700]">+{gameOverData.xp}</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 w-full max-w-[320px] mx-auto">
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center">
-                       <span className="text-[10px] opacity-40 uppercase font-black tracking-wider">Altitude</span>
-                       <span className="text-2xl font-black italic">{gameOverData.score}m</span>
-                    </div>
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center">
-                       <span className="text-[10px] opacity-40 uppercase font-black tracking-wider">XP Earned</span>
-                       <span className="text-2xl font-black italic">+{gameOverData.xp}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-4 w-full">
-                    <button onClick={handlePlayAgain} className="w-full bg-white text-black py-6 font-black text-xl uppercase rounded-3xl active:scale-95">Play Again</button>
-                    <button onClick={handleGoHome} className="w-full bg-white/10 text-white py-4 font-black text-sm uppercase rounded-2xl active:scale-95">Back to Hub</button>
-                  </div>
-                </div>
-=======
                 <GameOver 
                   score={gameOverData.score}
                   xpGained={gameOverData.xp}
                   goldGained={gameOverData.gold}
-                  isHighScore={player && gameOverData.score >= player.highScore && gameOverData.score > 0}
+                  isHighScore={gameOverData.isNewHighScore}
                   onPlayAgain={handlePlayAgain}
                   onGoHome={handleGoHome}
                 />
->>>>>>> main
               ) : status === GameStatus.IDLE ? (
                 <div className="flex-1 flex flex-col items-center gap-2 text-center">
                    <div className="flex flex-col items-center z-10 w-full px-2 mt-8">
@@ -561,7 +523,10 @@ const MainApp: React.FC = () => {
                     <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">LEADERBOARD RULES</h3>
                   </div>
                   <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
-                    FLEX YOUR STATS TO SECURE YOUR POSITION. SYNCING UPDATES THE PUBLIC BOARD WITHOUT CONSUMING YOUR ASSETS. SECURE YOUR POSITION FOR THE AIRDROP (TOP 20).
+                    {rankingType === 'skill' 
+                      ? "This leaderboard is strictly for those who want to prove their skill. It ranks players based on their highest single-run score. Focus on precision and survival to climb the rankings. The Top 20 players will qualify for an upcoming airdrop."
+                      : "This leaderboard rewards dedication and consistent play. It tracks your Total XP, which is a combination of your gameplay, active referrals, and earnings from your AutoMiner. Every action you take in the game builds this score over time. The Top 20 leaders here will qualify for an upcoming airdrop."
+                    }
                   </p>
                </div>
                <div className="flex justify-between items-center shrink-0 pr-4">
@@ -570,16 +535,6 @@ const MainApp: React.FC = () => {
                     <button onClick={() => setRankingType('skill')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
                     <button onClick={() => setRankingType('grind')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
                   </div>
-               </div>
-               
-               <div className="p-4 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-left shrink-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-white"></div>
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">LEADERBOARD RULES</h3>
-                  </div>
-                  <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
-                    Flex your stats to secure your position. Syncing updates the public board without consuming your assets. Secure your position for the airdrop (Top 20).
-                  </p>
                </div>
 
                <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
@@ -614,18 +569,6 @@ const MainApp: React.FC = () => {
                       </>
                     )}
                   </button>
-               </div>
-               <div className="p-4 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-left shrink-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-white"></div>
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">LEADERBOARD RULES</h3>
-                  </div>
-                  <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
-                    {rankingType === 'skill' 
-                      ? "This leaderboard is strictly for those who want to prove their skill. It ranks players based on their highest single-run score. Focus on precision and survival to climb the rankings. The Top 20 players will qualify for an upcoming airdrop."
-                      : "This leaderboard rewards dedication and consistent play. It tracks your Total XP, which is a combination of your gameplay, active referrals, and earnings from your AutoMiner. Every action you take in the game builds this score over time. The Top 20 leaders here will qualify for an upcoming airdrop."
-                    }
-                  </p>
                </div>
             </div>
           ) : (
