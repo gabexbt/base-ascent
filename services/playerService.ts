@@ -218,6 +218,30 @@ export const PlayerService = {
     }
   },
 
+  async completeTask(fid: number, taskId: string, xpReward: number) {
+    const { data: p } = await supabase
+      .from('players')
+      .select('total_xp, completed_tasks')
+      .eq('fid', fid)
+      .maybeSingle();
+
+    if (!p) return;
+
+    const currentTasks = p.completed_tasks || [];
+    if (currentTasks.includes(taskId)) return;
+
+    const newTasks = [...currentTasks, taskId];
+    
+    await supabase
+      .from('players')
+      .update({
+        total_xp: p.total_xp + xpReward,
+        completed_tasks: newTasks,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('fid', fid);
+  },
+
   async recordTransaction(fid: number, amountUsdc: string, transactionType: string, transactionHash: string, metadata?: any) {
     const { data: player } = await supabase
       .from('players')
@@ -258,6 +282,7 @@ export const PlayerService = {
       hasUploadedScore: db.has_uploaded_score,
       hasUsedAltitudeFlex: db.has_used_altitude_flex,
       hasUsedXpFlex: db.has_used_xp_flex,
+      completedTasks: db.completed_tasks || [],
       lastClaimAt: new Date(db.last_claim_at).getTime(),
       walletAddress: db.wallet_address,
     };

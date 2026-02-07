@@ -13,6 +13,7 @@ export interface Player {
   hasUploadedScore?: boolean;
   hasUsedAltitudeFlex?: boolean;
   hasUsedXpFlex?: boolean;
+  completedTasks?: string[];
   lastClaimAt: number;
   walletAddress?: string;
 }

@@ -59,6 +59,8 @@ const MainApp: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [rankingType, setRankingType] = useState<'skill' | 'grind'>('skill');
   const [taskTimers, setTaskTimers] = useState<Record<string, { time: number, focused: boolean }>>({});
+  const [verifyingTaskId, setVerifyingTaskId] = useState<string | null>(null);
+  const [hasLeftWindow, setHasLeftWindow] = useState(false);
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
@@ -109,10 +111,20 @@ const MainApp: React.FC = () => {
         const next = { ...prev };
         let changed = false;
         Object.keys(next).forEach(taskId => {
-          if (next[taskId].time > 0 && document.visibilityState === 'visible') {
+          if (next[taskId].time > 0) {
             next[taskId].time -= 1;
             changed = true;
             if (next[taskId].time === 0) {
+              if (player) {
+                // Optimistic update
+                setPlayer(prev => prev ? ({
+                   ...prev,
+                   totalXp: prev.totalXp + 500,
+                   completedTasks: [...(prev.completedTasks || []), taskId]
+                }) : null);
+                
+                PlayerService.completeTask(player.fid, taskId, 500).then(() => loadData());
+              }
               delete next[taskId];
             }
           }
@@ -123,9 +135,47 @@ const MainApp: React.FC = () => {
     return () => clearInterval(interval);
   }, [player, loadData]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (verifyingTaskId) setHasLeftWindow(true);
+      } else {
+        if (verifyingTaskId && hasLeftWindow) {
+          setTaskTimers(prev => ({ ...prev, [verifyingTaskId]: { time: 15, focused: true } }));
+          setVerifyingTaskId(null);
+          setHasLeftWindow(false);
+        }
+      }
+    };
+
+    const handleBlur = () => {
+      if (verifyingTaskId) setHasLeftWindow(true);
+    };
+
+    const handleFocus = () => {
+      if (verifyingTaskId && hasLeftWindow) {
+        setTaskTimers(prev => ({ ...prev, [verifyingTaskId]: { time: 15, focused: true } }));
+        setVerifyingTaskId(null);
+        setHasLeftWindow(false);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [verifyingTaskId, hasLeftWindow]);
+
   const handleTaskClick = (taskId: string, url: string) => {
+    if (player?.completedTasks?.includes(taskId)) return;
     window.open(url, '_blank');
-    setTaskTimers(prev => ({ ...prev, [taskId]: { time: 10, focused: true } }));
+    setVerifyingTaskId(taskId);
+    setHasLeftWindow(false);
   };
 
   const [isStarting, setIsStarting] = useState(false);
@@ -441,8 +491,8 @@ const MainApp: React.FC = () => {
                      ].map(t => (
                         <div key={t.id} className="w-full p-4 border border-white/10 rounded-[28px] flex items-center justify-between bg-black/50">
                            <div className="text-left"><div className="text-[10px] font-black uppercase">{t.l}</div><div className="text-[8px] opacity-40">+500 XP</div></div>
-                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={false &&(t.id) || taskTimers[t.id]?.time > 0} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95">
-                              {false &&(t.id) ? 'DONE' : taskTimers[t.id]?.time > 0 ? `SYNCING ${taskTimers[t.id].time}s` : 'CLAIM XP'}
+                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={player?.completedTasks?.includes(t.id) || taskTimers[t.id]?.time > 0 || (verifyingTaskId === t.id)} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95 disabled:opacity-50 transition-all min-w-[80px]">
+                              {player?.completedTasks?.includes(t.id) ? 'DONE' : taskTimers[t.id]?.time > 0 ? `CHECKING... ${taskTimers[t.id].time}s` : verifyingTaskId === t.id ? 'WAITING...' : 'CLAIM XP'}
                            </button>
                         </div>
                      ))}
