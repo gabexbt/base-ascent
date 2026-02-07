@@ -139,6 +139,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
     const isPerfect = Math.abs(currentBlock.x - lastBlock.x) < 10;
     
     if (overlapWidth <= 0) {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
       playSound('fail');
       onGameOver(scoreRef.current, Math.floor(scoreRef.current * XP_PER_BLOCK * multiplier), Math.floor(scoreRef.current * GOLD_PER_BLOCK * multiplier));
       return;
@@ -153,7 +154,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
       const centerX = finalX + finalWidth / 2;
       particlesRef.current.push(
         { id: particleIdRef.current++, x: centerX, y: currentBlock.y, vx: 0, vy: 0, life: 0.8, scale: 1, type: 'flash' },
-        { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'PERFECT_SYNC', life: 1.8, scale: 1.4, type: 'text' }
+        { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'PERFECT', life: 1.8, scale: 2.5, type: 'text' }
       );
       for (let i = 0; i < 15; i++) {
         particlesRef.current.push({
@@ -267,12 +268,17 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
 
     // UI
     ctx.fillStyle = WHITE;
-    ctx.font = "800 40px 'JetBrains Mono'";
-    ctx.textAlign = 'right';
-    ctx.fillText(`${scoreRef.current}`, GAME_WIDTH - 20, 55);
-    ctx.font = "900 7px 'JetBrains Mono'";
-    ctx.globalAlpha = 0.4;
-    ctx.fillText('ALTITUDE_SYNC_V3', GAME_WIDTH - 20, 68);
+    ctx.font = "800 60px 'JetBrains Mono'";
+    ctx.textAlign = 'center';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.fillText(`${scoreRef.current}`, GAME_WIDTH / 2, 100);
+    ctx.shadowBlur = 0;
+    
+    // Subtext for altitude
+    ctx.font = "900 12px 'JetBrains Mono'";
+    ctx.globalAlpha = 0.6;
+    ctx.fillText('METERS', GAME_WIDTH / 2, 120);
     ctx.globalAlpha = 1.0;
 
     requestRef.current = requestAnimationFrame(loop);
@@ -287,19 +293,11 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
   }, [isActive, initGame, loop]);
 
   return (
-    <div className="flex-1 flex flex-col justify-center px-4 py-2">
+    <div className="flex-1 flex flex-col justify-center px-4 py-2 touch-none">
       <div 
-        className="relative flex flex-col items-center p-6 border-2 border-white/10 bg-white/5 rounded-[40px] shadow-2xl overflow-hidden cursor-pointer select-none active:scale-[0.99] transition-transform" 
-        onClick={handleAction}
+        className="relative flex flex-col items-center p-6 border-2 border-white/10 bg-white/5 rounded-[40px] shadow-2xl overflow-hidden cursor-pointer select-none active:scale-[0.99] transition-transform touch-none" 
+        onPointerDown={handleAction}
       >
-        <div className="w-full flex justify-between items-center mb-4 px-2">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-            <span className="text-[9px] font-black italic opacity-30 uppercase tracking-[0.4em]">IO_ACTIVE</span>
-          </div>
-          <span className="text-[9px] font-black italic opacity-30 uppercase tracking-[0.4em]">SYS_3.0</span>
-        </div>
-        
         <div className="relative border-4 border-white/10 rounded-[32px] overflow-hidden bg-black shadow-inner">
           <canvas 
             ref={canvasRef} 

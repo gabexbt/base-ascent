@@ -80,9 +80,9 @@ const LoadingScreen: React.FC = () => {
           <span className="text-[10px] font-black italic opacity-40">{progress}%</span>
         </div>
         
-        <div className="w-full h-[2px] bg-white/5 rounded-full overflow-hidden relative border border-white/5">
+        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden relative border border-white/10">
           <div 
-            className="h-full bg-white transition-all duration-300 ease-out shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+            className="h-full bg-white transition-all duration-300 ease-out shadow-[0_0_10px_rgba(255,255,255,1)]"
             style={{ width: `${progress}%` }}
           />
         </div>
