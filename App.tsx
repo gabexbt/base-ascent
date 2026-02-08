@@ -369,7 +369,7 @@ const MainApp: React.FC = () => {
       const payment = await pay({
         amount: '0.10',
         to: RECIPIENT_WALLET,
-        chainId: 84532
+        testnet: true
       });
       const txId = payment?.id;
 
@@ -501,7 +501,7 @@ const MainApp: React.FC = () => {
       const payment = await pay({
         amount: cost.toFixed(2),
         to: RECIPIENT_WALLET,
-        chainId: 84532
+        testnet: true
       });
       const txId = payment?.id;
 
@@ -563,7 +563,7 @@ const MainApp: React.FC = () => {
         const payment = await pay({
           amount: '0.10',
           to: RECIPIENT_WALLET,
-          chainId: 84532
+          testnet: true
         });
         hash = payment?.id;
 
@@ -684,7 +684,7 @@ const MainApp: React.FC = () => {
        const payment = await pay({
           amount: '0.10',
           to: RECIPIENT_WALLET,
-          chainId: 84532
+          testnet: true
        });
        const txId = payment?.id;
        
@@ -798,7 +798,7 @@ const MainApp: React.FC = () => {
                   </div>
                 ) : status === GameStatus.IDLE ? (
                   <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500 w-full p-5">
-                     <div className="flex flex-col items-center z-10 w-full px-2 mt-8">
+                     <div className="flex flex-col items-center z-10 w-full px-2 mt-12">
                       <div className="w-full h-[220px] flex items-center justify-center animate-pulse duration-[2000ms]">
                          <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.6]" alt="ASCENT" />
                       </div>
@@ -927,7 +927,7 @@ const MainApp: React.FC = () => {
             <div className="flex flex-col w-full relative" style={{ height: 'calc(100dvh - 160px)' }}>
                {/* Scrollable List Wrapper */}
                <div className="flex-1 relative min-h-0">
-                   <div className="h-full overflow-y-auto pb-10 custom-scrollbar px-4 pt-2 space-y-4">
+                   <div className="h-full overflow-y-auto pb-20 custom-scrollbar px-4 pt-6 space-y-4">
                        
                        {/* Header & Controls */}
                        <div className="flex justify-between items-center w-full shrink-0">
@@ -1024,7 +1024,7 @@ const MainApp: React.FC = () => {
                </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col gap-3 pr-1 pb-10 items-center w-full">
+            <div className="flex-1 flex flex-col gap-3 pr-1 pb-10 mt-6 items-center w-full">
                <h2 className="text-3xl font-black italic uppercase">PROFILE</h2>
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] flex flex-col items-center">
                   <h3 className="text-2xl font-black italic uppercase opacity-40 mb-5 tracking-widest">STATS</h3>
