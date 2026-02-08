@@ -563,10 +563,13 @@ const MainApp: React.FC = () => {
   }
 
   return (
-    <div className="h-[100dvh] bg-black text-white font-mono flex flex-col items-center overflow-hidden antialiased select-none relative">
+    // Outer Wrapper - Mobile Simulator Container
+    <div className="min-h-screen bg-black flex justify-center text-white font-sans overflow-hidden">
+      {/* Inner App Container */}
+      <div className="w-full max-w-[480px] h-full relative bg-black shadow-2xl flex flex-col">
       
       {/* Header - Always on top */}
-      <header className="w-full max-w-md px-6 py-4 flex justify-between items-center border-b border-white/10 bg-black/80 backdrop-blur-sm shrink-0 z-20 absolute top-0 left-1/2 -translate-x-1/2">
+      <header className="w-full max-w-[480px] px-6 py-4 flex justify-between items-center border-b border-white/10 bg-black/80 backdrop-blur-sm shrink-0 z-20 fixed top-0 left-1/2 -translate-x-1/2">
         <div className="flex items-center gap-3">
           <img src={player?.pfpUrl || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full border border-white/20" alt="" />
           <div>
@@ -580,12 +583,12 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="w-full h-full pt-[74px] pb-[80px] flex flex-col relative z-10 pointer-events-none">
-        <div className="w-full max-w-md mx-auto h-full flex flex-col pointer-events-auto relative">
+      <main className="w-full h-full pt-[74px] pb-24 flex flex-col relative z-10 pointer-events-none overflow-y-auto custom-scrollbar">
+        <div className="w-full h-full flex flex-col pointer-events-auto relative">
           
           <ParticleBackground />
 
-          <div className="flex-1 flex flex-col overflow-hidden relative" key={activeTab}>
+          <div className="flex-1 flex flex-col relative min-h-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
               <div className="flex-1 flex flex-col gap-6 relative p-5">
                 {status === GameStatus.PLAYING ? (
@@ -828,7 +831,8 @@ const MainApp: React.FC = () => {
       </div>
       </main>
 
-      <nav className="flex justify-around items-center px-6 py-5 bg-black border-t border-white/10 shrink-0 relative z-20 pb-8">
+      {/* Bottom Navigation - Fixed */}
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center px-6 py-5 bg-black border-t border-white/10 shrink-0 z-30 pb-8">
         <button onClick={() => setActiveTab(Tab.ASCENT)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.ASCENT ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}>
           <Icons.Ascent />
           <span className="text-[9px] font-black uppercase tracking-widest">Ascent</span>
@@ -850,6 +854,7 @@ const MainApp: React.FC = () => {
           <span className="text-[9px] font-black uppercase tracking-widest">Profile</span>
         </button>
       </nav>
+      </div>
     </div>
   );
 };

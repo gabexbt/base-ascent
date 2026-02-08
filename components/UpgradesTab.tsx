@@ -156,7 +156,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
                 className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-2 rounded-lg font-bold transition-all active:scale-95 ${
                   canAfford 
                     ? 'bg-white hover:bg-gray-200 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
-                    : 'bg-white/5 text-white/20 cursor-not-allowed'
+                    : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
                 }`}
               >
                 {isPurchasing ? (
