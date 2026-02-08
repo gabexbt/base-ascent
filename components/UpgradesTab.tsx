@@ -70,8 +70,9 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
         if (onUpdate) await onUpdate();
       }
     } catch (e: any) {
-      console.error(e);
-      setError(e.message || "Purchase failed. Try again.");
+      console.error("Purchase Error Details:", e);
+      const msg = e.message || e.error_description || e.details || "Purchase failed. Try again.";
+      setError(msg);
     } finally {
       setPurchasing(null);
     }
@@ -144,9 +145,9 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-bold text-white text-lg leading-tight">{config.name}</h3>
-                  <span className="bg-white/10 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/20">
+                  <span className="shrink-0 bg-white/10 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/20 whitespace-nowrap">
                     Lvl {currentLevel}
                   </span>
                 </div>

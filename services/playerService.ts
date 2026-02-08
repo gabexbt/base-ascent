@@ -74,7 +74,10 @@ export const PlayerService = {
       p_fid: fid,
       p_type: 'altitude'
     });
-    if (error) console.error("Sync Altitude Error:", error);
+    if (error) {
+      console.error("Sync Altitude Error:", error);
+      throw error;
+    }
   },
 
   // Syncs the current actual total XP to the leaderboard (Flex)
@@ -83,7 +86,10 @@ export const PlayerService = {
       p_fid: fid,
       p_type: 'xp'
     });
-    if (error) console.error("Sync XP Error:", error);
+    if (error) {
+      console.error("Sync XP Error:", error);
+      throw error;
+    }
   },
 
   async upgradeMiner(fid: number, level: number) {
@@ -195,7 +201,10 @@ export const PlayerService = {
       p_upgrade_type: type,
       p_cost: cost
     });
-    if (error) throw error;
+    if (error) {
+      console.error("RPC Purchase Upgrade Error:", error);
+      throw error;
+    }
   },
 
   async doubleUpRun(fid: number, score: number, xp: number, gold: number, txHash: string, amountUsdc: string) {

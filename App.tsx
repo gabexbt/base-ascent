@@ -100,7 +100,7 @@ const MainApp: React.FC = () => {
       audioRef.current = null;
     }
     const audio = new Audio(randomTrack);
-    audio.volume = 0.15;
+    audio.volume = 0.10; // Lowered from 0.15
     audio.loop = true;
     audio.play().catch(e => console.log("Audio play failed:", e));
     audioRef.current = audio;
@@ -387,6 +387,9 @@ const MainApp: React.FC = () => {
     const newBankedXp = (player.bankedPassiveXp || 0) + pendingXp;
 
     try {
+      // Safety timeout
+      const safetyTimeout = setTimeout(() => setProcessingPayment(false), 15000);
+      
       const cost = MINER_LEVELS[level].cost.toFixed(2);
       // @ts-ignore
       const { transactionId } = await pay({
@@ -407,12 +410,11 @@ const MainApp: React.FC = () => {
       await PlayerService.upgradeMiner(player.fid, level);
       await PlayerService.recordTransaction(player.fid, cost, 'miner_purchase', transactionId || 'base-pay', { miner_level: level });
       await loadData();
+      clearTimeout(safetyTimeout);
     } catch (e) {
       console.error(e);
-      setProcessingPayment(false);
       await loadData(); // Revert on error
     } finally {
-      clearTimeout(safetyTimeout);
       setProcessingPayment(false);
     }
   };
@@ -424,7 +426,10 @@ const MainApp: React.FC = () => {
     
     setProcessingPayment(true);
     // Safety timeout to prevent stuck state
-    const safetyTimeout = setTimeout(() => setProcessingPayment(false), 15000);
+    const safetyTimeout = setTimeout(() => {
+        setProcessingPayment(false);
+        alert("Transaction timed out. Please try again.");
+    }, 15000);
 
     try {
       let hash = 'free';
@@ -457,9 +462,10 @@ const MainApp: React.FC = () => {
         await PlayerService.recordTransaction(player.fid, '0.10', `${type}_flex_paid`, hash, { flex_type: type });
       }
       await loadData();
-    } catch (e) {
-      console.error("Payment Error:", e);
-      setProcessingPayment(false);
+    } catch (e: any) {
+      console.error("Flex/Payment Error:", e);
+      const msg = e.message || "Transaction failed. Please try again.";
+      alert(msg);
     } finally {
       clearTimeout(safetyTimeout);
       setProcessingPayment(false);
@@ -547,10 +553,20 @@ const MainApp: React.FC = () => {
 
     setProcessingPayment(true);
     try {
-       // Note: In a real app, integrate wallet payment here. 
-       // For this task, we assume payment success or use a mock/simulated flow if no wallet connected.
-       // Since we have wagmi, we could use sendTransaction, but keeping it simple for now as per instructions to just "Show the button".
-       // We'll simulate the service call.
+       // Safety timeout
+       const safetyTimeout = setTimeout(() => {
+           setProcessingPayment(false);
+           alert("Transaction timed out. Please try again.");
+       }, 20000);
+
+       // USDC Payment
+       // @ts-ignore
+       const { transactionId } = await pay({
+          amount: '0.10',
+          currency: 'USDC',
+          to: RECIPIENT_WALLET,
+          testnet: IS_TESTNET
+       });
        
        // Call Service
        await PlayerService.doubleUpRun(
@@ -558,9 +574,11 @@ const MainApp: React.FC = () => {
          gameOverData.score, 
          gameOverData.xp, 
          gameOverData.gold, 
-         '0x_mock_tx_hash', 
+         transactionId || 'base-pay', 
          0.10
        );
+       
+       clearTimeout(safetyTimeout);
        
        // Update UI
        setGameOverData({
@@ -571,7 +589,7 @@ const MainApp: React.FC = () => {
        });
        
        // Reload Data
-       loadData();
+       await loadData();
     } catch (e) {
       console.error(e);
       alert("Double Up Failed. Please try again.");
@@ -614,7 +632,7 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="w-full h-full pt-[74px] pb-24 flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
+      <main className="w-full h-full pt-[74px] pb-32 flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
         <div className="w-full min-h-full flex flex-col relative">
           
           <ParticleBackground />
@@ -678,7 +696,7 @@ const MainApp: React.FC = () => {
                 isProcessing={processingPayment} 
               />
             ) : activeTab === Tab.HARDWARE ? (
-              <div className="flex-1 flex flex-col gap-6 items-center pb-8 p-5">
+              <div className="flex-1 flex flex-col gap-6 items-center pb-8 p-5 w-full">
                 <h2 className="text-4xl font-black italic tracking-tighter uppercase text-center w-full">Hardware</h2>
               <div className="p-5 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-center shrink-0">
                 <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">AUTO MINER</h3>
@@ -734,7 +752,7 @@ const MainApp: React.FC = () => {
               </div>
             </div>
           ) : activeTab === Tab.RANKINGS ? (
-            <div className="flex-1 flex flex-col gap-4">
+            <div className="flex-1 flex flex-col gap-4 w-full">
                <div className="flex flex-col gap-2 shrink-0 px-4 pt-2">
                  <div className="flex justify-between items-center w-full">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>

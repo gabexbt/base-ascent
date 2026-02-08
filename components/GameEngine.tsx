@@ -93,21 +93,21 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
         osc.type = 'square';
         osc.frequency.setValueAtTime(120, now);
         osc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
-        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.setValueAtTime(0.4, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
         osc.start(now); osc.stop(now + 0.1);
       } else if (type === 'perfect') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(523.25, now);
         osc.frequency.linearRampToValueAtTime(1046.50, now + 0.15);
-        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.setValueAtTime(0.4, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
         osc.start(now); osc.stop(now + 0.3);
       } else if (type === 'fail') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(80, now);
         osc.frequency.linearRampToValueAtTime(30, now + 0.5);
-        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.setValueAtTime(0.5, now);
         gain.gain.linearRampToValueAtTime(0.001, now + 0.5);
         osc.start(now); osc.stop(now + 0.5);
       }
@@ -364,23 +364,25 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   }, [isActive, loop]);
 
   return (
-    <div className="relative w-full h-full touch-none select-none bg-black overflow-hidden" onPointerDown={handleAction}>
-      <canvas
-        ref={canvasRef}
-        width={GAME_WIDTH}
-        height={GAME_HEIGHT}
-        className="w-full h-full object-cover"
-      />
+    <div className="flex flex-col w-full h-full bg-black select-none touch-none" onPointerDown={handleAction}>
+      <div className="flex-1 relative overflow-hidden">
+        <canvas
+            ref={canvasRef}
+            width={GAME_WIDTH}
+            height={GAME_HEIGHT}
+            className="w-full h-full object-cover"
+        />
+      </div>
       
-      {/* In-Game Stats Overlay - Bottom Position */}
-      <div className="absolute bottom-6 left-0 w-full px-6 flex justify-between items-center pointer-events-none z-20">
-         <div className="flex flex-col items-start bg-black/40 p-2 rounded-xl backdrop-blur-sm border border-white/5">
-            <div className="text-[10px] font-black uppercase opacity-60 tracking-wider">Session XP</div>
-            <div ref={xpRef} className="text-xl font-black italic text-white drop-shadow-md">+0 XP</div>
+      {/* Dedicated Bottom Status Bar - No Overlap */}
+      <div className="h-14 w-full bg-[#0A0A0A] border-t border-white/10 flex justify-between items-center px-6 shrink-0 z-20">
+         <div className="flex flex-col items-start">
+            <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Session XP</div>
+            <div ref={xpRef} className="text-xl font-black italic text-white">+0 XP</div>
          </div>
-         <div className="flex flex-col items-end bg-black/40 p-2 rounded-xl backdrop-blur-sm border border-white/5">
-            <div className="text-[10px] font-black uppercase opacity-60 tracking-wider">Session Gold</div>
-            <div ref={goldRef} className="text-xl font-black italic text-yellow-400 drop-shadow-md">+0 GOLD</div>
+         <div className="flex flex-col items-end">
+            <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Session Gold</div>
+            <div ref={goldRef} className="text-xl font-black italic text-yellow-400">+0 GOLD</div>
          </div>
       </div>
     </div>
