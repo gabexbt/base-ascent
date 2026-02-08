@@ -6,7 +6,7 @@ export const PlayerService = {
   async getPlayer(fid: number, username: string, pfpUrl?: string, referrerFid?: number): Promise<Player | null> {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('players')
         .select('*')
         .eq('fid', fid)
         .maybeSingle();
@@ -30,11 +30,12 @@ export const PlayerService = {
           has_used_xp_flex: false,
           banked_passive_xp: 0,
           last_claim_at: new Date().toISOString(),
+          ascents_remaining: 10,
           upgrades: { rapid_lift: 0, magnet: 0, battery: 0, luck: 0, stabilizer: 0 }
         };
 
         const { data: created, error: createError } = await supabase
-          .from('users')
+          .from('players')
           .insert([newPlayer])
           .select()
           .maybeSingle();
@@ -121,12 +122,18 @@ export const PlayerService = {
 
   async getLeaderboard(limit: number = 15, sortBy: 'skill' | 'grind' = 'skill'): Promise<LeaderboardEntry[]> {
     // Sort by the Leaderboard Snapshot columns
-    const orderBy = sortBy === 'skill' ? 'high_score' : 'total_xp';
+    const orderBy = sortBy === 'skill' ? 'leaderboard_high_score' : 'leaderboard_total_xp';
     let query = supabase
-      .from('leaderboard')
-      .select('fid, username, pfp_url, miner_level, high_score, total_xp')
+      .from('players')
+      .select('fid, username, pfp_url, miner_level, leaderboard_high_score, leaderboard_total_xp')
       .order(orderBy, { ascending: false })
       .limit(limit);
+
+    if (sortBy === 'skill') {
+      query = query.eq('has_used_altitude_flex', true);
+    } else {
+      query = query.eq('has_used_xp_flex', true);
+    }
 
     const { data, error } = await query;
 
@@ -135,8 +142,8 @@ export const PlayerService = {
       fid: d.fid,
       username: d.username,
       pfpUrl: d.pfp_url,
-      highScore: d.high_score,
-      totalXp: d.total_xp,
+      highScore: d.leaderboard_high_score,
+      totalXp: d.leaderboard_total_xp,
       minerLevel: d.miner_level,
       rank: index + 1,
     }));
@@ -144,22 +151,24 @@ export const PlayerService = {
 
   async getPlayerRank(fid: number, type: 'skill' | 'grind'): Promise<number> {
     const isSkill = type === 'skill';
-    const orderField = isSkill ? 'high_score' : 'total_xp';
+    const flexField = isSkill ? 'has_used_altitude_flex' : 'has_used_xp_flex';
     
     const { data: p } = await supabase
-      .from('leaderboard')
-      .select(`fid, ${orderField}`)
+      .from('players')
+      .select(`leaderboard_high_score, leaderboard_total_xp, ${flexField}`)
       .eq('fid', fid)
       .maybeSingle();
 
-    if (!p) return 0;
+    if (!p || !p[flexField]) return 0;
 
-    const score = p[orderField];
+    const score = isSkill ? p.leaderboard_high_score : p.leaderboard_total_xp;
+    const orderField = isSkill ? 'leaderboard_high_score' : 'leaderboard_total_xp';
 
     // Count players with strictly higher score
     const { count } = await supabase
-      .from('leaderboard')
+      .from('players')
       .select('*', { count: 'exact', head: true })
+      .eq(flexField, true)
       .gt(orderField, score);
 
     return (count || 0) + 1;
@@ -209,14 +218,37 @@ export const PlayerService = {
     if (error) throw error;
   },
 
+  async startGameAttempt(fid: number): Promise<boolean> {
+    const { data, error } = await supabase.rpc('rpc_start_game_attempt', {
+      p_fid: fid
+    });
+    if (error) {
+      console.error("Start Game Attempt Error:", error);
+      return false;
+    }
+    return !!data;
+  },
+
+  async rechargeAscents(fid: number, amountUsdc: string, txHash: string) {
+    const { error } = await supabase.rpc('rpc_recharge_ascents', {
+      p_fid: fid,
+      p_amount_usdc: amountUsdc,
+      p_tx_hash: txHash
+    });
+    if (error) {
+      console.error("Recharge Ascents Error:", error);
+      throw error;
+    }
+  },
+
   async getGlobalRevenue(): Promise<number> {
     const { data, error } = await supabase
-      .from('platform_stats')
-      .select('total_usdc')
+      .from('global_stats')
+      .select('total_revenue')
       .eq('id', 1)
       .maybeSingle();
     if (error || !data) return 0;
-    return Number(data.total_usdc);
+    return Number(data.total_revenue);
   },
 
   mapToPlayer(db: any): Player {
@@ -240,6 +272,7 @@ export const PlayerService = {
       lastClaimAt: new Date(db.last_claim_at).getTime(),
       bankedPassiveXp: db.banked_passive_xp,
       walletAddress: db.wallet_address,
+      ascentsRemaining: db.ascents_remaining || 0,
       upgrades: typeof db.upgrades === 'string' ? JSON.parse(db.upgrades) : (db.upgrades || { rapid_lift: 0, magnet: 0, battery: 0, luck: 0, stabilizer: 0 })
     };
   }

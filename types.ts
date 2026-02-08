@@ -27,6 +27,7 @@ export interface Player {
   lastClaimAt: number; // timestamp
   bankedPassiveXp: number;
   walletAddress?: string;
+  ascentsRemaining: number;
   upgrades: Upgrades;
 }
 

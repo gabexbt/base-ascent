@@ -69,7 +69,7 @@ const MainApp: React.FC = () => {
   const [hasLeftWindow, setHasLeftWindow] = useState(false);
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<{ miner: 'idle' | 'loading' | 'success' | 'error'; double: 'idle' | 'loading' | 'success' | 'error'; flex: 'idle' | 'loading' | 'success' | 'error' }>({ miner: 'idle', double: 'idle', flex: 'idle' });
+  const [paymentStatus, setPaymentStatus] = useState<{ miner: 'idle' | 'loading' | 'success' | 'error'; double: 'idle' | 'loading' | 'success' | 'error'; flex: 'idle' | 'loading' | 'success' | 'error'; recharge: 'idle' | 'loading' | 'success' | 'error' }>({ miner: 'idle', double: 'idle', flex: 'idle', recharge: 'idle' });
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
   const [globalRevenue, setGlobalRevenue] = useState(0);
@@ -321,9 +321,26 @@ const MainApp: React.FC = () => {
 
   const handleStartGame = async () => {
     if (isStarting) return;
+    
+    // Check Ascents
+    if (!player || (player.ascentsRemaining || 0) <= 0) {
+      // Should not happen if button is correct, but safety check
+      return;
+    }
+
     setIsStarting(true);
-    playRandomTrack();
+    
     try {
+      // Deduct Ascent on Backend
+      const success = await PlayerService.startGameAttempt(player.fid);
+      if (!success) {
+        throw new Error("Failed to deduct ascent");
+      }
+
+      // Optimistic update
+      setPlayer(prev => prev ? ({ ...prev, ascentsRemaining: prev.ascentsRemaining - 1 }) : null);
+
+      playRandomTrack();
       // Force status update
       setStatus(GameStatus.PLAYING);
       setGameOverData(null);
@@ -333,6 +350,45 @@ const MainApp: React.FC = () => {
       stopAudio();
     }
     setTimeout(() => setIsStarting(false), 500);
+  };
+
+  const handleRechargeAscents = async () => {
+    if (!player) return;
+    setProcessingPayment(true);
+    setPaymentError(null);
+    setPaymentStatus(prev => ({ ...prev, recharge: 'loading' }));
+
+    try {
+      const safetyTimeout = setTimeout(() => setProcessingPayment(false), 15000);
+
+      // @ts-ignore
+      const { transactionId } = await safePay(pay({
+        amount: '0.10',
+        currency: 'USDC',
+        to: RECIPIENT_WALLET,
+        testnet: IS_TESTNET
+      }));
+
+      // Optimistic update
+      setPlayer({
+        ...player,
+        ascentsRemaining: (player.ascentsRemaining || 0) + 10
+      });
+
+      await PlayerService.rechargeAscents(player.fid, '0.10', transactionId || 'base-pay');
+      await loadData();
+      
+      clearTimeout(safetyTimeout);
+      setPaymentStatus(prev => ({ ...prev, recharge: 'success' }));
+      setTimeout(() => setPaymentStatus(prev => ({ ...prev, recharge: 'idle' })), 1200);
+    } catch (e: any) {
+      console.error("Recharge Error:", e);
+      setPaymentStatus(prev => ({ ...prev, recharge: 'error' }));
+      setPaymentError(e?.message || 'Payment failed');
+      setTimeout(() => setPaymentStatus(prev => ({ ...prev, recharge: 'idle' })), 1500);
+    } finally {
+      setProcessingPayment(false);
+    }
   };
 
   const handleCopy = () => {
@@ -718,9 +774,43 @@ const MainApp: React.FC = () => {
                       <p className="text-[11px] opacity-40 uppercase tracking-[0.4em] font-black mt-6">ASCEND TO NEW HEIGHTS</p>
                     </div>
                     <div className="flex flex-col items-center w-full mt-auto mb-6 gap-6">
-                      <button onClick={() => { handleStartGame(); }} disabled={isPending || isStarting} className="w-full max-w-[320px] py-5 border-[3px] border-white bg-white text-black font-black text-lg uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50 shadow-[0_0_30px_rgba(255,255,255,0.3)]">
-                        {isPending ? 'SYNCING...' : 'Tap to Start'}
+                      
+                      {/* Ascents Counter */}
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Ascents Available</span>
+                        <span className={`text-5xl font-black ${player?.ascentsRemaining === 0 ? 'text-red-500' : 'text-white'} drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-colors duration-300`}>
+                          {player?.ascentsRemaining ?? 0}
+                        </span>
+                      </div>
+
+                      <button 
+                        onClick={() => { 
+                          if ((player?.ascentsRemaining || 0) > 0) {
+                            handleStartGame();
+                          } else {
+                            handleRechargeAscents();
+                          }
+                        }} 
+                        disabled={isPending || isStarting || processingPayment || loading} 
+                        className={`w-full max-w-[320px] py-5 border-[3px] 
+                          ${(player?.ascentsRemaining || 0) > 0 
+                            ? "border-white bg-white text-black" 
+                            : "border-[#FFD700] bg-[#FFD700] text-black shadow-[0_0_30px_rgba(255,215,0,0.6)] animate-pulse"} 
+                          font-black text-lg uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50 
+                          ${(player?.ascentsRemaining || 0) > 0 ? "shadow-[0_0_30px_rgba(255,255,255,0.3)]" : ""}`}
+                      >
+                        {loading ? 'LOADING...' : 
+                         isPending ? 'SYNCING...' : 
+                         processingPayment ? 'PROCESSING...' :
+                         (player?.ascentsRemaining || 0) > 0 ? 'Tap to Start (-1 Ascent)' : 'RECHARGE (+10) - $0.10'}
                       </button>
+
+                      {paymentError && (
+                        <div className="text-red-400 text-xs font-bold animate-pulse mt-[-10px]">
+                          {paymentError}
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-2 gap-3 w-full max-w-[320px]">
                         <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center backdrop-blur-md">
                           <div className="text-[8px] opacity-30 uppercase font-black">Miner Level</div>
