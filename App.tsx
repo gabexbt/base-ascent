@@ -133,7 +133,6 @@ const MainApp: React.FC = () => {
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    chainId: 84532,
     query: {
       refetchInterval: 5000,
     }
@@ -797,9 +796,9 @@ const MainApp: React.FC = () => {
                     />
                   </div>
                 ) : status === GameStatus.IDLE ? (
-                  <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500 w-full px-5 pb-2 h-full">
+                  <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500 w-full px-5 pb-2 h-full justify-center">
                      <div className="flex-1 flex flex-col items-center justify-center z-10 w-full px-2">
-                      <div className="w-full h-auto max-h-[25vh] flex items-center justify-center animate-pulse duration-[2000ms]">
+                      <div className="w-full h-[220px] flex items-center justify-center animate-pulse duration-[2000ms] shrink-0">
                          <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.6]" alt="ASCENT" />
                       </div>
                       <p className="text-[11px] opacity-40 uppercase tracking-[0.4em] font-black mt-6">ASCEND TO NEW HEIGHTS</p>
@@ -823,11 +822,11 @@ const MainApp: React.FC = () => {
                           }
                         }} 
                         disabled={isPending || isStarting || processingPayment || loading} 
-                        className={`w-full max-w-[320px] py-5 border-[3px] 
+                        className={`w-full max-w-[240px] py-3 border-[3px] 
                           ${(player?.ascentsRemaining || 0) > 0 
                             ? "border-white bg-white text-black" 
                             : "border-[#FFD700] bg-[#FFD700] text-black shadow-[0_0_30px_rgba(255,215,0,0.6)] animate-pulse"} 
-                          font-black text-lg uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50 
+                          font-black text-sm uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50 
                           ${(player?.ascentsRemaining || 0) > 0 ? "shadow-[0_0_30px_rgba(255,255,255,0.3)]" : ""}`}
                       >
                         {loading ? 'LOADING...' : 
@@ -842,14 +841,14 @@ const MainApp: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-3 w-full max-w-[320px]">
-                        <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center backdrop-blur-md">
+                      <div className="grid grid-cols-2 gap-3 w-full max-w-[240px]">
+                        <div className="p-2 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center backdrop-blur-md">
                           <div className="text-[8px] opacity-30 uppercase font-black">Miner Level</div>
-                          <div className="text-xl font-black italic">LVL {player?.minerLevel || 0}</div>
+                          <div className="text-lg font-black italic">LVL {player?.minerLevel || 0}</div>
                         </div>
-                        <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center backdrop-blur-md">
+                        <div className="p-2 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center backdrop-blur-md">
                           <div className="text-[8px] opacity-30 uppercase font-black">High Score</div>
-                          <div className="text-xl font-black italic">{player?.highScore || 0} meters</div>
+                          <div className="text-lg font-black italic">{player?.highScore || 0} meters</div>
                         </div>
                       </div>
                     </div>
@@ -927,7 +926,7 @@ const MainApp: React.FC = () => {
             <div className="flex flex-col w-full relative" style={{ height: 'calc(100dvh - 160px)' }}>
                {/* Scrollable List Wrapper */}
                <div className="flex-1 relative min-h-0">
-                   <div className="h-full overflow-y-auto pb-20 custom-scrollbar px-4 pt-6 space-y-4">
+                   <div className="h-full overflow-y-auto pb-6 custom-scrollbar px-4 pt-6 space-y-4">
                        
                        {/* Header & Controls */}
                        <div className="flex justify-between items-center w-full shrink-0">
