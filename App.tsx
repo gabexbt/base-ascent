@@ -91,13 +91,8 @@ const MainApp: React.FC = () => {
     }
   }, [activeTab, status]);
   
-  // Payment Timeout Helper
-  const safePay = async (paymentPromise: Promise<any>) => {
-    const timeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Payment timed out")), 20000)
-    );
-    return Promise.race([paymentPromise, timeout]);
-  };
+  // Payment Timeout Helper - REMOVED per user request
+
 
   const playRandomTrack = useCallback(() => {
     const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
@@ -138,15 +133,17 @@ const MainApp: React.FC = () => {
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
+    chainId: 84532,
     query: {
       refetchInterval: 5000,
     }
   });
 
   const usdcBalanceFormatted = useMemo(() => {
+    if (!address) return "-";
     if (typeof usdcBalanceValue === 'bigint') return Number(formatUnits(usdcBalanceValue, 6)).toFixed(2);
-    return "0.00";
-  }, [usdcBalanceValue]);
+    return "-";
+  }, [usdcBalanceValue, address]);
 
   const loadData = useCallback(async () => {
     try {
@@ -200,7 +197,7 @@ const MainApp: React.FC = () => {
       }
 
       const fetchLeaderboard = async (attempt: number = 0): Promise<LeaderboardEntry[]> => {
-        const board = await PlayerService.getLeaderboard(15, rankingType);
+        const board = await PlayerService.getLeaderboard(100, rankingType);
         if (board.length === 0 && attempt < 2) {
           await new Promise(resolve => setTimeout(resolve, 500));
           return fetchLeaderboard(attempt + 1);
@@ -230,17 +227,6 @@ const MainApp: React.FC = () => {
        loadData();
     }
   }, [loadData, frameContext.isReady, activeTab]);
-
-  // Fallback for emulator/browser where frameContext might not be ready immediately
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!frameContext.isReady) {
-        console.log("Force loading data (Frame context timeout)");
-        loadData();
-      }
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [frameContext.isReady, loadData]);
 
   useEffect(() => {
     if (!frameContext.isReady || activeTab !== Tab.RANKINGS) return;
@@ -380,11 +366,11 @@ const MainApp: React.FC = () => {
 
     try {
       // @ts-ignore
-      const payment = await safePay(pay({
+      const payment = await pay({
         amount: '0.10',
         to: RECIPIENT_WALLET,
-        chainId: IS_TESTNET ? 84532 : 8453
-      }));
+        chainId: 84532
+      });
       const txId = payment?.id;
 
       // Optimistic update
@@ -512,11 +498,11 @@ const MainApp: React.FC = () => {
       const cost = nextMiner.cost;
 
       // @ts-ignore
-      const payment = await safePay(pay({
+      const payment = await pay({
         amount: cost.toFixed(2),
         to: RECIPIENT_WALLET,
-        chainId: IS_TESTNET ? 84532 : 8453
-      }));
+        chainId: 84532
+      });
       const txId = payment?.id;
 
       // Optimistic Update
@@ -574,11 +560,11 @@ const MainApp: React.FC = () => {
         await PlayerService.recordTransaction(player.fid, '0', `${type}_flex_free`, 'free', { flex_type: type });
       } else {
         // @ts-ignore
-        const payment = await safePay(pay({
+        const payment = await pay({
           amount: '0.10',
           to: RECIPIENT_WALLET,
-          chainId: IS_TESTNET ? 84532 : 8453
-        }));
+          chainId: 84532
+        });
         hash = payment?.id;
 
         await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns);
@@ -695,11 +681,11 @@ const MainApp: React.FC = () => {
     }, 15000);
     try {
        // @ts-ignore
-       const payment = await safePay(pay({
+       const payment = await pay({
           amount: '0.10',
           to: RECIPIENT_WALLET,
-          chainId: IS_TESTNET ? 84532 : 8453
-       }));
+          chainId: 84532
+       });
        const txId = payment?.id;
        
        await PlayerService.doubleUpRun(
@@ -771,14 +757,14 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="absolute inset-x-0 top-[74px] bottom-[90px] flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black">
+      <main className="absolute inset-x-0 top-[74px] flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black" style={{ bottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
         <div className="w-full min-h-full flex flex-col relative pb-8">
           
           <ParticleBackground />
 
           <div className="flex-1 flex flex-col relative w-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
-              <div className="flex flex-col items-center w-full min-h-full pb-8">
+              <div className="flex flex-col items-center w-full min-h-full pb-10">
                 {status === GameStatus.PLAYING ? (
                   <>
                     <div className="w-full max-w-[340px] aspect-[2/3] max-h-[520px] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-4 mb-12">
@@ -877,7 +863,7 @@ const MainApp: React.FC = () => {
                 isProcessing={processingPayment} 
               />
             ) : activeTab === Tab.HARDWARE ? (
-              <div className="flex-1 flex flex-col gap-6 items-center pb-8 p-5 w-full">
+              <div className="flex-1 flex flex-col gap-6 items-center pb-10 p-5 w-full">
                 <h2 className="text-4xl font-black italic tracking-tighter uppercase text-center w-full">Hardware</h2>
               <div className="p-5 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-center shrink-0">
                 <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">AUTO MINER</h3>
@@ -938,93 +924,107 @@ const MainApp: React.FC = () => {
               </div>
             </div>
           ) : activeTab === Tab.RANKINGS ? (
-            <div className="flex-1 flex flex-col gap-4 w-full">
-               <div className="flex flex-col gap-2 shrink-0 px-4 pt-2">
-                 <div className="flex justify-between items-center w-full">
-                    <h2 className="text-3xl font-black italic uppercase tracking-tighter">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
-                    <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
-                        <button onClick={() => handleRankingChange('skill')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
-                        <button onClick={() => handleRankingChange('grind')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
-                    </div>
-                 </div>
+            <div className="flex flex-col w-full relative" style={{ height: 'calc(100dvh - 160px)' }}>
+               {/* Scrollable List Wrapper */}
+               <div className="flex-1 relative min-h-0">
+                   <div className="h-full overflow-y-auto pb-10 custom-scrollbar px-4 pt-2 space-y-4">
+                       
+                       {/* Header & Controls */}
+                       <div className="flex justify-between items-center w-full shrink-0">
+                          <h2 className="text-3xl font-black italic uppercase tracking-tighter">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
+                          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
+                              <button onClick={() => handleRankingChange('skill')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
+                              <button onClick={() => handleRankingChange('grind')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
+                          </div>
+                       </div>
+
+                       {/* Airdrop Status */}
+                       <div className="shrink-0 px-4 py-3 border border-white/10 bg-white/5 rounded-3xl space-y-2 text-left">
+                          <div className="flex justify-between items-center mb-1">
+                             <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Airdrop Pool Status</div>
+                             <div className="text-[9px] font-black uppercase text-green-400">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}% FILLED</div>
+                          </div>
+                          <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                             <div 
+                                className="h-full bg-gradient-to-r from-green-600 to-green-400 transition-all duration-1000 ease-out"
+                                style={{ width: `${Math.min(100, (globalRevenue / 2000) * 100)}%` }}
+                             ></div>
+                          </div>
+                       </div>
+
+                       {/* Rules */}
+                       <div className="shrink-0 px-4 py-3 border border-white/10 bg-white/5 rounded-3xl space-y-2 text-left">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-white"></div>
+                            <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">LEADERBOARD RULES</h3>
+                          </div>
+                          <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
+                            {rankingType === 'skill' 
+                              ? "This leaderboard is strictly for those who want to prove their skill. It ranks players based on their highest single-run score. Focus on precision and survival to climb the rankings. The Top 20 players will be rewarded when the Airdrop Rewards Pool is full."
+                              : "This leaderboard rewards dedication and consistent play. It tracks your Total XP, which is a combination of your gameplay, active referrals, and earnings from your AutoMiner. Every action you take in the game builds this score over time. The Top 20 players will be rewarded when the Airdrop Rewards Pool is full."
+                            }
+                          </p>
+                       </div>
+
+                       {/* List */}
+                       <div className="space-y-2 pb-4">
+                          {isLeaderboardLoading ? (
+                            <div className="flex flex-col items-center justify-center py-10 opacity-50">
+                              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
+                              <div className="text-[10px] font-black uppercase tracking-widest">LOADING RANKS...</div>
+                            </div>
+                          ) : leaderboard.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 opacity-30">
+                              <div className="text-[10px] font-black uppercase tracking-widest">NO RECORDS YET</div>
+                            </div>
+                          ) : (
+                            leaderboard.map((entry, idx) => (
+                              <div key={entry.fid} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+                                <div className="flex items-center gap-4">
+                                  <span className="text-[10px] font-black opacity-30">{idx + 1}</span>
+                                  <img src={entry.pfpUrl || `https://picsum.photos/seed/${entry.fid}/32/32`} className="w-8 h-8 rounded-full opacity-60 border border-white/10" alt="" />
+                                  <div className="text-sm font-bold">@{entry.username}</div>
+                                </div>
+                                <div className="text-lg font-black italic">{rankingType === 'skill' ? entry.highScore : entry.totalXp.toLocaleString()}</div>
+                              </div>
+                            ))
+                          )}
+                       </div>
+                   </div>
+                   {/* Fade Effect */}
+                   <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-black to-transparent pointer-events-none z-10"></div>
                </div>
 
-               <div className="shrink-0 px-4 py-3 border border-white/10 bg-white/5 rounded-3xl space-y-2 text-left">
-                  <div className="flex justify-between items-center mb-1">
-                     <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Airdrop Pool Status</div>
-                     <div className="text-[9px] font-black uppercase text-green-400">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}% FILLED</div>
-                  </div>
-                  <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                     <div 
-                        className="h-full bg-gradient-to-r from-green-600 to-green-400 transition-all duration-1000 ease-out"
-                        style={{ width: `${Math.min(100, (globalRevenue / 2000) * 100)}%` }}
-                     ></div>
-                  </div>
-               </div>
-
-               <div className="shrink-0 px-4 py-3 border border-white/10 bg-white/5 rounded-3xl space-y-2 text-left">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-white"></div>
-                    <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">LEADERBOARD RULES</h3>
-                  </div>
-                  <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
-                    {rankingType === 'skill' 
-                      ? "This leaderboard is strictly for those who want to prove their skill. It ranks players based on their highest single-run score. Focus on precision and survival to climb the rankings. The Top 20 players will be rewarded when the Airdrop Rewards Pool is full."
-                      : "This leaderboard rewards dedication and consistent play. It tracks your Total XP, which is a combination of your gameplay, active referrals, and earnings from your AutoMiner. Every action you take in the game builds this score over time. The Top 20 players will be rewarded when the Airdrop Rewards Pool is full."
-                    }
-                  </p>
-               </div>
-
-               <div className="flex-1 space-y-2">
-                  {isLeaderboardLoading ? (
-                    <div className="flex flex-col items-center justify-center h-full opacity-50">
-                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
-                      <div className="text-[10px] font-black uppercase tracking-widest">LOADING RANKS...</div>
-                    </div>
-                  ) : leaderboard.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full opacity-30">
-                      <div className="text-[10px] font-black uppercase tracking-widest">NO RECORDS YET</div>
-                    </div>
-                  ) : (
-                    leaderboard.map((entry, idx) => (
-                      <div key={entry.fid} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
-                        <div className="flex items-center gap-4">
-                          <span className="text-[10px] font-black opacity-30">{idx + 1}</span>
-                          <img src={entry.pfpUrl || `https://picsum.photos/seed/${entry.fid}/32/32`} className="w-8 h-8 rounded-full opacity-60 border border-white/10" alt="" />
-                          <div className="text-sm font-bold">@{entry.username}</div>
-                        </div>
-                        <div className="text-lg font-black italic">{rankingType === 'skill' ? entry.highScore : entry.totalXp.toLocaleString()}</div>
+               {/* Your Rank (Sticky) */}
+               <div className="shrink-0 p-4 pt-2 bg-black z-20 relative border-t border-white/10">
+                  <div className="p-4 border border-white/10 bg-white/5 rounded-3xl space-y-4">
+                      <div className="flex justify-between items-center px-2">
+                         <div className="text-[10px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
+                         <div className="flex items-center gap-3">
+                            <span className={`text-[9px] font-bold uppercase ${syncStatus === 'SYNCED' ? 'text-green-400' : 'text-yellow-400'}`}>{syncStatus}</span>
+                            <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank > 0 ? playerRank : '-'} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
+                         </div>
                       </div>
-                    ))
-                  )}
-               </div>
-               <div className="shrink-0 p-4 border border-white/10 bg-white/5 rounded-3xl space-y-4">
-                  <div className="flex justify-between items-center px-2">
-                     <div className="text-[10px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
-                     <div className="flex items-center gap-3">
-                        <span className={`text-[9px] font-bold uppercase ${syncStatus === 'SYNCED' ? 'text-green-400' : 'text-yellow-400'}`}>{syncStatus}</span>
-                        <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank > 0 ? playerRank : '-'} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
-                     </div>
-                  </div>
-                  <button onClick={handleFlex} disabled={processingPayment} className="w-full py-4 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-2xl active:scale-95 disabled:opacity-50">
-                    {paymentStatus.flex === 'loading' ? 'Processing...' : paymentStatus.flex === 'success' ? 'Synced' : paymentStatus.flex === 'error' ? 'Failed' : (
-                      <>
-                        <span className="uppercase tracking-wider">FLEX {rankingType === 'skill' ? 'ALTITUDE' : 'EXPERIENCE'}</span>
-                        {((rankingType === 'skill' && player?.hasUsedAltitudeFlex) || (rankingType === 'grind' && player?.hasUsedXpFlex)) ? (
-                           <span className="opacity-50 ml-2">($0.1 USDC)</span>
-                        ) : (
-                           <span className="text-green-400 ml-2">(FREE)</span>
+                      <button onClick={handleFlex} disabled={processingPayment} className="w-full py-4 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-2xl active:scale-95 disabled:opacity-50">
+                        {paymentStatus.flex === 'loading' ? 'Processing...' : paymentStatus.flex === 'success' ? 'Synced' : paymentStatus.flex === 'error' ? 'Failed' : (
+                          <>
+                            <span className="uppercase tracking-wider">FLEX {rankingType === 'skill' ? 'ALTITUDE' : 'EXPERIENCE'}</span>
+                            {((rankingType === 'skill' && player?.hasUsedAltitudeFlex) || (rankingType === 'grind' && player?.hasUsedXpFlex)) ? (
+                               <span className="opacity-50 ml-2">($0.1 USDC)</span>
+                            ) : (
+                               <span className="text-green-400 ml-2">(FREE)</span>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                  </button>
-                  {paymentStatus.flex === 'error' && paymentError && (
-                    <div className="text-[9px] font-bold uppercase text-red-400 px-2">{paymentError}</div>
-                  )}
+                      </button>
+                      {paymentStatus.flex === 'error' && paymentError && (
+                        <div className="text-[9px] font-bold uppercase text-red-400 px-2">{paymentError}</div>
+                      )}
+                  </div>
                </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col gap-3 pr-1 pb-4 items-center w-full">
+            <div className="flex-1 flex flex-col gap-3 pr-1 pb-10 items-center w-full">
                <h2 className="text-3xl font-black italic uppercase">PROFILE</h2>
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] flex flex-col items-center">
                   <h3 className="text-2xl font-black italic uppercase opacity-40 mb-5 tracking-widest">STATS</h3>
