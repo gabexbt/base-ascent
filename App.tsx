@@ -444,8 +444,8 @@ const MainApp: React.FC = () => {
   const handleRankingChange = (type: 'skill' | 'grind') => {
     if (type === rankingType) return;
     setRankingType(type);
-    setLeaderboard([]); // Clear immediately to avoid flickering
-    setIsLeaderboardLoading(true); // Set loading state immediately
+    // Do NOT clear leaderboard immediately. Keep stale data until new data loads.
+    setIsLeaderboardLoading(true);
   };
 
   const syncStatus = useMemo(() => {
@@ -459,6 +459,17 @@ const MainApp: React.FC = () => {
   }, [player, rankingType]);
 
   if (loading || isFarcasterLoading) return <LoadingScreen />;
+
+  // Error State if Player fails to load
+  if (!player) {
+    return (
+      <div className="h-[100dvh] bg-black text-white font-mono flex flex-col items-center justify-center p-8 text-center">
+        <div className="text-red-500 font-bold text-xl mb-4">CONNECTION ERROR</div>
+        <p className="opacity-60 mb-8">Could not load player profile. The database might be resetting or your connection is unstable.</p>
+        <button onClick={() => window.location.reload()} className="px-6 py-3 bg-white text-black font-black rounded-xl uppercase">Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[100dvh] bg-black text-white font-mono flex flex-col items-center overflow-hidden antialiased select-none">

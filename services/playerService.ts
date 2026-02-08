@@ -56,168 +56,60 @@ export const PlayerService = {
   },
 
   async syncPlayerStats(fid: number, totalXp: number, totalGold: number, highScore: number, totalRuns?: number) {
-    const { data: p } = await supabase
-      .from('players')
-      .select('high_score, total_xp, referrer_fid, total_runs')
-      .eq('fid', fid)
-      .maybeSingle();
+    const { error } = await supabase.rpc('rpc_sync_stats', {
+      p_fid: fid,
+      p_xp: totalXp,
+      p_gold: totalGold,
+      p_score: highScore,
+      p_runs: totalRuns || 0
+    });
 
-    if (!p) return;
-
-    // Calculate delta for referral kickback
-    const xpDelta = totalXp - p.total_xp;
-    if (xpDelta > 0 && p.referrer_fid) {
-      const kickback = Math.floor(xpDelta * 0.1);
-      await this.addReferralXp(p.referrer_fid, kickback);
-    }
-
-    const newHighScore = Math.max(highScore, p.high_score);
-    
-    // Update object
-    const updates: any = {
-      total_xp: totalXp,
-      total_gold: totalGold,
-      high_score: newHighScore,
-      updated_at: new Date().toISOString(),
-    };
-    
-    // Only update total_runs if provided and greater than current
-    if (totalRuns !== undefined && totalRuns > (p.total_runs || 0)) {
-        updates.total_runs = totalRuns;
-    }
-
-    await supabase
-      .from('players')
-      .update(updates)
-      .eq('fid', fid);
+    if (error) console.error("Sync Stats Error:", error);
   },
 
   // Syncs the current actual high score to the leaderboard (Flex)
   async syncAltitude(fid: number) {
-    const { data: p } = await supabase.from('players').select('high_score').eq('fid', fid).maybeSingle();
-    if (!p) return;
-
-    await supabase
-      .from('players')
-      .update({
-        leaderboard_high_score: p.high_score,
-        has_used_altitude_flex: true,
-        last_synced_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('fid', fid);
+    const { error } = await supabase.rpc('rpc_flex_stat', {
+      p_fid: fid,
+      p_type: 'altitude'
+    });
+    if (error) console.error("Sync Altitude Error:", error);
   },
 
   // Syncs the current actual total XP to the leaderboard (Flex)
   async syncXp(fid: number) {
-    const { data: p } = await supabase.from('players').select('total_xp').eq('fid', fid).maybeSingle();
-    if (!p) return;
-
-    await supabase
-      .from('players')
-      .update({
-        leaderboard_total_xp: p.total_xp,
-        has_used_xp_flex: true,
-        last_synced_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('fid', fid);
+    const { error } = await supabase.rpc('rpc_flex_stat', {
+      p_fid: fid,
+      p_type: 'xp'
+    });
+    if (error) console.error("Sync XP Error:", error);
   },
 
   async upgradeMiner(fid: number, level: number) {
-    const { data: p } = await supabase
-      .from('players')
-      .select('miner_level, last_claim_at, banked_passive_xp')
-      .eq('fid', fid)
-      .maybeSingle();
-
-    if (p && p.miner_level < level) {
-      // Bank existing pending XP before upgrading rate
-      const now = Date.now();
-      const lastClaim = new Date(p.last_claim_at).getTime();
-      const hoursElapsed = (now - lastClaim) / 3600000;
-      
-      const { xpPerHour } = MINER_LEVELS[p.miner_level];
-      const pendingXp = Math.floor(hoursElapsed * xpPerHour);
-      const newBankedXp = (p.banked_passive_xp || 0) + pendingXp;
-
-      await supabase
-        .from('players')
-        .update({
-          miner_level: level,
-          banked_passive_xp: newBankedXp,
-          last_claim_at: new Date().toISOString(), // Reset claim timer to now
-          updated_at: new Date().toISOString(),
-        })
-        .eq('fid', fid);
-    }
+    const { error } = await supabase.rpc('rpc_upgrade_miner', {
+      p_fid: fid,
+      p_new_level: level
+    });
+    if (error) console.error("Upgrade Miner Error:", error);
   },
 
   async claimPassiveXp(fid: number): Promise<void> {
-    const { data: p } = await supabase
-      .from('players')
-      .select('*')
-      .eq('fid', fid)
-      .maybeSingle();
-
-    if (!p) return;
-
-    const now = Date.now();
-    const lastClaim = new Date(p.last_claim_at).getTime();
-    const hoursElapsed = (now - lastClaim) / 3600000;
-
-    const { xpPerHour } = MINER_LEVELS[p.miner_level];
-    const currentPendingXp = Math.floor(hoursElapsed * xpPerHour);
-    const totalClaimable = (p.banked_passive_xp || 0) + currentPendingXp;
-
-    if (totalClaimable > 0) {
-      await supabase
-        .from('players')
-        .update({
-          total_xp: p.total_xp + totalClaimable,
-          banked_passive_xp: 0,
-          last_claim_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('fid', fid);
-    }
+    const { error } = await supabase.rpc('rpc_claim_passive_xp', {
+      p_fid: fid
+    });
+    if (error) console.error("Claim XP Error:", error);
   },
 
   async incrementReferralCount(referrerFid: number) {
-    const { data: p } = await supabase
-      .from('players')
-      .select('referral_count')
-      .eq('fid', referrerFid)
-      .maybeSingle();
-
-    if (p) {
-      await supabase
-        .from('players')
-        .update({
-          referral_count: (p.referral_count || 0) + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('fid', referrerFid);
-    }
+    const { error } = await supabase.rpc('rpc_increment_referral', {
+      p_referrer_fid: referrerFid
+    });
+    if (error) console.error("Increment Referral Error:", error);
   },
 
+  // Deprecated: Handled inside rpc_sync_stats now
   async addReferralXp(referrerFid: number, xpAmount: number) {
-    const { data: p } = await supabase
-      .from('players')
-      .select('referral_xp_earned, total_xp')
-      .eq('fid', referrerFid)
-      .maybeSingle();
-
-    if (p) {
-      await supabase
-        .from('players')
-        .update({
-          referral_xp_earned: (p.referral_xp_earned || 0) + xpAmount,
-          total_xp: p.total_xp + xpAmount,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('fid', referrerFid);
-    }
+    // No-op
   },
 
   async getLeaderboard(limit: number = 15, sortBy: 'skill' | 'grind' = 'skill'): Promise<LeaderboardEntry[]> {
@@ -277,27 +169,12 @@ export const PlayerService = {
   },
 
   async completeTask(fid: number, taskId: string, xpReward: number) {
-    const { data: p } = await supabase
-      .from('players')
-      .select('total_xp, completed_tasks')
-      .eq('fid', fid)
-      .maybeSingle();
-
-    if (!p) return;
-
-    const currentTasks = p.completed_tasks || [];
-    if (currentTasks.includes(taskId)) return;
-
-    const newTasks = [...currentTasks, taskId];
-    
-    await supabase
-      .from('players')
-      .update({
-        total_xp: p.total_xp + xpReward,
-        completed_tasks: newTasks,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('fid', fid);
+    const { error } = await supabase.rpc('rpc_complete_task', {
+      p_fid: fid,
+      p_task_id: taskId,
+      p_xp_reward: xpReward
+    });
+    if (error) console.error("Complete Task Error:", error);
   },
 
   async recordTransaction(fid: number, amountUsdc: string, transactionType: string, transactionHash: string, metadata?: any) {
