@@ -371,7 +371,7 @@ const MainApp: React.FC = () => {
       const payment = await safePay(pay({
         amount: '0.10',
         to: RECIPIENT_WALLET,
-        testnet: IS_TESTNET
+        chainId: IS_TESTNET ? 84532 : 8453
       }));
       const txId = payment?.id;
 
@@ -466,7 +466,10 @@ const MainApp: React.FC = () => {
     if (!player) return;
     
     // Safety check for levels
-    if (level < 1 || level > 5) return;
+    if (level < 1 || level > 5) {
+      console.error("Invalid level:", level);
+      return;
+    }
     
     setProcessingPayment(true);
     setPaymentError(null);
@@ -476,12 +479,6 @@ const MainApp: React.FC = () => {
     const hours = (Date.now() - player.lastClaimAt.getTime()) / 3600000;
     const pendingXp = Math.floor(hours * MINER_LEVELS[player.minerLevel].xpPerHour);
     const newBankedXp = (player.bankedPassiveXp || 0) + pendingXp;
-
-    const safetyTimer = setTimeout(() => {
-        setProcessingPayment(false);
-        setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
-        setPaymentError("Transaction timed out");
-    }, 20000);
 
     try {
       const minerConfig = MINER_LEVELS[level];
@@ -494,14 +491,13 @@ const MainApp: React.FC = () => {
       // @ts-ignore
       const payment = await safePay(pay({
         amount: cost, 
-        currency: 'USDC', // Explicitly state currency if needed, though SDK usually infers or takes default
+        currency: 'USDC',
         to: RECIPIENT_WALLET,
-        testnet: IS_TESTNET
+        chainId: IS_TESTNET ? 84532 : 8453
       }));
       
       const txId = payment?.id; // Get transaction ID from response
-      
-      clearTimeout(safetyTimer);
+
 
       // Optimistic Update
       setPlayer({
@@ -519,13 +515,12 @@ const MainApp: React.FC = () => {
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
     } catch (e: any) {
       console.error("Miner Upgrade Error:", e);
-      clearTimeout(safetyTimer);
       setPaymentStatus(prev => ({ ...prev, miner: 'error' }));
       setPaymentError(e?.message || 'Payment failed');
       setTimeout(() => {
         setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
         setPaymentError(null);
-      }, 2000);
+      }, 3000);
     } finally {
       setProcessingPayment(false);
     }
@@ -560,7 +555,7 @@ const MainApp: React.FC = () => {
         const payment = await safePay(pay({
           amount: '0.10',
           to: RECIPIENT_WALLET,
-          testnet: IS_TESTNET
+          chainId: IS_TESTNET ? 84532 : 8453
         }));
         hash = payment?.id;
 
@@ -681,7 +676,7 @@ const MainApp: React.FC = () => {
        const payment = await safePay(pay({
           amount: '0.10',
           to: RECIPIENT_WALLET,
-          testnet: IS_TESTNET
+          chainId: IS_TESTNET ? 84532 : 8453
        }));
        const txId = payment?.id;
        
@@ -754,12 +749,12 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="w-full h-[100dvh] pt-[74px] flex flex-col relative z-10 overflow-y-auto custom-scrollbar overscroll-none">
-        <div className="w-full min-h-full flex flex-col relative pb-[calc(220px+env(safe-area-inset-bottom))]">
+      <main className="absolute inset-0 top-[74px] bottom-0 flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black">
+        <div className="w-full min-h-full flex flex-col relative pb-[140px]">
           
           <ParticleBackground />
 
-          <div className="flex-1 flex flex-col relative" key={activeTab}>
+          <div className="flex-1 flex flex-col relative w-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
               <div className="flex flex-col items-center w-full min-h-full pb-8">
                 {status === GameStatus.PLAYING ? (
@@ -1066,24 +1061,24 @@ const MainApp: React.FC = () => {
       </main>
 
       {/* Bottom Navigation - Fixed */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center px-6 py-5 bg-black border-t border-white/10 shrink-0 z-30 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-        <button onClick={() => setActiveTab(Tab.ASCENT)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.ASCENT ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}>
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center px-6 py-4 bg-black/95 backdrop-blur-md border-t border-white/10 shrink-0 z-50 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
+        <button onClick={() => setActiveTab(Tab.ASCENT)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.ASCENT ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Ascent />
           <span className="text-[9px] font-black uppercase tracking-widest">Ascent</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.UPGRADES)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.UPGRADES ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}>
+        <button onClick={() => setActiveTab(Tab.UPGRADES)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.UPGRADES ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Upgrades />
           <span className="text-[9px] font-black uppercase tracking-widest">Armory</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.HARDWARE)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.HARDWARE ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}>
+        <button onClick={() => setActiveTab(Tab.HARDWARE)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.HARDWARE ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Hardware />
           <span className="text-[9px] font-black uppercase tracking-widest">Miner</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.RANKINGS)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.RANKINGS ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}>
+        <button onClick={() => setActiveTab(Tab.RANKINGS)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.RANKINGS ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Ranking />
           <span className="text-[9px] font-black uppercase tracking-widest">Ranks</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.PROFILE)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.PROFILE ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}>
+        <button onClick={() => setActiveTab(Tab.PROFILE)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.PROFILE ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Profile />
           <span className="text-[9px] font-black uppercase tracking-widest">Profile</span>
         </button>
