@@ -85,13 +85,13 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
   return (
     <div className="flex flex-col h-full bg-black text-white p-4 pb-24 overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 bg-gray-900 p-4 rounded-xl border border-gray-800">
+      <div className="flex items-center justify-between mb-6 bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
         <div>
-          <h2 className="text-xl font-bold text-gray-300 uppercase tracking-wider">Armory</h2>
-          <p className="text-xs text-gray-500">Upgrade your hardware</p>
+          <h2 className="text-xl font-bold text-white uppercase tracking-wider">Armory</h2>
+          <p className="text-xs text-white/40">Upgrade your hardware</p>
         </div>
         <div className="text-right">
-          <div className="text-3xl font-black text-yellow-400 tracking-tighter flex items-center justify-end gap-1">
+          <div className="text-3xl font-black text-yellow-400 tracking-tighter flex items-center justify-end gap-3">
             {player.totalGold.toLocaleString()}
             <span className="text-sm text-yellow-600 font-bold">GOLD</span>
           </div>
@@ -114,12 +114,12 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
           const isPurchasing = purchasing === key;
 
           return (
-            <div key={key} className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden group">
+            <div key={key} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden group">
               {/* Background gradient effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
 
               {/* Icon */}
-              <div className="flex-shrink-0 w-16 h-16 bg-gray-800 rounded-lg flex items-center justify-center border border-gray-700 shadow-inner">
+              <div className="flex-shrink-0 w-16 h-16 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 shadow-inner">
                  {/* Try to use image, fallback to Lucide icon */}
                  <img 
                    src={config.icon} 
@@ -139,13 +139,13 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-white text-lg leading-tight">{config.name}</h3>
-                  <span className="bg-blue-600/20 text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-blue-500/30">
+                  <span className="bg-white/10 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/20">
                     Lvl {currentLevel}
                   </span>
                 </div>
-                <p className="text-gray-400 text-sm leading-snug mt-1">{config.description}</p>
-                <div className="text-xs text-gray-500 mt-1">
-                  Next: <span className="text-gray-300">+{Math.pow(1.5, currentLevel + 1).toFixed(1)}x scaling</span>
+                <p className="text-white/60 text-sm leading-snug mt-1">{config.description}</p>
+                <div className="text-xs text-white/40 mt-1">
+                  Next: <span className="text-white/80">+{Math.pow(1.5, currentLevel + 1).toFixed(1)}x scaling</span>
                 </div>
               </div>
 
@@ -155,8 +155,8 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
                 disabled={!canAfford || isPurchasing}
                 className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-2 rounded-lg font-bold transition-all active:scale-95 ${
                   canAfford 
-                    ? 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-[0_0_15px_rgba(234,179,8,0.4)]' 
-                    : 'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50'
+                    ? 'bg-white hover:bg-gray-200 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
+                    : 'bg-white/5 text-white/20 cursor-not-allowed'
                 }`}
               >
                 {isPurchasing ? (

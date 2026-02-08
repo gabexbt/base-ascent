@@ -565,16 +565,6 @@ const MainApp: React.FC = () => {
   return (
     <div className="h-[100dvh] bg-black text-white font-mono flex flex-col items-center overflow-hidden antialiased select-none relative">
       
-      {/* Game Layer - Full Screen Background */}
-      <div className={`absolute inset-0 z-0 ${activeTab === Tab.ASCENT ? 'visible' : 'invisible'}`}>
-        <GameEngine 
-           isActive={activeTab === Tab.ASCENT && status === GameStatus.PLAYING} 
-           onGameOver={handleGameOver} 
-           multiplier={currentMiner.multiplier}
-           upgrades={player.upgrades}
-        />
-      </div>
-
       {/* Header - Always on top */}
       <header className="w-full max-w-md px-6 py-4 flex justify-between items-center border-b border-white/10 bg-black/80 backdrop-blur-sm shrink-0 z-20 absolute top-0 left-1/2 -translate-x-1/2">
         <div className="flex items-center gap-3">
@@ -599,8 +589,17 @@ const MainApp: React.FC = () => {
             {activeTab === Tab.ASCENT ? (
               <div className="flex-1 flex flex-col gap-6 relative p-5">
                 {status === GameStatus.PLAYING ? (
-                  // Game is running in background, UI is hidden or minimal if needed
-                  <div className="flex-1"></div>
+                  // Game Container
+                  <div className="flex-1 flex flex-col items-center justify-center -mt-10">
+                    <div className="w-full max-w-[340px] aspect-[2/3] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10">
+                      <GameEngine 
+                        isActive={true} 
+                        onGameOver={handleGameOver} 
+                        multiplier={currentMiner.multiplier}
+                        upgrades={player.upgrades}
+                      />
+                    </div>
+                  </div>
                 ) : status === GameStatus.GAMEOVER && gameOverData ? (
                   <GameOver 
                     score={gameOverData.score}

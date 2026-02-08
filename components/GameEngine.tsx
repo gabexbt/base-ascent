@@ -324,7 +324,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
   }, [isActive, initGame, loop]);
 
   return (
-    <div className="fixed inset-0 w-full h-full touch-none select-none z-0 bg-black" onPointerDown={handleAction}>
+    <div className="relative w-full h-full touch-none select-none bg-black overflow-hidden" onPointerDown={handleAction}>
       <canvas 
         ref={canvasRef} 
         width={GAME_WIDTH} 
