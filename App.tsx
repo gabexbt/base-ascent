@@ -298,8 +298,11 @@ const MainApp: React.FC = () => {
   const [isClaiming, setIsClaiming] = useState(false);
   const [showClaimEffect, setShowClaimEffect] = useState(false);
 
+  const [lastClaimedAmount, setLastClaimedAmount] = useState(0);
+
   const handleClaim = async () => {
     if (player && !isClaiming) {
+      setLastClaimedAmount(passiveEarnings);
       setIsClaiming(true);
       setShowClaimEffect(true);
       
@@ -321,6 +324,12 @@ const MainApp: React.FC = () => {
   const handleUpgradeMiner = async (level: number) => {
     if (!player) return;
     setProcessingPayment(true);
+    
+    // Calculate pending XP to bank optimistically
+    const hours = (Date.now() - player.lastClaimAt.getTime()) / 3600000;
+    const pendingXp = Math.floor(hours * MINER_LEVELS[player.minerLevel].xpPerHour);
+    const newBankedXp = (player.bankedPassiveXp || 0) + pendingXp;
+
     try {
       const cost = MINER_LEVELS[level].cost.toFixed(2);
       // @ts-ignore
@@ -331,12 +340,21 @@ const MainApp: React.FC = () => {
         testnet: IS_TESTNET
       });
 
+      // Optimistic update to prevent UI reset flash
+      setPlayer({
+        ...player,
+        minerLevel: level,
+        bankedPassiveXp: newBankedXp,
+        lastClaimAt: new Date()
+      });
+
       await PlayerService.upgradeMiner(player.fid, level);
       await PlayerService.recordTransaction(player.fid, cost, 'miner_purchase', transactionId || 'base-pay', { miner_level: level });
       await loadData();
     } catch (e) {
       console.error(e);
       setProcessingPayment(false);
+      await loadData(); // Revert on error
     } finally {
       setProcessingPayment(false);
     }
@@ -488,7 +506,7 @@ const MainApp: React.FC = () => {
 
       <main className="w-full max-w-md flex-1 flex flex-col overflow-hidden relative">
         <ParticleBackground />
-        <div className="flex-1 px-5 py-6 flex flex-col overflow-hidden relative z-10">
+        <div className="flex-1 px-5 py-6 flex flex-col overflow-hidden relative z-10" key={activeTab}>
           {activeTab === Tab.ASCENT ? (
             <div className="flex-1 flex flex-col gap-6 relative">
               {status === GameStatus.PLAYING ? (
@@ -560,14 +578,14 @@ const MainApp: React.FC = () => {
                     
                     <div className="w-full p-8 bg-[#111] border border-white/10 rounded-[32px] flex flex-col justify-center gap-2 items-center text-center shrink-0">
                       <div className="text-xs opacity-40 font-black uppercase tracking-widest">Unclaimed Earnings</div>
-                      <div className={`text-4xl font-black italic text-center tracking-tighter transition-all duration-300 ${showClaimEffect ? 'text-green-400 scale-110' : 'text-white'}`}>+{passiveEarnings}</div>
+                      <div className={`text-4xl font-black italic text-center tracking-tighter transition-all duration-300 ${showClaimEffect ? 'scale-110' : 'text-white'}`}>+{showClaimEffect ? lastClaimedAmount : passiveEarnings}</div>
                       <div className="text-xs font-bold uppercase opacity-30">XP Generated</div>
                       <button 
                         onClick={handleClaim} 
                         disabled={passiveEarnings === 0 || isClaiming} 
                         className={`mt-auto w-full py-4 font-black text-lg rounded-2xl active:scale-95 disabled:opacity-20 transition-all uppercase ${showClaimEffect ? 'bg-green-400 text-black' : 'bg-white text-black'}`}
                       >
-                        {isClaiming ? 'Claiming...' : showClaimEffect ? 'Claimed!' : 'Claim to Wallet'}
+                        {isClaiming ? 'Claiming...' : showClaimEffect ? 'Success!' : 'Claim to Wallet'}
                       </button>
                     </div>
 
