@@ -49,6 +49,13 @@ export const PlayerService = {
         return created ? this.mapToPlayer(created) : null;
       }
 
+      // Check for PFP update
+      if (pfpUrl && data.pfp_url !== pfpUrl) {
+        // Optimistically update PFP in background
+        await supabase.from('players').update({ pfp_url: pfpUrl }).eq('fid', fid);
+        data.pfp_url = pfpUrl;
+      }
+
       if (error) throw error;
       return this.mapToPlayer(data);
     } catch (e) {
