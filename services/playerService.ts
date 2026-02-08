@@ -98,7 +98,21 @@ export const PlayerService = {
       p_fid: fid,
       p_new_level: level
     });
-    if (error) console.error("Upgrade Miner Error:", error);
+    if (error) {
+      console.error("Upgrade Miner Error:", error);
+      throw error;
+    }
+  },
+
+  async updateWalletAddress(fid: number, address: string) {
+    const { error } = await supabase
+      .from('players')
+      .update({ wallet_address: address })
+      .eq('fid', fid);
+
+    if (error) {
+      console.error("Update Wallet Address Error:", error);
+    }
   },
 
   async claimPassiveXp(fid: number): Promise<void> {

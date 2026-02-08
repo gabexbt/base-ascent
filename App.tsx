@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider, createConfig, http, useAccount, useReadContract } from 'wagmi';
+import { WagmiProvider, createConfig, http, useAccount, useBalance } from 'wagmi';
 import { base, baseSepolia } from 'viem/chains';
 import { formatUnits, erc20Abi } from 'viem';
 import { coinbaseWallet } from 'wagmi/connectors';
@@ -128,11 +128,9 @@ const MainApp: React.FC = () => {
     }
   }, []);
 
-  const { data: usdcBalanceValue } = useReadContract({
-    address: USDC_BASE_ADDRESS as `0x${string}`,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
+  const { data: usdcBalance } = useBalance({
+    address: address,
+    token: USDC_BASE_ADDRESS as `0x${string}`,
     query: {
       refetchInterval: 5000,
     }
@@ -140,9 +138,17 @@ const MainApp: React.FC = () => {
 
   const usdcBalanceFormatted = useMemo(() => {
     if (!address) return "-";
-    if (typeof usdcBalanceValue === 'bigint') return Number(formatUnits(usdcBalanceValue, 6)).toFixed(2);
+    if (usdcBalance) return Number(usdcBalance.formatted).toFixed(2);
     return "-";
-  }, [usdcBalanceValue, address]);
+  }, [usdcBalance, address]);
+
+  // Sync wallet address to database when connected
+  useEffect(() => {
+    if (player?.fid && address) {
+      PlayerService.updateWalletAddress(player.fid, address);
+    }
+  }, [player?.fid, address]);
+
 
   const loadData = useCallback(async () => {
     try {
