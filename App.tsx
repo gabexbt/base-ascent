@@ -360,17 +360,20 @@ const MainApp: React.FC = () => {
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, recharge: 'loading' }));
+    const safetyTimeout = setTimeout(() => {
+      setProcessingPayment(false);
+      setPaymentStatus(prev => ({ ...prev, recharge: 'idle' }));
+      setPaymentError("Payment timed out");
+    }, 20000);
 
     try {
-      const safetyTimeout = setTimeout(() => setProcessingPayment(false), 15000);
-
       // @ts-ignore
-      const { transactionId } = await safePay(pay({
+      const payment = await safePay(pay({
         amount: '0.10',
-        currency: 'USDC',
         to: RECIPIENT_WALLET,
         testnet: IS_TESTNET
       }));
+      const txId = payment?.id;
 
       // Optimistic update
       setPlayer({
@@ -378,18 +381,21 @@ const MainApp: React.FC = () => {
         ascentsRemaining: (player.ascentsRemaining || 0) + 10
       });
 
-      await PlayerService.rechargeAscents(player.fid, '0.10', transactionId || 'base-pay');
+      await PlayerService.rechargeAscents(player.fid, '0.10', txId || 'base-pay');
       await loadData();
-      
-      clearTimeout(safetyTimeout);
+
       setPaymentStatus(prev => ({ ...prev, recharge: 'success' }));
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, recharge: 'idle' })), 1200);
     } catch (e: any) {
       console.error("Recharge Error:", e);
       setPaymentStatus(prev => ({ ...prev, recharge: 'error' }));
       setPaymentError(e?.message || 'Payment failed');
-      setTimeout(() => setPaymentStatus(prev => ({ ...prev, recharge: 'idle' })), 1500);
+      setTimeout(() => {
+        setPaymentStatus(prev => ({ ...prev, recharge: 'idle' }));
+        setPaymentError(null);
+      }, 1500);
     } finally {
+      clearTimeout(safetyTimeout);
       setProcessingPayment(false);
     }
   };
@@ -462,12 +468,10 @@ const MainApp: React.FC = () => {
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, miner: 'loading' }));
     
-    // Calculate pending XP to bank optimistically
     const hours = (Date.now() - player.lastClaimAt.getTime()) / 3600000;
     const pendingXp = Math.floor(hours * MINER_LEVELS[player.minerLevel].xpPerHour);
     const newBankedXp = (player.bankedPassiveXp || 0) + pendingXp;
 
-    // Safety timeout to prevent stuck state
     const safetyTimer = setTimeout(() => {
         setProcessingPayment(false);
         setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
@@ -477,16 +481,15 @@ const MainApp: React.FC = () => {
     try {
       const cost = MINER_LEVELS[level].cost.toFixed(2);
       // @ts-ignore
-      const { transactionId } = await safePay(pay({
+      const payment = await safePay(pay({
         amount: cost,
-        currency: 'USDC',
         to: RECIPIENT_WALLET,
         testnet: IS_TESTNET
       }));
+      const txId = payment?.id;
 
-      clearTimeout(safetyTimer); // Clear timeout on success
+      clearTimeout(safetyTimer);
 
-      // Optimistic update to prevent UI reset flash
       setPlayer({
         ...player,
         minerLevel: level,
@@ -495,18 +498,20 @@ const MainApp: React.FC = () => {
       });
 
       await PlayerService.upgradeMiner(player.fid, level);
-      await PlayerService.recordTransaction(player.fid, cost, 'miner_purchase', transactionId || 'base-pay', { miner_level: level });
+      await PlayerService.recordTransaction(player.fid, cost, 'miner_purchase', txId || 'base-pay', { miner_level: level });
       await loadData();
       
       setPaymentStatus(prev => ({ ...prev, miner: 'success' }));
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1200);
     } catch (e: any) {
       console.error(e);
-      clearTimeout(safetyTimer); // Clear timeout on error
-      // Do NOT reload data here to prevent state reset on payment cancel
+      clearTimeout(safetyTimer);
       setPaymentStatus(prev => ({ ...prev, miner: 'error' }));
       setPaymentError(e?.message || 'Payment failed');
-      setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
+      setTimeout(() => {
+        setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
+        setPaymentError(null);
+      }, 1500);
     } finally {
       setProcessingPayment(false);
     }
@@ -520,16 +525,15 @@ const MainApp: React.FC = () => {
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, flex: 'loading' }));
-    // Safety timeout to prevent stuck state
     const safetyTimeout = setTimeout(() => {
         setProcessingPayment(false);
-        alert("Transaction timed out. Please try again.");
+        setPaymentStatus(prev => ({ ...prev, flex: 'idle' }));
+        setPaymentError("Transaction timed out");
     }, 15000);
 
     try {
       let hash = 'free';
       if (!hasUsedFree) {
-        // Free first time
         await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns);
         if (type === 'altitude') {
           await PlayerService.syncAltitude(player.fid);
@@ -538,15 +542,13 @@ const MainApp: React.FC = () => {
         }
         await PlayerService.recordTransaction(player.fid, '0', `${type}_flex_free`, 'free', { flex_type: type });
       } else {
-        // Paid subsequent times
         // @ts-ignore
-        const { transactionId } = await safePay(pay({
+        const payment = await safePay(pay({
           amount: '0.10',
-          currency: 'USDC',
           to: RECIPIENT_WALLET,
           testnet: IS_TESTNET
         }));
-        hash = transactionId;
+        hash = payment?.id;
 
         await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns);
         if (type === 'altitude') {
@@ -564,6 +566,10 @@ const MainApp: React.FC = () => {
       const msg = e.message || "Transaction failed. Please try again.";
       setPaymentStatus(prev => ({ ...prev, flex: 'error' }));
       setPaymentError(msg);
+      setTimeout(() => {
+        setPaymentStatus(prev => ({ ...prev, flex: 'idle' }));
+        setPaymentError(null);
+      }, 1500);
     } finally {
       clearTimeout(safetyTimeout);
       setProcessingPayment(false);
@@ -646,39 +652,36 @@ const MainApp: React.FC = () => {
   const handleDoubleUp = async () => {
     if (!gameOverData || !player) return;
     
-    // Only allow if new high score
     if (gameOverData.score <= player.highScore) return;
 
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, double: 'loading' }));
+    const safetyTimeout = setTimeout(() => {
+      setProcessingPayment(false);
+      setPaymentStatus(prev => ({ ...prev, double: 'idle' }));
+      setPaymentError("Payment timed out");
+    }, 20000);
     try {
-       const safetyTimeout = setTimeout(() => {
-           setProcessingPayment(false);
-           alert("Transaction timed out. Please try again.");
-       }, 20000);
-
        // @ts-ignore
-       const { transactionId } = await safePay(pay({
+       const payment = await safePay(pay({
           amount: '0.10',
-          currency: 'USDC',
           to: RECIPIENT_WALLET,
           testnet: IS_TESTNET
        }));
+       const txId = payment?.id;
        
-       // Call Service
        await PlayerService.doubleUpRun(
          player.fid, 
          gameOverData.score, 
          gameOverData.xp, 
          gameOverData.gold, 
-         transactionId || 'base-pay', 
+         txId || 'base-pay', 
          0.10
        );
        
        clearTimeout(safetyTimeout);
        
-       // Update UI
        setGameOverData({
          ...gameOverData,
          score: gameOverData.score * 2,
@@ -693,7 +696,12 @@ const MainApp: React.FC = () => {
       console.error(e);
       setPaymentStatus(prev => ({ ...prev, double: 'error' }));
       setPaymentError(e?.message || 'Double up failed');
+      setTimeout(() => {
+        setPaymentStatus(prev => ({ ...prev, double: 'idle' }));
+        setPaymentError(null);
+      }, 1500);
     } finally {
+      clearTimeout(safetyTimeout);
       setProcessingPayment(false);
     }
   };
@@ -733,7 +741,7 @@ const MainApp: React.FC = () => {
 
       {/* Main Content Area - Scrollable Container for Tabs */}
       <main className="w-full h-[100dvh] pt-[74px] flex flex-col relative z-10 overflow-y-auto custom-scrollbar overscroll-none">
-        <div className="w-full min-h-full flex flex-col relative pb-[calc(160px+env(safe-area-inset-bottom))]">
+        <div className="w-full min-h-full flex flex-col relative pb-[calc(220px+env(safe-area-inset-bottom))]">
           
           <ParticleBackground />
 
@@ -741,7 +749,7 @@ const MainApp: React.FC = () => {
             {activeTab === Tab.ASCENT ? (
               <div className="flex-1 flex flex-col gap-6 relative p-5">
                 {status === GameStatus.PLAYING ? (
-                  <div className="flex-1 flex flex-col items-center justify-center min-h-0 gap-3">
+                  <div className="flex-1 flex flex-col items-center justify-start min-h-0 gap-3">
                     <div className="w-full max-w-[340px] max-h-[520px] aspect-[2/3] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 my-2">
                       <GameEngine 
                         ref={gameRef}
@@ -752,20 +760,6 @@ const MainApp: React.FC = () => {
                         xpRef={sessionXpRef}
                         goldRef={sessionGoldRef}
                       />
-                    </div>
-                    <div className="w-full max-w-[340px] flex flex-col gap-1 shrink-0 z-20 mt-4 mb-2">
-                       {/* Session HUD - Positioned below game stack, above nav */}
-                       <div className="h-12 w-full bg-[#0A0A0A]/90 backdrop-blur-md border border-white/10 flex justify-between items-center px-6 rounded-xl shadow-lg">
-                          <div className="flex flex-col items-start">
-                             <div className="text-[9px] font-black uppercase text-green-400 tracking-wider">Session XP</div>
-                             <div ref={sessionXpRef} className="text-lg font-black italic text-white">+0 XP</div>
-                          </div>
-                          <div className="w-px h-6 bg-white/10"></div>
-                          <div className="flex flex-col items-end">
-                             <div className="text-[9px] font-black uppercase text-yellow-400 tracking-wider">Session Gold</div>
-                             <div ref={sessionGoldRef} className="text-lg font-black italic text-yellow-400">+0 GOLD</div>
-                          </div>
-                       </div>
                     </div>
                   </div>
                 ) : status === GameStatus.GAMEOVER && gameOverData ? (
@@ -841,6 +835,23 @@ const MainApp: React.FC = () => {
                     </div>
                   </div>
                 ) : <div className="flex-1 flex flex-col items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>}
+                {status === GameStatus.PLAYING && (
+                  <div className="w-full flex justify-center mt-2 mb-6">
+                    <div className="w-full max-w-[340px] flex flex-col gap-1 shrink-0 z-20">
+                      <div className="h-12 w-full bg-[#0A0A0A]/90 backdrop-blur-md border border-white/10 flex justify-between items-center px-6 rounded-xl shadow-lg">
+                        <div className="flex flex-col items-start">
+                          <div className="text-[9px] font-black uppercase text-green-400 tracking-wider">Session XP</div>
+                          <div ref={sessionXpRef} className="text-lg font-black italic text-white">+0 XP</div>
+                        </div>
+                        <div className="w-px h-6 bg-white/10"></div>
+                        <div className="flex flex-col items-end">
+                          <div className="text-[9px] font-black uppercase text-yellow-400 tracking-wider">Session Gold</div>
+                          <div ref={sessionGoldRef} className="text-lg font-black italic text-yellow-400">+0 GOLD</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : activeTab === Tab.UPGRADES ? (
               <UpgradesTab 

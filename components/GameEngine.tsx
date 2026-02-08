@@ -22,7 +22,7 @@ interface Particle {
   text?: string;
   life: number;
   scale: number;
-  type: 'text' | 'square' | 'line' | 'flash';
+  type: 'text' | 'square' | 'line' | 'flash' | 'ring';
 }
 
 interface GameEngineProps {
@@ -181,6 +181,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
 
     const currentLuckTolerance = Math.max(4, luckTolerance - Math.floor(scoreRef.current / 10));
     const isPerfect = Math.abs(currentBlock.x - lastBlock.x) < currentLuckTolerance;
+    const isForgiveness = isPerfect && overlapWidth < lastBlock.width;
     
     if (overlapWidth <= 0) {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
@@ -221,6 +222,12 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
           life: 1.2, scale: 4 + Math.random() * 6, type: 'square'
         });
       }
+      if (isForgiveness) {
+        particlesRef.current.push(
+          { id: particleIdRef.current++, x: centerX, y: currentBlock.y + BLOCK_HEIGHT / 2, vx: 0, vy: 0, life: 1.0, scale: 10, type: 'ring' },
+          { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 24, vx: 0, vy: -0.6, text: 'LUCK', life: 1.4, scale: 1.4, type: 'text' }
+        );
+      }
     } else {
       playSound('hit');
       shakeRef.current = 6;
@@ -258,7 +265,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       ...p, x: p.x + p.vx, y: p.y + p.vy,
       vy: p.type === 'square' ? p.vy + 0.25 : p.vy,
       life: p.life - 0.02,
-      scale: p.type === 'text' ? p.scale : p.scale * 0.96
+      scale: p.type === 'text' ? p.scale : p.type === 'ring' ? p.scale * 1.06 : p.scale * 0.96
     })).filter(p => p.life > 0);
 
     if (shakeRef.current > 0) shakeRef.current *= 0.85;
@@ -315,6 +322,12 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
         ctx.textAlign = 'center';
         ctx.fillText(p.text!, p.x, p.y);
         ctx.shadowBlur = 0;
+      } else if (p.type === 'ring') {
+        ctx.strokeStyle = `rgba(124,255,178,${p.life})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.scale, 0, Math.PI * 2);
+        ctx.stroke();
       } else {
         ctx.fillStyle = GOLD_NEON; ctx.globalAlpha = p.life;
         ctx.fillRect(p.x, p.y, p.scale, p.scale); ctx.globalAlpha = 1;
