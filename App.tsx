@@ -181,6 +181,11 @@ const MainApp: React.FC = () => {
   // Wait for frame context to be ready before loading data
   useEffect(() => { 
     if (frameContext.isReady) {
+       // Clear leaderboard when switching to rankings tab to avoid flicker
+       if (activeTab === Tab.RANKINGS) {
+          setLeaderboard([]);
+          setIsLeaderboardLoading(true);
+       }
        loadData();
     }
   }, [loadData, frameContext.isReady, activeTab]);
@@ -290,10 +295,26 @@ const MainApp: React.FC = () => {
     });
   };
 
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [showClaimEffect, setShowClaimEffect] = useState(false);
+
   const handleClaim = async () => {
-    if (player) {
-      await PlayerService.claimPassiveXp(player.fid);
-      await loadData();
+    if (player && !isClaiming) {
+      setIsClaiming(true);
+      setShowClaimEffect(true);
+      
+      try {
+        await PlayerService.claimPassiveXp(player.fid);
+        await loadData();
+        
+        // Reset effect after animation
+        setTimeout(() => setShowClaimEffect(false), 2000);
+      } catch (e) {
+        console.error("Claim Error:", e);
+      } finally {
+        // Cooldown before allowing another claim
+        setTimeout(() => setIsClaiming(false), 2000);
+      }
     }
   };
 
@@ -416,7 +437,8 @@ const MainApp: React.FC = () => {
   const passiveEarnings = useMemo(() => {
     if (!player || player.minerLevel === 0) return 0;
     const hours = (now - player.lastClaimAt) / 3600000;
-    return Math.floor(hours * currentMiner.xpPerHour) + (player.bankedPassiveXp || 0);
+    const earnings = Math.floor(hours * currentMiner.xpPerHour) + (player.bankedPassiveXp || 0);
+    return Math.max(0, earnings); // Prevent negative earnings
   }, [player, currentMiner, now]);
 
   const handleRankingChange = (type: 'skill' | 'grind') => {
@@ -527,9 +549,15 @@ const MainApp: React.FC = () => {
                     
                     <div className="w-full p-8 bg-[#111] border border-white/10 rounded-[32px] flex flex-col justify-center gap-2 items-center text-center shrink-0">
                       <div className="text-xs opacity-40 font-black uppercase tracking-widest">Unclaimed Earnings</div>
-                      <div className="text-4xl font-black italic text-center tracking-tighter">+{passiveEarnings}</div>
+                      <div className={`text-4xl font-black italic text-center tracking-tighter transition-all duration-300 ${showClaimEffect ? 'text-green-400 scale-110' : 'text-white'}`}>+{passiveEarnings}</div>
                       <div className="text-xs font-bold uppercase opacity-30">XP Generated</div>
-                      <button onClick={handleClaim} disabled={passiveEarnings === 0} className="mt-auto w-full py-4 bg-white text-black font-black text-lg rounded-2xl active:scale-95 disabled:opacity-20 transition-all uppercase">Claim to Wallet</button>
+                      <button 
+                        onClick={handleClaim} 
+                        disabled={passiveEarnings === 0 || isClaiming} 
+                        className={`mt-auto w-full py-4 font-black text-lg rounded-2xl active:scale-95 disabled:opacity-20 transition-all uppercase ${showClaimEffect ? 'bg-green-400 text-black' : 'bg-white text-black'}`}
+                      >
+                        {isClaiming ? 'Claiming...' : showClaimEffect ? 'Claimed!' : 'Claim to Wallet'}
+                      </button>
                     </div>
 
                     <div className="w-full">
@@ -660,7 +688,7 @@ const MainApp: React.FC = () => {
         </div>
       </main>
 
-      <nav className="w-full max-w-md bg-black border-t border-white/10 flex justify-around items-center py-4 shrink-0 relative z-20">
+      <nav className="w-full max-w-[500px] bg-black border-t border-white/10 flex justify-around items-center py-4 shrink-0 relative z-20">
         {[Tab.ASCENT, Tab.HARDWARE, Tab.RANKINGS, Tab.PROFILE].map(t => (
           <button key={t} onClick={() => setActiveTab(t)} className={`flex flex-col items-center gap-1 ${activeTab === t ? 'opacity-100' : 'opacity-30'}`}>
             {t === Tab.ASCENT && <Icons.Ascent />} {t === Tab.HARDWARE && <Icons.Hardware />}

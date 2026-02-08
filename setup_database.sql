@@ -1,58 +1,41 @@
--- Delete existing tables
-DROP TABLE IF EXISTS transactions;
-DROP TABLE IF EXISTS leaderboard; -- If it exists (user mentioned it, but we are merging it into players)
-DROP TABLE IF EXISTS players;
+-- Enable Row Level Security (RLS) on tables
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 
--- Create Players Table
-CREATE TABLE players (
-    fid BIGINT PRIMARY KEY,
-    username TEXT NOT NULL,
-    pfp_url TEXT,
-    wallet_address TEXT,
-    
-    -- Game Stats (Real-time)
-    high_score INT DEFAULT 0,
-    total_xp INT DEFAULT 0,
-    total_gold INT DEFAULT 0,
-    total_runs INT DEFAULT 0,
-    
-    -- Leaderboard Snapshots (Only updated via Flex)
-    leaderboard_high_score INT DEFAULT 0,
-    leaderboard_total_xp INT DEFAULT 0,
-    
-    -- Flex Status
-    has_used_altitude_flex BOOLEAN DEFAULT FALSE,
-    has_used_xp_flex BOOLEAN DEFAULT FALSE,
-    last_synced_at TIMESTAMPTZ,
-    
-    -- Miner System
-    miner_level INT DEFAULT 0,
-    last_claim_at TIMESTAMPTZ DEFAULT NOW(),
-    banked_passive_xp INT DEFAULT 0, -- Stores unclaimed XP when upgrading
-    
-    -- Referral System
-    referrer_fid BIGINT,
-    referral_count INT DEFAULT 0,
-    referral_xp_earned INT DEFAULT 0,
-    
-    -- Task System
-    completed_tasks TEXT[] DEFAULT '{}',
-    
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Create Policies for Players Table
 
--- Create Transactions Table
-CREATE TABLE transactions (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    fid BIGINT REFERENCES players(fid),
-    amount_usdc NUMERIC,
-    transaction_type TEXT NOT NULL, -- 'miner_purchase', 'altitude_flex_paid', 'xp_flex_paid', 'free'
-    transaction_hash TEXT,
-    metadata JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- 1. Allow public read access to all player profiles (needed for leaderboards)
+CREATE POLICY "Public profiles are viewable by everyone" 
+ON players FOR SELECT 
+USING (true);
 
--- Create Indexes for Leaderboard Performance
-CREATE INDEX idx_leaderboard_altitude ON players(leaderboard_high_score DESC) WHERE has_used_altitude_flex = TRUE;
-CREATE INDEX idx_leaderboard_xp ON players(leaderboard_total_xp DESC) WHERE has_used_xp_flex = TRUE;
+-- 2. Allow users to insert their own profile (for new players)
+-- Note: In a production environment with Supabase Auth, you would use (auth.uid() = user_id)
+-- Since we are using Farcaster FIDs and client-side logic for this dev preview, we allow public insert
+-- but validation should ideally happen on a backend server.
+CREATE POLICY "Public can insert new player" 
+ON players FOR INSERT 
+WITH CHECK (true);
+
+-- 3. Allow users to update their own profile
+-- Again, without a backend verifying the Farcaster signature, we rely on the client.
+-- This policy allows updates to any row for now to ensure the game functions for all users.
+-- TO SECURE THIS: You must implement a backend service that verifies the Farcaster Frame signature
+-- and then performs the update with a service role key.
+CREATE POLICY "Public can update player stats" 
+ON players FOR UPDATE 
+USING (true);
+
+-- Create Policies for Transactions Table
+
+-- 1. Allow public read access (optional, maybe restrict to own?)
+CREATE POLICY "Transactions viewable by everyone" 
+ON transactions FOR SELECT 
+USING (true);
+
+-- 2. Allow public insert of transactions
+CREATE POLICY "Public can insert transactions" 
+ON transactions FOR INSERT 
+WITH CHECK (true);
+
+-- Note: We generally do not allow updates to transactions (immutable ledger)
