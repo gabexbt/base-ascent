@@ -15,7 +15,7 @@ export function Providers({ children, initialState }: { children: React.ReactNod
     <WagmiProvider config={config} initialState={initialState}>
       <QueryClientProvider client={queryClient}>
         <OnchainKitProvider
-          apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
+          apiKey={import.meta.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY || import.meta.env.VITE_ONCHAINKIT_API_KEY}
           chain={baseSepolia}
         >
           {children}
