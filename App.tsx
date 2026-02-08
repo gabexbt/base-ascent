@@ -464,10 +464,15 @@ const MainApp: React.FC = () => {
 
   const handleUpgradeMiner = async (level: number) => {
     if (!player) return;
+    
+    // Safety check for levels
+    if (level < 1 || level > 5) return;
+    
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, miner: 'loading' }));
     
+    // Calculate pending passive XP to bank before upgrade
     const hours = (Date.now() - player.lastClaimAt.getTime()) / 3600000;
     const pendingXp = Math.floor(hours * MINER_LEVELS[player.minerLevel].xpPerHour);
     const newBankedXp = (player.bankedPassiveXp || 0) + pendingXp;
@@ -476,20 +481,29 @@ const MainApp: React.FC = () => {
         setProcessingPayment(false);
         setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
         setPaymentError("Transaction timed out");
-    }, 15000);
+    }, 20000);
 
     try {
-      const cost = MINER_LEVELS[level].cost.toFixed(2);
+      const minerConfig = MINER_LEVELS[level];
+      if (!minerConfig) throw new Error("Invalid miner level");
+      
+      const cost = minerConfig.cost.toFixed(2);
+      
+      console.log(`Upgrading to level ${level} for ${cost} USDC`);
+
       // @ts-ignore
       const payment = await safePay(pay({
-        amount: cost,
+        amount: cost, 
+        currency: 'USDC', // Explicitly state currency if needed, though SDK usually infers or takes default
         to: RECIPIENT_WALLET,
         testnet: IS_TESTNET
       }));
-      const txId = payment?.id;
-
+      
+      const txId = payment?.id; // Get transaction ID from response
+      
       clearTimeout(safetyTimer);
 
+      // Optimistic Update
       setPlayer({
         ...player,
         minerLevel: level,
@@ -502,16 +516,16 @@ const MainApp: React.FC = () => {
       await loadData();
       
       setPaymentStatus(prev => ({ ...prev, miner: 'success' }));
-      setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1200);
+      setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
     } catch (e: any) {
-      console.error(e);
+      console.error("Miner Upgrade Error:", e);
       clearTimeout(safetyTimer);
       setPaymentStatus(prev => ({ ...prev, miner: 'error' }));
       setPaymentError(e?.message || 'Payment failed');
       setTimeout(() => {
         setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
         setPaymentError(null);
-      }, 1500);
+      }, 2000);
     } finally {
       setProcessingPayment(false);
     }
@@ -747,10 +761,10 @@ const MainApp: React.FC = () => {
 
           <div className="flex-1 flex flex-col relative" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
-              <div className="flex-1 flex flex-col gap-6 relative p-5">
+              <div className="flex flex-col items-center w-full min-h-full pb-8">
                 {status === GameStatus.PLAYING ? (
-                  <div className="flex-1 flex flex-col items-center justify-start min-h-0 gap-3">
-                    <div className="w-full max-w-[340px] max-h-[520px] aspect-[2/3] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 my-2">
+                  <>
+                    <div className="w-full max-w-[340px] aspect-[2/3] max-h-[520px] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-4 mb-4">
                       <GameEngine 
                         ref={gameRef}
                         isActive={true} 
@@ -761,23 +775,39 @@ const MainApp: React.FC = () => {
                         goldRef={sessionGoldRef}
                       />
                     </div>
-                  </div>
+                    
+                    <div className="w-full max-w-[340px] px-1 z-20">
+                      <div className="h-14 w-full bg-[#0A0A0A] border border-white/15 flex justify-between items-center px-6 rounded-2xl shadow-xl">
+                        <div className="flex flex-col items-start">
+                          <div className="text-[10px] font-black uppercase text-green-400 tracking-wider mb-0.5">Session XP</div>
+                          <div ref={sessionXpRef} className="text-xl font-black italic text-white">+0 XP</div>
+                        </div>
+                        <div className="w-px h-8 bg-white/10"></div>
+                        <div className="flex flex-col items-end">
+                          <div className="text-[10px] font-black uppercase text-yellow-400 tracking-wider mb-0.5">Session Gold</div>
+                          <div ref={sessionGoldRef} className="text-xl font-black italic text-yellow-400">+0 GOLD</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
                 ) : status === GameStatus.GAMEOVER && gameOverData ? (
-                  <GameOver 
-                    score={gameOverData.score}
-                    xpGained={gameOverData.xp}
-                    goldGained={gameOverData.gold}
-                    isHighScore={gameOverData.isNewHighScore}
-                    onPlayAgain={handlePlayAgain}
-                    onGoHome={handleGoHome}
-                    onDoubleUp={handleDoubleUp}
-                    isProcessing={processingPayment}
-                    doubleUpStatus={paymentStatus.double}
-                    ascentsRemaining={player?.ascentsRemaining}
-                    onRefill={handleRechargeAscents}
-                  />
+                  <div className="w-full p-5">
+                    <GameOver 
+                      score={gameOverData.score}
+                      xpGained={gameOverData.xp}
+                      goldGained={gameOverData.gold}
+                      isHighScore={gameOverData.isNewHighScore}
+                      onPlayAgain={handlePlayAgain}
+                      onGoHome={handleGoHome}
+                      onDoubleUp={handleDoubleUp}
+                      isProcessing={processingPayment}
+                      doubleUpStatus={paymentStatus.double}
+                      ascentsRemaining={player?.ascentsRemaining}
+                      onRefill={handleRechargeAscents}
+                    />
+                  </div>
                 ) : status === GameStatus.IDLE ? (
-                  <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500">
+                  <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500 w-full p-5">
                      <div className="flex flex-col items-center z-10 w-full px-2 mt-8">
                       <div className="w-full h-[220px] flex items-center justify-center animate-pulse duration-[2000ms]">
                          <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.6]" alt="ASCENT" />
@@ -835,23 +865,6 @@ const MainApp: React.FC = () => {
                     </div>
                   </div>
                 ) : <div className="flex-1 flex flex-col items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>}
-                {status === GameStatus.PLAYING && (
-                  <div className="w-full flex justify-center mt-2 mb-6">
-                    <div className="w-full max-w-[340px] flex flex-col gap-1 shrink-0 z-20">
-                      <div className="h-12 w-full bg-[#0A0A0A]/90 backdrop-blur-md border border-white/10 flex justify-between items-center px-6 rounded-xl shadow-lg">
-                        <div className="flex flex-col items-start">
-                          <div className="text-[9px] font-black uppercase text-green-400 tracking-wider">Session XP</div>
-                          <div ref={sessionXpRef} className="text-lg font-black italic text-white">+0 XP</div>
-                        </div>
-                        <div className="w-px h-6 bg-white/10"></div>
-                        <div className="flex flex-col items-end">
-                          <div className="text-[9px] font-black uppercase text-yellow-400 tracking-wider">Session Gold</div>
-                          <div ref={sessionGoldRef} className="text-lg font-black italic text-yellow-400">+0 GOLD</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             ) : activeTab === Tab.UPGRADES ? (
               <UpgradesTab 

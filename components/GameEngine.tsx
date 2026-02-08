@@ -124,7 +124,8 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const speedMultiplier = Math.pow(1.07, speedStep);
     const widthStep = Math.floor(currentScore / 10);
     const widthMultiplier = Math.max(0.6, 1 - (widthStep * 0.02));
-    const nextWidth = Math.max(40, Math.floor(width * widthMultiplier));
+    // User requested fix: ensure next block is never larger than current width (no artificial floor at 40 that restores size)
+    const nextWidth = Math.max(10, Math.floor(width * widthMultiplier));
     let baseSpeed = 1.0;
     
     if (currentScore < 50) {
@@ -225,7 +226,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       if (isForgiveness) {
         particlesRef.current.push(
           { id: particleIdRef.current++, x: centerX, y: currentBlock.y + BLOCK_HEIGHT / 2, vx: 0, vy: 0, life: 1.0, scale: 10, type: 'ring' },
-          { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 24, vx: 0, vy: -0.6, text: 'LUCK', life: 1.4, scale: 1.4, type: 'text' }
+          { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 24, vx: 0, vy: -0.6, text: 'LUCKY', life: 1.4, scale: 1.4, type: 'text' }
         );
       }
     } else {
@@ -323,7 +324,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
         ctx.fillText(p.text!, p.x, p.y);
         ctx.shadowBlur = 0;
       } else if (p.type === 'ring') {
-        ctx.strokeStyle = `rgba(124,255,178,${p.life})`;
+        ctx.strokeStyle = `rgba(255,215,0,${p.life})`; // Gold ring for luck
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.scale, 0, Math.PI * 2);
