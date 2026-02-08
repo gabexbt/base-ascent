@@ -163,7 +163,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-bold text-white text-lg leading-tight">{config.name}</h3>
-                  <span className="shrink-0 bg-white/10 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/20 whitespace-nowrap">
+                  <span className="shrink-0 bg-white/10 text-white text-[clamp(9px,2.2vw,11px)] font-bold px-2 py-0.5 rounded border border-white/20 whitespace-nowrap">
                     Lvl {currentLevel}
                   </span>
                 </div>

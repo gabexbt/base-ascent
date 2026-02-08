@@ -58,32 +58,35 @@
     - Metadata jsonb allows flexible transaction data storage
 */
 
-CREATE TABLE IF NOT EXISTS players (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  fid bigint UNIQUE NOT NULL,
+CREATE TABLE IF NOT EXISTS users (
+  fid bigint PRIMARY KEY,
   username text NOT NULL,
   pfp_url text,
+  wallet_address text,
+  high_score integer DEFAULT 0,
   total_xp integer DEFAULT 0,
   total_gold integer DEFAULT 0,
-  high_score integer DEFAULT 0,
   total_runs integer DEFAULT 0,
-  miner_level integer DEFAULT 0,
-  has_uploaded_score boolean DEFAULT false,
+  leaderboard_high_score integer DEFAULT 0,
+  leaderboard_total_xp integer DEFAULT 0,
   has_used_altitude_flex boolean DEFAULT false,
   has_used_xp_flex boolean DEFAULT false,
+  last_synced_at timestamptz,
+  miner_level integer DEFAULT 0,
+  last_claim_at timestamptz DEFAULT now(),
+  banked_passive_xp integer DEFAULT 0,
+  upgrades jsonb DEFAULT '{"rapid_lift": 0, "magnet": 0, "battery": 0, "luck": 0, "stabilizer": 0}'::jsonb,
   referrer_fid bigint,
   referral_count integer DEFAULT 0,
   referral_xp_earned integer DEFAULT 0,
-  wallet_address text,
-  last_claim_at timestamptz DEFAULT now(),
+  completed_tasks text[] DEFAULT '{}',
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  player_id uuid REFERENCES players(id) ON DELETE CASCADE,
-  fid bigint NOT NULL,
+  fid bigint REFERENCES users(fid) ON DELETE CASCADE,
   amount_usdc numeric(10, 2) NOT NULL,
   transaction_type text NOT NULL,
   transaction_hash text,
@@ -93,31 +96,47 @@ CREATE TABLE IF NOT EXISTS transactions (
   updated_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS armory_upgrades (
+  fid bigint REFERENCES users(fid) ON DELETE CASCADE,
+  upgrade_type text NOT NULL,
+  level integer DEFAULT 0,
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (fid, upgrade_type)
+);
+
 CREATE TABLE IF NOT EXISTS leaderboard (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  player_id uuid REFERENCES players(id) ON DELETE CASCADE,
-  fid bigint UNIQUE NOT NULL,
+  fid bigint PRIMARY KEY,
   username text NOT NULL,
   pfp_url text,
+  miner_level integer DEFAULT 0,
   high_score integer NOT NULL,
   total_xp integer NOT NULL,
-  rank integer,
-  created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_players_fid ON players(fid);
-CREATE INDEX IF NOT EXISTS idx_players_high_score ON players(high_score DESC);
-CREATE INDEX IF NOT EXISTS idx_players_total_xp ON players(total_xp DESC);
+CREATE TABLE IF NOT EXISTS platform_stats (
+  id integer PRIMARY KEY DEFAULT 1,
+  total_usdc numeric DEFAULT 0,
+  updated_at timestamptz DEFAULT now(),
+  CONSTRAINT single_row CHECK (id = 1)
+);
+
+INSERT INTO platform_stats (id, total_usdc) VALUES (1, 0) ON CONFLICT DO NOTHING;
+
+CREATE INDEX IF NOT EXISTS idx_users_fid ON users(fid);
+CREATE INDEX IF NOT EXISTS idx_users_high_score ON users(high_score DESC);
+CREATE INDEX IF NOT EXISTS idx_users_total_xp ON users(total_xp DESC);
 CREATE INDEX IF NOT EXISTS idx_transactions_fid ON transactions(fid);
 CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
 CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_leaderboard_high_score ON leaderboard(high_score DESC);
-CREATE INDEX IF NOT EXISTS idx_leaderboard_rank ON leaderboard(rank);
+CREATE INDEX IF NOT EXISTS idx_leaderboard_total_xp ON leaderboard(total_xp DESC);
 
-ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE armory_upgrades ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Players are viewable by everyone"
   ON players FOR SELECT

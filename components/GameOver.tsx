@@ -9,9 +9,10 @@ interface GameOverProps {
   onGoHome: () => void;
   onDoubleUp?: () => void;
   isProcessing?: boolean;
+  doubleUpStatus?: 'idle' | 'loading' | 'success' | 'error';
 }
 
-const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHighScore, onPlayAgain, onGoHome, onDoubleUp, isProcessing }) => {
+const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHighScore, onPlayAgain, onGoHome, onDoubleUp, isProcessing, doubleUpStatus }) => {
   return (
     <div className="flex-1 flex flex-col items-center justify-between py-8 px-6 text-center animate-in zoom-in h-full overflow-y-auto">
       <div className="flex-1 flex flex-col justify-center gap-4 w-full">
@@ -50,8 +51,12 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
             >
               <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500"></div>
               <div className="flex flex-col items-center leading-none gap-1">
-                <span className="text-2xl tracking-tighter">DOUBLE IT ALL</span>
-                <span className="text-[10px] bg-black/20 px-3 py-1 rounded-full font-bold tracking-widest text-black/80">PAY $0.10 USDC</span>
+                <span className="text-2xl tracking-tighter">
+                  {doubleUpStatus === 'loading' ? 'PROCESSING...' : doubleUpStatus === 'success' ? 'SUCCESS' : doubleUpStatus === 'error' ? 'FAILED' : 'DOUBLE IT ALL'}
+                </span>
+                <span className="text-[10px] bg-black/20 px-3 py-1 rounded-full font-bold tracking-widest text-black/80">
+                  {doubleUpStatus === 'loading' ? 'CONFIRM IN WALLET' : doubleUpStatus === 'success' ? 'DOUBLED' : doubleUpStatus === 'error' ? 'TRY AGAIN' : 'PAY $0.10 USDC'}
+                </span>
               </div>
             </button>
             <div className="text-[9px] text-yellow-500/80 font-bold uppercase tracking-widest mt-2">

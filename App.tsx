@@ -69,10 +69,14 @@ const MainApp: React.FC = () => {
   const [hasLeftWindow, setHasLeftWindow] = useState(false);
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<{ miner: 'idle' | 'loading' | 'success' | 'error'; double: 'idle' | 'loading' | 'success' | 'error'; flex: 'idle' | 'loading' | 'success' | 'error' }>({ miner: 'idle', double: 'idle', flex: 'idle' });
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
   const [globalRevenue, setGlobalRevenue] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const gameRef = useRef<{ endGame: () => void }>(null);
+  const sessionXpRef = useRef<HTMLDivElement>(null);
+  const sessionGoldRef = useRef<HTMLDivElement>(null);
 
   // Tab Switch Game Over Logic
   useEffect(() => {
@@ -100,7 +104,7 @@ const MainApp: React.FC = () => {
       audioRef.current = null;
     }
     const audio = new Audio(randomTrack);
-    audio.volume = 0.3;
+    audio.volume = 0.2;
     audio.loop = true;
     audio.play().catch(e => console.log("Audio play failed:", e));
     audioRef.current = audio;
@@ -171,16 +175,11 @@ const MainApp: React.FC = () => {
         if (localData) {
           if (localData.highScore > mergedPlayer.highScore) {
              mergedPlayer.highScore = localData.highScore;
-             // If local is higher, it means we haven't synced/flexed yet
              mergedPlayer.hasUploadedScore = false; 
           }
-          // We can also merge totalXp if needed, but since we have offline farming, 
-          // relying on DB + claim is safer. However, if they played and didn't sync:
           if (localData.totalXp > mergedPlayer.totalXp) {
-             // Take max, assuming local has played more
              mergedPlayer.totalXp = localData.totalXp;
           }
-          // Restore totalRuns from local storage if greater than DB (prevents reset)
           if (localData.totalRuns > mergedPlayer.totalRuns) {
              mergedPlayer.totalRuns = localData.totalRuns;
           }
@@ -188,11 +187,26 @@ const MainApp: React.FC = () => {
         setPlayer(mergedPlayer);
         
         const rank = await PlayerService.getPlayerRank(data.fid, rankingType);
-        setPlayerRank(rank);
+        if (rank === 0 && ((rankingType === 'skill' && data.hasUsedAltitudeFlex) || (rankingType === 'grind' && data.hasUsedXpFlex))) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const retryRank = await PlayerService.getPlayerRank(data.fid, rankingType);
+          setPlayerRank(retryRank);
+        } else {
+          setPlayerRank(rank);
+        }
       }
 
+      const fetchLeaderboard = async (attempt: number = 0): Promise<LeaderboardEntry[]> => {
+        const board = await PlayerService.getLeaderboard(15, rankingType);
+        if (board.length === 0 && attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return fetchLeaderboard(attempt + 1);
+        }
+        return board;
+      };
+
       setIsLeaderboardLoading(true);
-      const board = await PlayerService.getLeaderboard(15, rankingType);
+      const board = await fetchLeaderboard();
       setLeaderboard(board);
       setIsLeaderboardLoading(false);
 
@@ -213,6 +227,12 @@ const MainApp: React.FC = () => {
        loadData();
     }
   }, [loadData, frameContext.isReady, activeTab]);
+
+  useEffect(() => {
+    if (!frameContext.isReady || activeTab !== Tab.RANKINGS) return;
+    const interval = setInterval(() => loadData(), 15000);
+    return () => clearInterval(interval);
+  }, [frameContext.isReady, activeTab, loadData]);
   
   // Separate loading state management
   useEffect(() => {
@@ -380,6 +400,8 @@ const MainApp: React.FC = () => {
   const handleUpgradeMiner = async (level: number) => {
     if (!player) return;
     setProcessingPayment(true);
+    setPaymentError(null);
+    setPaymentStatus(prev => ({ ...prev, miner: 'loading' }));
     
     // Calculate pending XP to bank optimistically
     const hours = (Date.now() - player.lastClaimAt.getTime()) / 3600000;
@@ -390,18 +412,13 @@ const MainApp: React.FC = () => {
       const safetyTimeout = setTimeout(() => setProcessingPayment(false), 15000);
       
       const cost = MINER_LEVELS[level].cost.toFixed(2);
-      const testMode = IS_TESTNET || !address;
-      let transactionId: string | undefined = 'test-mode';
-      if (!testMode) {
-        // @ts-ignore
-        const payment = await pay({
-          amount: cost,
-          currency: 'USDC',
-          to: RECIPIENT_WALLET,
-          testnet: IS_TESTNET
-        });
-        transactionId = payment?.transactionId;
-      }
+      // @ts-ignore
+      const { transactionId } = await safePay(pay({
+        amount: cost,
+        currency: 'USDC',
+        to: RECIPIENT_WALLET,
+        testnet: IS_TESTNET
+      }));
 
       // Optimistic update to prevent UI reset flash
       setPlayer({
@@ -415,9 +432,14 @@ const MainApp: React.FC = () => {
       await PlayerService.recordTransaction(player.fid, cost, 'miner_purchase', transactionId || 'base-pay', { miner_level: level });
       await loadData();
       clearTimeout(safetyTimeout);
-    } catch (e) {
+      setPaymentStatus(prev => ({ ...prev, miner: 'success' }));
+      setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1200);
+    } catch (e: any) {
       console.error(e);
-      await loadData(); // Revert on error
+      await loadData();
+      setPaymentStatus(prev => ({ ...prev, miner: 'error' }));
+      setPaymentError(e?.message || 'Payment failed');
+      setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
     } finally {
       setProcessingPayment(false);
     }
@@ -429,6 +451,8 @@ const MainApp: React.FC = () => {
     const hasUsedFree = type === 'altitude' ? player.hasUsedAltitudeFlex : player.hasUsedXpFlex;
     
     setProcessingPayment(true);
+    setPaymentError(null);
+    setPaymentStatus(prev => ({ ...prev, flex: 'loading' }));
     // Safety timeout to prevent stuck state
     const safetyTimeout = setTimeout(() => {
         setProcessingPayment(false);
@@ -466,10 +490,13 @@ const MainApp: React.FC = () => {
         await PlayerService.recordTransaction(player.fid, '0.10', `${type}_flex_paid`, hash, { flex_type: type });
       }
       await loadData();
+      setPaymentStatus(prev => ({ ...prev, flex: 'success' }));
+      setTimeout(() => setPaymentStatus(prev => ({ ...prev, flex: 'idle' })), 1200);
     } catch (e: any) {
       console.error("Flex/Payment Error:", e);
       const msg = e.message || "Transaction failed. Please try again.";
-      alert(msg);
+      setPaymentStatus(prev => ({ ...prev, flex: 'error' }));
+      setPaymentError(msg);
     } finally {
       clearTimeout(safetyTimeout);
       setProcessingPayment(false);
@@ -556,24 +583,21 @@ const MainApp: React.FC = () => {
     if (gameOverData.score <= player.highScore) return;
 
     setProcessingPayment(true);
+    setPaymentError(null);
+    setPaymentStatus(prev => ({ ...prev, double: 'loading' }));
     try {
        const safetyTimeout = setTimeout(() => {
            setProcessingPayment(false);
            alert("Transaction timed out. Please try again.");
        }, 20000);
 
-       const testMode = IS_TESTNET || !address;
-       let transactionId: string | undefined = 'test-mode';
-       if (!testMode) {
-         // @ts-ignore
-         const payment = await pay({
-            amount: '0.10',
-            currency: 'USDC',
-            to: RECIPIENT_WALLET,
-            testnet: IS_TESTNET
-         });
-         transactionId = payment?.transactionId;
-       }
+       // @ts-ignore
+       const { transactionId } = await safePay(pay({
+          amount: '0.10',
+          currency: 'USDC',
+          to: RECIPIENT_WALLET,
+          testnet: IS_TESTNET
+       }));
        
        // Call Service
        await PlayerService.doubleUpRun(
@@ -595,11 +619,13 @@ const MainApp: React.FC = () => {
          gold: gameOverData.gold * 2,
        });
        
-       // Reload Data
        await loadData();
-    } catch (e) {
+       setPaymentStatus(prev => ({ ...prev, double: 'success' }));
+       setTimeout(() => setPaymentStatus(prev => ({ ...prev, double: 'idle' })), 1200);
+    } catch (e: any) {
       console.error(e);
-      alert("Double Up Failed. Please try again.");
+      setPaymentStatus(prev => ({ ...prev, double: 'error' }));
+      setPaymentError(e?.message || 'Double up failed');
     } finally {
       setProcessingPayment(false);
     }
@@ -639,7 +665,7 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="w-full h-[100dvh] pt-[74px] pb-[140px] flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
+      <main className="w-full h-[100dvh] pt-[74px] pb-[calc(140px+env(safe-area-inset-bottom))] flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
         <div className="w-full min-h-full flex flex-col relative">
           
           <ParticleBackground />
@@ -648,15 +674,27 @@ const MainApp: React.FC = () => {
             {activeTab === Tab.ASCENT ? (
               <div className="flex-1 flex flex-col gap-6 relative p-5">
                 {status === GameStatus.PLAYING ? (
-                  // Game Container
-                  <div className="flex-1 flex flex-col items-center justify-center min-h-0">
-                    <div className="w-full max-w-[340px] max-h-[520px] aspect-[2/3] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 my-4">
+                  <div className="flex-1 flex flex-col items-center justify-center min-h-0 gap-3">
+                    <div className="w-full max-w-[340px] max-h-[520px] aspect-[2/3] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 my-2">
                       <GameEngine 
+                        ref={gameRef}
                         isActive={true} 
                         onGameOver={handleGameOver} 
                         multiplier={currentMiner.multiplier}
                         upgrades={player.upgrades}
+                        xpRef={sessionXpRef}
+                        goldRef={sessionGoldRef}
                       />
+                    </div>
+                    <div className="h-14 w-full max-w-[340px] bg-[#0A0A0A] border border-white/10 flex justify-between items-center px-6 rounded-2xl">
+                       <div className="flex flex-col items-start">
+                          <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Session XP</div>
+                          <div ref={sessionXpRef} className="text-xl font-black italic text-white">+0 XP</div>
+                       </div>
+                       <div className="flex flex-col items-end">
+                          <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Session Gold</div>
+                          <div ref={sessionGoldRef} className="text-xl font-black italic text-yellow-400">+0 GOLD</div>
+                       </div>
                     </div>
                   </div>
                 ) : status === GameStatus.GAMEOVER && gameOverData ? (
@@ -669,6 +707,7 @@ const MainApp: React.FC = () => {
                     onGoHome={handleGoHome}
                     onDoubleUp={handleDoubleUp}
                     isProcessing={processingPayment}
+                    doubleUpStatus={paymentStatus.double}
                   />
                 ) : status === GameStatus.IDLE ? (
                   <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500">
@@ -717,7 +756,9 @@ const MainApp: React.FC = () => {
                       <div className="text-xl font-black italic uppercase">MINER STATUS: LOCKED</div>
                       <p className="text-[10px] opacity-40 font-bold uppercase px-6 leading-relaxed">Unlock to start earning XP passively.</p>
                     </div>
-                    <button onClick={() => handleUpgradeMiner(1)} className="w-full py-6 bg-white text-black font-black text-xl uppercase rounded-3xl active:scale-95 transition-all">Unlock Miner ($0.99)</button>
+                    <button onClick={() => handleUpgradeMiner(1)} disabled={processingPayment} className="w-full py-6 bg-white text-black font-black text-xl uppercase rounded-3xl active:scale-95 transition-all disabled:opacity-50">
+                      {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'Success' : paymentStatus.miner === 'error' ? 'Failed' : 'Unlock Miner ($0.99)'}
+                    </button>
                   </div>
                 ) : (
                   <>
@@ -748,12 +789,15 @@ const MainApp: React.FC = () => {
                     <div className="w-full">
                       {nextMiner ? (
                         <button onClick={() => handleUpgradeMiner(player.minerLevel + 1)} disabled={processingPayment} className="w-full py-5 border-2 border-white font-black text-lg hover:bg-white hover:text-black transition-all rounded-3xl disabled:opacity-50 uppercase">
-                          {processingPayment ? 'Processing...' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
+                          {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'Success' : paymentStatus.miner === 'error' ? 'Failed' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
                         </button>
                       ) : (
                         <div className="py-5 border-2 border-dashed border-white/20 text-center opacity-30 font-black rounded-3xl uppercase">Max Level Reached</div>
                       )}
                     </div>
+                    {paymentStatus.miner === 'error' && paymentError && (
+                      <div className="text-[9px] font-bold uppercase text-red-400 px-2">{paymentError}</div>
+                    )}
                   </>
                 )}
               </div>
@@ -824,11 +868,11 @@ const MainApp: React.FC = () => {
                      <div className="text-[10px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
                      <div className="flex items-center gap-3">
                         <span className={`text-[9px] font-bold uppercase ${syncStatus === 'SYNCED' ? 'text-green-400' : 'text-yellow-400'}`}>{syncStatus}</span>
-                        <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank || 0} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
+                        <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank > 0 ? playerRank : '-'} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
                      </div>
                   </div>
                   <button onClick={handleFlex} disabled={processingPayment} className="w-full py-4 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-2xl active:scale-95 disabled:opacity-50">
-                    {processingPayment ? 'Processing...' : (
+                    {paymentStatus.flex === 'loading' ? 'Processing...' : paymentStatus.flex === 'success' ? 'Synced' : paymentStatus.flex === 'error' ? 'Failed' : (
                       <>
                         <span className="uppercase tracking-wider">FLEX {rankingType === 'skill' ? 'ALTITUDE' : 'EXPERIENCE'}</span>
                         {((rankingType === 'skill' && player?.hasUsedAltitudeFlex) || (rankingType === 'grind' && player?.hasUsedXpFlex)) ? (
@@ -839,6 +883,9 @@ const MainApp: React.FC = () => {
                       </>
                     )}
                   </button>
+                  {paymentStatus.flex === 'error' && paymentError && (
+                    <div className="text-[9px] font-bold uppercase text-red-400 px-2">{paymentError}</div>
+                  )}
                </div>
             </div>
           ) : (
@@ -888,7 +935,7 @@ const MainApp: React.FC = () => {
       </main>
 
       {/* Bottom Navigation - Fixed */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center px-6 py-5 bg-black border-t border-white/10 shrink-0 z-30 pb-8">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center px-6 py-5 bg-black border-t border-white/10 shrink-0 z-30 pb-[calc(2rem+env(safe-area-inset-bottom))]">
         <button onClick={() => setActiveTab(Tab.ASCENT)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === Tab.ASCENT ? 'text-white scale-110' : 'text-white/30 hover:text-white/60'}`}>
           <Icons.Ascent />
           <span className="text-[9px] font-black uppercase tracking-widest">Ascent</span>

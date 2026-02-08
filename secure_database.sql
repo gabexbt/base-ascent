@@ -1,9 +1,10 @@
 -- SECURE DATABASE SCHEMA (RLS + RPC Pattern)
 -- 1. Reset Tables
-DROP TABLE IF EXISTS global_stats;
+DROP TABLE IF EXISTS platform_stats;
+DROP TABLE IF EXISTS armory_upgrades;
+DROP TABLE IF EXISTS leaderboard;
 DROP TABLE IF EXISTS transactions;
-DROP TABLE IF EXISTS leaderboard; -- Legacy
-DROP TABLE IF EXISTS players;
+DROP TABLE IF EXISTS users;
 DROP FUNCTION IF EXISTS rpc_sync_stats;
 DROP FUNCTION IF EXISTS rpc_claim_passive_xp;
 DROP FUNCTION IF EXISTS rpc_upgrade_miner;
@@ -15,7 +16,7 @@ DROP FUNCTION IF EXISTS rpc_purchase_upgrade;
 DROP FUNCTION IF EXISTS rpc_double_up_run;
 
 -- 2. Create Tables
-CREATE TABLE players (
+CREATE TABLE users (
     fid BIGINT PRIMARY KEY,
     username TEXT NOT NULL,
     pfp_url TEXT,
@@ -59,7 +60,7 @@ CREATE TABLE players (
 
 CREATE TABLE transactions (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    fid BIGINT REFERENCES players(fid),
+    fid BIGINT REFERENCES users(fid),
     amount_usdc NUMERIC,
     transaction_type TEXT NOT NULL,
     transaction_hash TEXT,
@@ -68,31 +69,53 @@ CREATE TABLE transactions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE global_stats (
+CREATE TABLE armory_upgrades (
+    fid BIGINT REFERENCES users(fid),
+    upgrade_type TEXT NOT NULL,
+    level INT DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (fid, upgrade_type)
+);
+
+CREATE TABLE leaderboard (
+    fid BIGINT PRIMARY KEY,
+    username TEXT NOT NULL,
+    pfp_url TEXT,
+    miner_level INT DEFAULT 0,
+    high_score INT DEFAULT 0,
+    total_xp INT DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE platform_stats (
     id INT PRIMARY KEY DEFAULT 1,
-    total_revenue NUMERIC DEFAULT 0,
+    total_usdc NUMERIC DEFAULT 0,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT single_row CHECK (id = 1)
 );
 
 -- Initialize Global Stats
-INSERT INTO global_stats (id, total_revenue) VALUES (1, 0) ON CONFLICT DO NOTHING;
+INSERT INTO platform_stats (id, total_usdc) VALUES (1, 0) ON CONFLICT DO NOTHING;
 
 -- 3. Create Indexes
-CREATE INDEX idx_leaderboard_altitude ON players(leaderboard_high_score DESC) WHERE has_used_altitude_flex = TRUE;
-CREATE INDEX idx_leaderboard_xp ON players(leaderboard_total_xp DESC) WHERE has_used_xp_flex = TRUE;
+CREATE INDEX idx_leaderboard_altitude ON leaderboard(high_score DESC);
+CREATE INDEX idx_leaderboard_xp ON leaderboard(total_xp DESC);
 
 -- 4. ENABLE RLS
-ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE global_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE armory_upgrades ENABLE ROW LEVEL SECURITY;
 
 -- 5. RLS Policies
-CREATE POLICY "Public Read Players" ON players FOR SELECT USING (true);
+CREATE POLICY "Public Read Players" ON users FOR SELECT USING (true);
 CREATE POLICY "Public Read Transactions" ON transactions FOR SELECT USING (true);
-CREATE POLICY "Public Read GlobalStats" ON global_stats FOR SELECT USING (true);
+CREATE POLICY "Public Read Leaderboard" ON leaderboard FOR SELECT USING (true);
+CREATE POLICY "Public Read PlatformStats" ON platform_stats FOR SELECT USING (true);
+CREATE POLICY "Public Read ArmoryUpgrades" ON armory_upgrades FOR SELECT USING (true);
 
-CREATE POLICY "Public Insert Players" ON players FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Insert Players" ON users FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public Insert Transactions" ON transactions FOR INSERT WITH CHECK (true);
 
 -- 6. Helper Function for Miner Rates (Passive Base Generation)
@@ -114,7 +137,7 @@ $$ LANGUAGE plpgsql;
 -- Helper for Global Revenue
 CREATE OR REPLACE FUNCTION update_global_revenue(p_amount NUMERIC) RETURNS VOID AS $$
 BEGIN
-    UPDATE global_stats SET total_revenue = total_revenue + p_amount, updated_at = NOW() WHERE id = 1;
+    UPDATE platform_stats SET total_usdc = total_usdc + p_amount, updated_at = NOW() WHERE id = 1;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -131,10 +154,10 @@ DECLARE
     v_referrer BIGINT;
     v_kickback INT;
 BEGIN
-    SELECT total_xp, referrer_fid INTO v_old_xp, v_referrer FROM players WHERE fid = p_fid;
+    SELECT total_xp, referrer_fid INTO v_old_xp, v_referrer FROM users WHERE fid = p_fid;
     IF NOT FOUND THEN RETURN; END IF;
     
-    UPDATE players 
+    UPDATE users 
     SET 
         total_xp = p_xp,
         total_gold = p_gold,
@@ -147,7 +170,7 @@ BEGIN
     IF v_referrer IS NOT NULL AND p_xp > v_old_xp THEN
         v_kickback := FLOOR((p_xp - v_old_xp) * 0.20);
         IF v_kickback > 0 THEN
-            UPDATE players 
+            UPDATE users 
             SET 
                 total_xp = total_xp + v_kickback, 
                 referral_xp_earned = referral_xp_earned + v_kickback 
@@ -171,7 +194,7 @@ DECLARE
     v_final_claim INT;
 BEGIN
     SELECT miner_level, last_claim_at, banked_passive_xp INTO v_miner_level, v_last_claim, v_banked
-    FROM players WHERE fid = p_fid;
+    FROM users WHERE fid = p_fid;
     
     IF NOT FOUND OR v_miner_level = 0 THEN RETURN; END IF;
 
@@ -200,7 +223,7 @@ BEGIN
     v_final_claim := FLOOR((v_banked + v_pending) * v_multiplier);
 
     IF v_final_claim > 0 THEN
-        UPDATE players SET 
+        UPDATE users SET 
             total_xp = total_xp + v_final_claim,
             banked_passive_xp = 0,
             last_claim_at = NOW(),
@@ -221,7 +244,7 @@ DECLARE
     v_pending INT;
 BEGIN
     SELECT miner_level, last_claim_at, banked_passive_xp INTO v_cur_level, v_last_claim, v_banked
-    FROM players WHERE fid = p_fid;
+    FROM users WHERE fid = p_fid;
     
     IF NOT FOUND THEN RETURN; END IF;
 
@@ -230,7 +253,7 @@ BEGIN
         v_hours := EXTRACT(EPOCH FROM (NOW() - v_last_claim)) / 3600;
         v_pending := FLOOR(v_hours * v_rate);
         
-        UPDATE players SET 
+        UPDATE users SET 
             miner_level = p_new_level,
             banked_passive_xp = v_banked + v_pending,
             last_claim_at = NOW(),
@@ -251,17 +274,23 @@ DECLARE
     v_upgrades JSONB;
     v_current_level INT;
 BEGIN
-    SELECT total_gold, upgrades INTO v_gold, v_upgrades FROM players WHERE fid = p_fid;
+    SELECT total_gold, upgrades INTO v_gold, v_upgrades FROM users WHERE fid = p_fid;
     IF NOT FOUND THEN RETURN; END IF;
 
     IF v_gold >= p_cost THEN
         v_current_level := COALESCE((v_upgrades->>p_upgrade_type)::INT, 0);
         
-        UPDATE players SET 
+        UPDATE users SET 
             total_gold = total_gold - p_cost,
             upgrades = jsonb_set(v_upgrades, ARRAY[p_upgrade_type], to_jsonb(v_current_level + 1)),
             updated_at = NOW()
         WHERE fid = p_fid;
+
+        INSERT INTO armory_upgrades (fid, upgrade_type, level, updated_at)
+        VALUES (p_fid, p_upgrade_type, v_current_level + 1, NOW())
+        ON CONFLICT (fid, upgrade_type) DO UPDATE SET
+            level = EXCLUDED.level,
+            updated_at = NOW();
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -279,10 +308,10 @@ DECLARE
     v_old_xp INT;
     v_old_score INT;
 BEGIN
-    SELECT total_xp, high_score INTO v_old_xp, v_old_score FROM players WHERE fid = p_fid;
+    SELECT total_xp, high_score INTO v_old_xp, v_old_score FROM users WHERE fid = p_fid;
     
     -- Update Stats (Doubled values passed from client or logic? Client passes the final doubled values)
-    UPDATE players SET 
+    UPDATE users SET 
         total_xp = total_xp + p_xp, -- Add run XP
         total_gold = total_gold + p_gold, -- Add run Gold
         high_score = GREATEST(high_score, p_score),
@@ -318,9 +347,27 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION rpc_flex_stat(p_fid BIGINT, p_type TEXT) RETURNS VOID AS $$
 BEGIN
     IF p_type = 'altitude' THEN
-        UPDATE players SET leaderboard_high_score = high_score, has_used_altitude_flex = TRUE, last_synced_at = NOW() WHERE fid = p_fid;
+        UPDATE users SET leaderboard_high_score = high_score, has_used_altitude_flex = TRUE, last_synced_at = NOW() WHERE fid = p_fid;
+        INSERT INTO leaderboard (fid, username, pfp_url, miner_level, high_score, total_xp, updated_at)
+        SELECT fid, username, pfp_url, miner_level, high_score, total_xp, NOW() FROM users WHERE fid = p_fid
+        ON CONFLICT (fid) DO UPDATE SET
+            username = EXCLUDED.username,
+            pfp_url = EXCLUDED.pfp_url,
+            miner_level = EXCLUDED.miner_level,
+            high_score = EXCLUDED.high_score,
+            total_xp = EXCLUDED.total_xp,
+            updated_at = NOW();
     ELSIF p_type = 'xp' THEN
-        UPDATE players SET leaderboard_total_xp = total_xp, has_used_xp_flex = TRUE, last_synced_at = NOW() WHERE fid = p_fid;
+        UPDATE users SET leaderboard_total_xp = total_xp, has_used_xp_flex = TRUE, last_synced_at = NOW() WHERE fid = p_fid;
+        INSERT INTO leaderboard (fid, username, pfp_url, miner_level, high_score, total_xp, updated_at)
+        SELECT fid, username, pfp_url, miner_level, high_score, total_xp, NOW() FROM users WHERE fid = p_fid
+        ON CONFLICT (fid) DO UPDATE SET
+            username = EXCLUDED.username,
+            pfp_url = EXCLUDED.pfp_url,
+            miner_level = EXCLUDED.miner_level,
+            high_score = EXCLUDED.high_score,
+            total_xp = EXCLUDED.total_xp,
+            updated_at = NOW();
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -329,16 +376,16 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION rpc_complete_task(p_fid BIGINT, p_task_id TEXT, p_xp_reward INT) RETURNS VOID AS $$
 DECLARE v_tasks TEXT[];
 BEGIN
-    SELECT completed_tasks INTO v_tasks FROM players WHERE fid = p_fid;
+    SELECT completed_tasks INTO v_tasks FROM users WHERE fid = p_fid;
     IF p_task_id = ANY(v_tasks) THEN RETURN; END IF;
-    UPDATE players SET completed_tasks = array_append(completed_tasks, p_task_id), total_xp = total_xp + p_xp_reward WHERE fid = p_fid;
+    UPDATE users SET completed_tasks = array_append(completed_tasks, p_task_id), total_xp = total_xp + p_xp_reward WHERE fid = p_fid;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 15. Increment Referral (No change)
 CREATE OR REPLACE FUNCTION rpc_increment_referral(p_referrer_fid BIGINT) RETURNS VOID AS $$
 BEGIN
-    UPDATE players SET referral_count = referral_count + 1 WHERE fid = p_referrer_fid;
+    UPDATE users SET referral_count = referral_count + 1 WHERE fid = p_referrer_fid;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

@@ -30,9 +30,11 @@ interface GameEngineProps {
   isActive: boolean;
   multiplier: number;
   upgrades: Upgrades;
+  xpRef?: React.RefObject<HTMLDivElement>;
+  goldRef?: React.RefObject<HTMLDivElement>;
 }
 
-const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({ onGameOver, isActive, multiplier, upgrades }, ref) => {
+const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({ onGameOver, isActive, multiplier, upgrades, xpRef, goldRef }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   
@@ -60,10 +62,6 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   // State only for UI triggers
   const [displayScore, setDisplayScore] = useState(0);
   
-  // Refs for stats display to avoid re-renders
-  const xpRef = useRef<HTMLDivElement>(null);
-  const goldRef = useRef<HTMLDivElement>(null);
-
   // Expose endGame to parent
   React.useImperativeHandle(ref, () => ({
     endGame: () => {
@@ -77,7 +75,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     }
   }));
 
-  const playSound = useCallback((type: 'hit' | 'perfect' | 'fail') => {
+  const playSound = useCallback((type: 'hit' | 'perfect' | 'fail' | 'gameover') => {
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -90,26 +88,33 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       gain.connect(ctx.destination);
       const now = ctx.currentTime;
       if (type === 'hit') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(120, now);
-        osc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
-        gain.gain.setValueAtTime(1.0, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        osc.start(now); osc.stop(now + 0.1);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.12);
+        gain.gain.setValueAtTime(0.9, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.start(now); osc.stop(now + 0.12);
       } else if (type === 'perfect') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(523.25, now);
         osc.frequency.linearRampToValueAtTime(1046.50, now + 0.15);
-        gain.gain.setValueAtTime(1.0, now);
+        gain.gain.setValueAtTime(0.85, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
         osc.start(now); osc.stop(now + 0.3);
       } else if (type === 'fail') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(80, now);
         osc.frequency.linearRampToValueAtTime(30, now + 0.5);
-        gain.gain.setValueAtTime(1.0, now);
+        gain.gain.setValueAtTime(0.9, now);
         gain.gain.linearRampToValueAtTime(0.001, now + 0.5);
         osc.start(now); osc.stop(now + 0.5);
+      } else if (type === 'gameover') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.9);
+        gain.gain.setValueAtTime(1.0, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc.start(now); osc.stop(now + 0.9);
       }
     } catch (e) {}
   }, []);
@@ -174,11 +179,12 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const overlapEnd = Math.min(lastBlock.x + lastBlock.width, currentBlock.x + currentBlock.width);
     const overlapWidth = overlapEnd - overlapStart;
 
-    const isPerfect = Math.abs(currentBlock.x - lastBlock.x) < luckTolerance;
+    const currentLuckTolerance = Math.max(4, luckTolerance - Math.floor(scoreRef.current / 10));
+    const isPerfect = Math.abs(currentBlock.x - lastBlock.x) < currentLuckTolerance;
     
     if (overlapWidth <= 0) {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
-      playSound('fail');
+      playSound('gameover');
       
       // Calculate Rewards
       // Altitude = Blocks * Effective Height (Rapid Lift)
@@ -325,7 +331,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const currentAltitude = Math.floor(scoreRef.current * rapidLiftMult);
     
     // Update Stats Overlay directly
-    if (xpRef.current && goldRef.current) {
+    if (xpRef?.current && goldRef?.current) {
         const curXp = Math.floor(scoreRef.current * XP_PER_BLOCK * batteryMult * multiplier);
         const curGold = Math.floor(scoreRef.current * GOLD_PER_BLOCK * magnetMult * multiplier);
         xpRef.current.innerText = `+${curXp} XP`;
@@ -336,7 +342,6 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
        // Only draw score if needed, but we use overlay now
     }
     
-    // Draw Altitude on Canvas
     ctx.fillStyle = WHITE;
     ctx.font = "800 60px 'JetBrains Mono'";
     ctx.textAlign = 'center';
@@ -345,7 +350,6 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     ctx.fillText(`${currentAltitude}`, GAME_WIDTH / 2, 100);
     ctx.shadowBlur = 0;
     
-    // Subtext for altitude
     ctx.font = "900 12px 'JetBrains Mono'";
     ctx.globalAlpha = 0.6;
     ctx.fillText('METERS', GAME_WIDTH / 2, 120);
@@ -368,14 +372,8 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     return () => cancelAnimationFrame(requestRef.current!);
   }, [isActive, loop]);
 
-  const displayAltitude = Math.floor(displayScore * rapidLiftMult);
-
   return (
     <div className="flex flex-col w-full h-full bg-black select-none touch-none" onPointerDown={handleAction}>
-      <div className="h-10 w-full bg-black/80 border-b border-white/10 flex items-center justify-center">
-        <div className="text-[10px] font-black uppercase tracking-widest text-white/40 mr-2">Altitude</div>
-        <div className="text-lg font-black italic text-white">{displayAltitude}m</div>
-      </div>
       <div className="flex-1 relative overflow-hidden max-h-[520px]">
         <canvas
             ref={canvasRef}
@@ -383,18 +381,6 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
             height={GAME_HEIGHT}
             className="w-full h-full object-cover"
         />
-      </div>
-      
-      {/* Dedicated Bottom Status Bar - No Overlap */}
-      <div className="h-14 w-full bg-[#0A0A0A] border-t border-white/10 flex justify-between items-center px-6 shrink-0 z-20">
-         <div className="flex flex-col items-start">
-            <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Session XP</div>
-            <div ref={xpRef} className="text-xl font-black italic text-white">+0 XP</div>
-         </div>
-         <div className="flex flex-col items-end">
-            <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Session Gold</div>
-            <div ref={goldRef} className="text-xl font-black italic text-yellow-400">+0 GOLD</div>
-         </div>
       </div>
     </div>
   );

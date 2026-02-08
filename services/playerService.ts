@@ -6,7 +6,7 @@ export const PlayerService = {
   async getPlayer(fid: number, username: string, pfpUrl?: string, referrerFid?: number): Promise<Player | null> {
     try {
       const { data, error } = await supabase
-        .from('players')
+        .from('users')
         .select('*')
         .eq('fid', fid)
         .maybeSingle();
@@ -34,7 +34,7 @@ export const PlayerService = {
         };
 
         const { data: created, error: createError } = await supabase
-          .from('players')
+          .from('users')
           .insert([newPlayer])
           .select()
           .maybeSingle();
@@ -121,19 +121,12 @@ export const PlayerService = {
 
   async getLeaderboard(limit: number = 15, sortBy: 'skill' | 'grind' = 'skill'): Promise<LeaderboardEntry[]> {
     // Sort by the Leaderboard Snapshot columns
-    const orderBy = sortBy === 'skill' ? 'leaderboard_high_score' : 'leaderboard_total_xp';
+    const orderBy = sortBy === 'skill' ? 'high_score' : 'total_xp';
     let query = supabase
-      .from('players')
-      .select('fid, username, pfp_url, miner_level, leaderboard_high_score, leaderboard_total_xp')
+      .from('leaderboard')
+      .select('fid, username, pfp_url, miner_level, high_score, total_xp')
       .order(orderBy, { ascending: false })
       .limit(limit);
-
-    // Only show players who have Flexed (synced)
-    if (sortBy === 'skill') {
-      query = query.eq('has_used_altitude_flex', true);
-    } else {
-      query = query.eq('has_used_xp_flex', true);
-    }
 
     const { data, error } = await query;
 
@@ -142,8 +135,8 @@ export const PlayerService = {
       fid: d.fid,
       username: d.username,
       pfpUrl: d.pfp_url,
-      highScore: d.leaderboard_high_score, // Map snapshot to display
-      totalXp: d.leaderboard_total_xp,     // Map snapshot to display
+      highScore: d.high_score,
+      totalXp: d.total_xp,
       minerLevel: d.miner_level,
       rank: index + 1,
     }));
@@ -151,25 +144,22 @@ export const PlayerService = {
 
   async getPlayerRank(fid: number, type: 'skill' | 'grind'): Promise<number> {
     const isSkill = type === 'skill';
-    const flexField = isSkill ? 'has_used_altitude_flex' : 'has_used_xp_flex';
+    const orderField = isSkill ? 'high_score' : 'total_xp';
     
-    // First check if player is eligible (has flexed)
     const { data: p } = await supabase
-      .from('players')
-      .select(`leaderboard_high_score, leaderboard_total_xp, ${flexField}`)
+      .from('leaderboard')
+      .select(`fid, ${orderField}`)
       .eq('fid', fid)
       .maybeSingle();
 
-    if (!p || !p[flexField]) return 0;
+    if (!p) return 0;
 
-    const score = isSkill ? p.leaderboard_high_score : p.leaderboard_total_xp;
-    const orderField = isSkill ? 'leaderboard_high_score' : 'leaderboard_total_xp';
+    const score = p[orderField];
 
     // Count players with strictly higher score
     const { count } = await supabase
-      .from('players')
+      .from('leaderboard')
       .select('*', { count: 'exact', head: true })
-      .eq(flexField, true)
       .gt(orderField, score);
 
     return (count || 0) + 1;
@@ -221,12 +211,12 @@ export const PlayerService = {
 
   async getGlobalRevenue(): Promise<number> {
     const { data, error } = await supabase
-      .from('global_stats')
-      .select('total_revenue')
+      .from('platform_stats')
+      .select('total_usdc')
       .eq('id', 1)
       .maybeSingle();
     if (error || !data) return 0;
-    return Number(data.total_revenue);
+    return Number(data.total_usdc);
   },
 
   mapToPlayer(db: any): Player {
