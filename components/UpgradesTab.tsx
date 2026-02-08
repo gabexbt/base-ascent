@@ -2,7 +2,35 @@ import React, { useState } from 'react';
 import { Player, UpgradeType } from '../types';
 import { UPGRADES_CONFIG } from '../constants';
 import { PlayerService } from '../services/playerService';
-import { X, ArrowUp, Zap, Magnet, Gauge, Crosshair } from 'lucide-react'; // Fallback icons if images fail
+
+// Inline Icons to avoid lucide-react dependency
+const Icons = {
+  ArrowUp: ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>
+    </svg>
+  ),
+  Magnet: ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.2 2.2 0 0 0-3.1-3.07z"/><path d="m7 7 2 2"/>
+    </svg>
+  ),
+  Zap: ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+  ),
+  Crosshair: ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/>
+    </svg>
+  ),
+  Gauge: ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>
+    </svg>
+  )
+};
 
 interface UpgradesTabProps {
   player: Player;
@@ -45,11 +73,11 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
   // Helper to get fallback icon
   const getIcon = (type: string) => {
     switch(type) {
-      case 'rapid_lift': return <ArrowUp className="w-8 h-8 text-blue-400" />;
-      case 'magnet': return <Magnet className="w-8 h-8 text-yellow-400" />;
-      case 'battery': return <Zap className="w-8 h-8 text-purple-400" />;
-      case 'luck': return <Crosshair className="w-8 h-8 text-green-400" />;
-      case 'stabilizer': return <Gauge className="w-8 h-8 text-red-400" />;
+      case 'rapid_lift': return <Icons.ArrowUp className="w-8 h-8 text-blue-400" />;
+      case 'magnet': return <Icons.Magnet className="w-8 h-8 text-yellow-400" />;
+      case 'battery': return <Icons.Zap className="w-8 h-8 text-purple-400" />;
+      case 'luck': return <Icons.Crosshair className="w-8 h-8 text-green-400" />;
+      case 'stabilizer': return <Icons.Gauge className="w-8 h-8 text-red-400" />;
       default: return <div className="w-8 h-8 bg-gray-600 rounded-full" />;
     }
   };

@@ -11,8 +11,8 @@ import GameOver from './components/GameOver';
 import { UpgradesTab } from './components/UpgradesTab';
 import { FarcasterProvider, useFarcaster } from './context/FarcasterContext';
 import { useCasterContract } from './hooks/useCasterContract';
-import { GameStatus, Player, LeaderboardEntry, Tab } from './types';
-import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS } from './constants';
+import { GameStatus, Player, LeaderboardEntry, Tab, UpgradeType } from './types';
+import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS, UPGRADES_CONFIG } from './constants';
 import { IS_TESTNET, RECIPIENT_WALLET } from './network';
 import { PlayerService } from './services/playerService';
 
@@ -326,6 +326,33 @@ const MainApp: React.FC = () => {
     }
   };
 
+  const handlePurchaseUpgrade = async (type: UpgradeType) => {
+    if (!player) return;
+    const currentLevel = player.upgrades?.[type] || 0;
+    const cost = Math.floor(UPGRADES_CONFIG[type].baseCost * Math.pow(1.5, currentLevel));
+    
+    if (player.totalGold < cost) return;
+
+    setProcessingPayment(true);
+    try {
+        // Optimistic update
+        const newUpgrades = { ...player.upgrades, [type]: currentLevel + 1 };
+        setPlayer({
+            ...player,
+            totalGold: player.totalGold - cost,
+            upgrades: newUpgrades
+        });
+
+        await PlayerService.purchaseUpgrade(player.fid, type, cost);
+        await loadData();
+    } catch (e) {
+        console.error("Purchase Error:", e);
+        await loadData(); // Revert
+    } finally {
+        setProcessingPayment(false);
+    }
+  };
+
   const handleUpgradeMiner = async (level: number) => {
     if (!player) return;
     setProcessingPayment(true);
@@ -535,8 +562,6 @@ const MainApp: React.FC = () => {
     );
   }
 
-  const currentMiner = MINER_LEVELS[player.minerLevel] || MINER_LEVELS[0];
-
   return (
     <div className="h-[100dvh] bg-black text-white font-mono flex flex-col items-center overflow-hidden antialiased select-none relative">
       
@@ -613,6 +638,12 @@ const MainApp: React.FC = () => {
                   </div>
                 ) : <div className="flex-1 flex flex-col items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>}
               </div>
+            ) : activeTab === Tab.UPGRADES ? (
+              <UpgradesTab 
+                player={player} 
+                onPurchase={handlePurchaseUpgrade} 
+                isProcessing={processingPayment} 
+              />
             ) : activeTab === Tab.HARDWARE ? (
               <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar items-center pb-8 p-5">
                 <h2 className="text-4xl font-black italic tracking-tighter uppercase text-center w-full">Hardware</h2>
@@ -795,6 +826,7 @@ const MainApp: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
       </main>
 
       <nav className="flex justify-around items-center px-6 py-5 bg-black border-t border-white/10 shrink-0 relative z-20 pb-8">
