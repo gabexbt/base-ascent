@@ -16,17 +16,6 @@ import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS, UPGRADES_CONFIG } from './co
 import { IS_TESTNET, RECIPIENT_WALLET } from './network';
 import { PlayerService } from './services/playerService';
 
-const config = createConfig({
-  chains: IS_TESTNET ? [baseSepolia] : [base],
-  connectors: [coinbaseWallet({ appName: 'Base Ascent' })],
-  transports: { 
-    [base.id]: http(process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org'),
-    [baseSepolia.id]: http('https://sepolia.base.org')
-  },
-});
-
-const queryClient = new QueryClient();
-
 const ParticleBackground = () => {
   const particles = useMemo(() => Array.from({ length: 30 }).map((_, i) => ({
     id: i, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
@@ -802,19 +791,19 @@ const MainApp: React.FC = () => {
                     />
                   </div>
                 ) : status === GameStatus.IDLE ? (
-                  <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500 w-full px-5 pb-2 h-full justify-center">
-                     <div className="flex-1 flex flex-col items-center justify-center z-10 w-full px-2">
-                      <div className="w-full h-[220px] flex items-center justify-center animate-pulse duration-[2000ms] shrink-0">
-                         <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.6]" alt="ASCENT" />
+                  <div className="flex-1 flex flex-col items-center text-center animate-in fade-in duration-500 w-full px-5 py-4 h-full justify-between overflow-hidden">
+                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0">
+                      <div className="w-full h-auto max-h-[25vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
+                         <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.4]" alt="ASCENT" />
                       </div>
-                      <p className="text-[11px] opacity-40 uppercase tracking-[0.4em] font-black mt-6">ASCEND TO NEW HEIGHTS</p>
+                      <p className="text-[10px] opacity-40 uppercase tracking-[0.4em] font-black mt-4">ASCEND TO NEW HEIGHTS</p>
                     </div>
-                    <div className="flex flex-col items-center w-full mt-auto shrink-0 mb-2 gap-4">
-                      
+                    <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-2">
+                       
                       {/* Ascents Counter */}
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Ascents Available</span>
-                        <span className={`text-4xl font-black ${player?.ascentsRemaining === 0 ? 'text-red-500' : 'text-white'} drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-colors duration-300`}>
+                        <span className="text-[9px] font-bold text-white/60 tracking-widest uppercase">Ascents Available</span>
+                        <span className={`text-3xl font-black ${player?.ascentsRemaining === 0 ? 'text-red-500' : 'text-white'} drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-colors duration-300`}>
                           {player?.ascentsRemaining ?? 0}
                         </span>
                       </div>
@@ -828,11 +817,11 @@ const MainApp: React.FC = () => {
                           }
                         }} 
                         disabled={isPending || isStarting || processingPayment || loading} 
-                        className={`w-full max-w-[240px] py-3 border-[3px] 
+                        className={`w-full max-w-[220px] py-3 border-[3px] 
                           ${(player?.ascentsRemaining || 0) > 0 
                             ? "border-white bg-white text-black" 
                             : "border-[#FFD700] bg-[#FFD700] text-black shadow-[0_0_30px_rgba(255,215,0,0.6)] animate-pulse"} 
-                          font-black text-sm uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50 
+                          font-black text-xs uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50 
                           ${(player?.ascentsRemaining || 0) > 0 ? "shadow-[0_0_30px_rgba(255,255,255,0.3)]" : ""}`}
                       >
                         {loading ? 'LOADING...' : 
@@ -842,19 +831,19 @@ const MainApp: React.FC = () => {
                       </button>
 
                       {paymentError && (
-                        <div className="text-red-400 text-xs font-bold animate-pulse mt-[-10px]">
+                        <div className="text-red-400 text-[10px] font-bold animate-pulse mt-[-8px]">
                           {paymentError}
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-3 w-full max-w-[240px]">
-                        <div className="p-2 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center backdrop-blur-md">
-                          <div className="text-[8px] opacity-30 uppercase font-black">Miner Level</div>
-                          <div className="text-lg font-black italic">LVL {player?.minerLevel || 0}</div>
+                      <div className="grid grid-cols-2 gap-3 w-full max-w-[220px]">
+                        <div className="p-2 bg-white/5 border border-white/10 rounded-[1.5rem] flex flex-col items-center backdrop-blur-md">
+                          <div className="text-[7px] opacity-30 uppercase font-black">Miner Level</div>
+                          <div className="text-base font-black italic">LVL {player?.minerLevel || 0}</div>
                         </div>
-                        <div className="p-2 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center backdrop-blur-md">
-                          <div className="text-[8px] opacity-30 uppercase font-black">High Score</div>
-                          <div className="text-lg font-black italic">{player?.highScore || 0} meters</div>
+                        <div className="p-2 bg-white/5 border border-white/10 rounded-[1.5rem] flex flex-col items-center backdrop-blur-md">
+                          <div className="text-[7px] opacity-30 uppercase font-black">High Score</div>
+                          <div className="text-base font-black italic">{player?.highScore || 0} m</div>
                         </div>
                       </div>
                     </div>
@@ -1119,13 +1108,13 @@ const MainApp: React.FC = () => {
   );
 };
 
+import { Providers } from './Providers';
+
 const App: React.FC = () => (
-  <WagmiProvider config={config}>
-    <QueryClientProvider client={queryClient}>
-      <FarcasterProvider>
-        <MainApp />
-      </FarcasterProvider>
-    </QueryClientProvider>
-  </WagmiProvider>
+  <Providers>
+    <FarcasterProvider>
+      <MainApp />
+    </FarcasterProvider>
+  </Providers>
 );
 export default App;
