@@ -31,11 +31,6 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
               <span className="text-[10px] opacity-50 uppercase font-black tracking-widest mb-1 text-left">XP Gained</span>
               <span className="text-3xl font-black italic text-green-400">+{xpGained}</span>
             </div>
-            <div className="h-[1px] bg-white/10 w-full"></div>
-            <div className="flex justify-between items-end">
-              <span className="text-[10px] opacity-50 uppercase font-black tracking-widest mb-1 text-left">Gold Earned</span>
-              <span className="text-3xl font-black italic text-yellow-400">+{goldGained}</span>
-            </div>
           </div>
         </div>
       </div>

@@ -77,7 +77,7 @@ const MainApp: React.FC = () => {
       audioRef.current = null;
     }
     const audio = new Audio(randomTrack);
-    audio.volume = 0.7;
+    audio.volume = 0.3;
     audio.loop = true;
     audio.play().catch(e => console.log("Audio play failed:", e));
     audioRef.current = audio;
@@ -412,15 +412,15 @@ const MainApp: React.FC = () => {
   const passiveEarnings = useMemo(() => {
     if (!player || player.minerLevel === 0) return 0;
     const hours = (now - player.lastClaimAt) / 3600000;
-    return Math.floor(hours * currentMiner.xpPerHour);
+    return Math.floor(hours * currentMiner.xpPerHour) + (player.bankedPassiveXp || 0);
   }, [player, currentMiner, now]);
 
   const syncStatus = useMemo(() => {
     if (!player) return 'UNSYNCED';
     if (rankingType === 'skill') {
-      return player.hasUploadedScore ? 'SYNCED' : 'UNSYNCED';
+      return (player.leaderboardHighScore === player.highScore && player.highScore > 0) ? 'SYNCED' : 'UNSYNCED';
     }
-    return player.hasUsedXpFlex ? 'SYNCED' : 'UNSYNCED';
+    return (player.leaderboardTotalXp === player.totalXp && player.totalXp > 0) ? 'SYNCED' : 'UNSYNCED';
   }, [player, rankingType]);
 
   if (loading || isFarcasterLoading) return <LoadingScreen />;
@@ -534,12 +534,14 @@ const MainApp: React.FC = () => {
             </div>
           ) : activeTab === Tab.RANKINGS ? (
             <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-               <div className="flex justify-between items-center shrink-0 pr-4">
-                 <h2 className="text-3xl font-black italic uppercase tracking-tighter ml-4">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
-                 <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
-                    <button onClick={() => setRankingType('skill')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
-                    <button onClick={() => setRankingType('grind')} className={`px-4 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
-                  </div>
+               <div className="flex flex-col gap-2 shrink-0 px-4 pt-2">
+                 <div className="flex justify-between items-center w-full">
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
+                    <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
+                        <button onClick={() => setRankingType('skill')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
+                        <button onClick={() => setRankingType('grind')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
+                    </div>
+                 </div>
                </div>
 
                <div className="shrink-0 px-4 py-3 border border-white/10 bg-white/5 rounded-3xl space-y-2 text-left">
@@ -616,7 +618,7 @@ const MainApp: React.FC = () => {
                   <h3 className="text-2xl font-black italic opacity-40 text-center mb-5 tracking-widest">TASKS</h3>
                   <div className="space-y-3">
                      {[
-                       { id: 'f-gabe', l: 'Follow gabe on Base', u: 'https://warpcast.com/gabexbt' },
+                       { id: 'f-gabe', l: 'Follow gabe on Base', u: 'https://base.app/profile/gabexbt' },
                        { id: 'f-x', l: 'Follow gabe on X', u: 'https://x.com/gabexbt' },
                        { id: 'post-interaction', l: 'Engagement Booster', u: 'https://warpcast.com/gabexbt/0x892a0' }
                      ].map(t => (
