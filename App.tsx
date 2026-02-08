@@ -797,14 +797,14 @@ const MainApp: React.FC = () => {
                     />
                   </div>
                 ) : status === GameStatus.IDLE ? (
-                  <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500 w-full p-5">
-                     <div className="flex flex-col items-center z-10 w-full px-2 mt-12">
-                      <div className="w-full h-[220px] flex items-center justify-center animate-pulse duration-[2000ms]">
+                  <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500 w-full px-5 pb-2 h-full">
+                     <div className="flex-1 flex flex-col items-center justify-center z-10 w-full px-2">
+                      <div className="w-full h-auto max-h-[25vh] flex items-center justify-center animate-pulse duration-[2000ms]">
                          <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.6]" alt="ASCENT" />
                       </div>
                       <p className="text-[11px] opacity-40 uppercase tracking-[0.4em] font-black mt-6">ASCEND TO NEW HEIGHTS</p>
                     </div>
-                    <div className="flex flex-col items-center w-full mt-auto mb-6 gap-6">
+                    <div className="flex flex-col items-center w-full mt-auto shrink-0 mb-2 gap-4">
                       
                       {/* Ascents Counter */}
                       <div className="flex flex-col items-center gap-1">
