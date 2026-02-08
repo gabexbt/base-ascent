@@ -32,7 +32,7 @@ interface GameEngineProps {
   upgrades: Upgrades;
 }
 
-const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplier, upgrades }) => {
+const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({ onGameOver, isActive, multiplier, upgrades }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   
@@ -58,6 +58,23 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
 
   // State only for UI triggers
   const [displayScore, setDisplayScore] = useState(0);
+  
+  // Refs for stats display to avoid re-renders
+  const xpRef = useRef<HTMLDivElement>(null);
+  const goldRef = useRef<HTMLDivElement>(null);
+
+  // Expose endGame to parent
+  React.useImperativeHandle(ref, () => ({
+    endGame: () => {
+      if (!isActive) return;
+      const finalAltitude = Math.floor(scoreRef.current * rapidLiftMult);
+      const baseXp = scoreRef.current * XP_PER_BLOCK;
+      const finalXp = Math.floor(baseXp * batteryMult * multiplier);
+      const baseGold = scoreRef.current * GOLD_PER_BLOCK;
+      const finalGold = Math.floor(baseGold * magnetMult * multiplier);
+      onGameOver(finalAltitude, finalXp, finalGold);
+    }
+  }));
 
   const playSound = useCallback((type: 'hit' | 'perfect' | 'fail') => {
     try {
@@ -298,6 +315,20 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
 
     // UI - Display Altitude instead of raw blocks
     const currentAltitude = Math.floor(scoreRef.current * rapidLiftMult);
+    
+    // Update Stats Overlay directly
+    if (xpRef.current && goldRef.current) {
+        const curXp = Math.floor(scoreRef.current * XP_PER_BLOCK * batteryMult * multiplier);
+        const curGold = Math.floor(scoreRef.current * GOLD_PER_BLOCK * magnetMult * multiplier);
+        xpRef.current.innerText = `+${curXp} XP`;
+        goldRef.current.innerText = `+${curGold} GOLD`;
+    }
+
+    if (ctx) {
+       // Only draw score if needed, but we use overlay now
+    }
+    
+    // Draw Altitude on Canvas
     ctx.fillStyle = WHITE;
     ctx.font = "800 60px 'JetBrains Mono'";
     ctx.textAlign = 'center';
@@ -313,7 +344,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
     ctx.globalAlpha = 1.0;
 
     requestRef.current = requestAnimationFrame(loop);
-  }, [isActive, rapidLiftMult]);
+  }, [isActive, onGameOver, multiplier, playSound, spawnBlock, rapidLiftMult, batteryMult, magnetMult, luckTolerance]);
 
   useEffect(() => {
     if (isActive) {
@@ -325,14 +356,26 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
 
   return (
     <div className="relative w-full h-full touch-none select-none bg-black overflow-hidden" onPointerDown={handleAction}>
-      <canvas 
-        ref={canvasRef} 
-        width={GAME_WIDTH} 
+      <canvas
+        ref={canvasRef}
+        width={GAME_WIDTH}
         height={GAME_HEIGHT}
         className="w-full h-full object-cover"
       />
+      
+      {/* In-Game Stats Overlay */}
+      <div className="absolute top-6 left-0 w-full px-6 flex justify-between items-center pointer-events-none z-20">
+         <div className="flex flex-col items-start bg-black/40 p-2 rounded-xl backdrop-blur-sm border border-white/5">
+            <div className="text-[10px] font-black uppercase opacity-60 tracking-wider">Session XP</div>
+            <div ref={xpRef} className="text-xl font-black italic text-white drop-shadow-md">+0 XP</div>
+         </div>
+         <div className="flex flex-col items-end bg-black/40 p-2 rounded-xl backdrop-blur-sm border border-white/5">
+            <div className="text-[10px] font-black uppercase opacity-60 tracking-wider">Session Gold</div>
+            <div ref={goldRef} className="text-xl font-black italic text-yellow-400 drop-shadow-md">+0 GOLD</div>
+         </div>
+      </div>
     </div>
   );
-};
+});
 
 export default GameEngine;

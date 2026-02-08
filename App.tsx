@@ -72,6 +72,25 @@ const MainApp: React.FC = () => {
   const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
   const [globalRevenue, setGlobalRevenue] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const gameRef = useRef<{ endGame: () => void }>(null);
+
+  // Tab Switch Game Over Logic
+  useEffect(() => {
+    if (status === GameStatus.PLAYING && activeTab !== Tab.ASCENT) {
+      // Trigger game over via ref
+      if (gameRef.current) {
+        gameRef.current.endGame();
+      }
+    }
+  }, [activeTab, status]);
+  
+  // Payment Timeout Helper
+  const safePay = async (paymentPromise: Promise<any>) => {
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Payment timed out")), 20000)
+    );
+    return Promise.race([paymentPromise, timeout]);
+  };
 
   const playRandomTrack = useCallback(() => {
     const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
@@ -234,6 +253,10 @@ const MainApp: React.FC = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        // End game on tab switch/minimize
+        if (status === GameStatus.PLAYING) {
+           gameRef.current?.endGame();
+        }
         if (verifyingTaskId) setHasLeftWindow(true);
       } else {
         if (verifyingTaskId && hasLeftWindow) {
@@ -265,7 +288,7 @@ const MainApp: React.FC = () => {
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [verifyingTaskId, hasLeftWindow]);
+  }, [verifyingTaskId, hasLeftWindow, status]);
 
   const handleTaskClick = (taskId: string, url: string) => {
     if (player?.completedTasks?.includes(taskId)) return;
@@ -388,6 +411,7 @@ const MainApp: React.FC = () => {
       setProcessingPayment(false);
       await loadData(); // Revert on error
     } finally {
+      clearTimeout(safetyTimeout);
       setProcessingPayment(false);
     }
   };
@@ -398,6 +422,9 @@ const MainApp: React.FC = () => {
     const hasUsedFree = type === 'altitude' ? player.hasUsedAltitudeFlex : player.hasUsedXpFlex;
     
     setProcessingPayment(true);
+    // Safety timeout to prevent stuck state
+    const safetyTimeout = setTimeout(() => setProcessingPayment(false), 15000);
+
     try {
       let hash = 'free';
       if (!hasUsedFree) {
@@ -412,12 +439,12 @@ const MainApp: React.FC = () => {
       } else {
         // Paid subsequent times
         // @ts-ignore
-        const { transactionId } = await pay({
+        const { transactionId } = await safePay(pay({
           amount: '0.10',
           currency: 'USDC',
           to: RECIPIENT_WALLET,
           testnet: IS_TESTNET
-        });
+        }));
         hash = transactionId;
 
         await PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns);
@@ -433,6 +460,7 @@ const MainApp: React.FC = () => {
       console.error("Payment Error:", e);
       setProcessingPayment(false);
     } finally {
+      clearTimeout(safetyTimeout);
       setProcessingPayment(false);
     }
   };
@@ -446,6 +474,7 @@ const MainApp: React.FC = () => {
       const updatedPlayer = {
         ...player,
         totalXp: player.totalXp + xp,
+        totalGold: player.totalGold + gold, // FIX: Credit Gold correctly
         highScore: Math.max(player.highScore, score),
         totalRuns: player.totalRuns + 1
       };
@@ -455,6 +484,7 @@ const MainApp: React.FC = () => {
       localStorage.setItem(`player_stats_${player.fid}`, JSON.stringify({
         highScore: updatedPlayer.highScore,
         totalXp: updatedPlayer.totalXp,
+        totalGold: updatedPlayer.totalGold, // Persist Gold too
         totalRuns: updatedPlayer.totalRuns
       }));
       
@@ -584,17 +614,17 @@ const MainApp: React.FC = () => {
 
       {/* Main Content Area - Scrollable Container for Tabs */}
       <main className="w-full h-full pt-[74px] pb-24 flex flex-col relative z-10 pointer-events-none overflow-y-auto custom-scrollbar">
-        <div className="w-full h-full flex flex-col pointer-events-auto relative">
+        <div className="w-full min-h-full flex flex-col pointer-events-auto relative">
           
           <ParticleBackground />
 
-          <div className="flex-1 flex flex-col relative min-h-full" key={activeTab}>
+          <div className="flex-1 flex flex-col relative" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
               <div className="flex-1 flex flex-col gap-6 relative p-5">
                 {status === GameStatus.PLAYING ? (
                   // Game Container
-                  <div className="flex-1 flex flex-col items-center justify-center -mt-10">
-                    <div className="w-full max-w-[340px] aspect-[2/3] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10">
+                  <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+                    <div className="w-full max-w-[340px] aspect-[2/3] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 my-4">
                       <GameEngine 
                         isActive={true} 
                         onGameOver={handleGameOver} 
