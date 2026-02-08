@@ -34,10 +34,12 @@ const Icons = {
 
 interface UpgradesTabProps {
   player: Player;
-  onUpdate: () => void;
+  onUpdate?: () => void;
+  onPurchase?: (type: string) => Promise<void>;
+  isProcessing?: boolean;
 }
 
-export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) => {
+export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPurchase, isProcessing }) => {
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +47,9 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
     return Math.floor(baseCost * Math.pow(1.5, level));
   };
 
-  const handlePurchase = async (type: string) => {
+  const handlePurchaseClick = async (type: string) => {
+    if (isProcessing || purchasing) return;
+    
     const config = UPGRADES_CONFIG[type as keyof typeof UPGRADES_CONFIG];
     // @ts-ignore
     const currentLevel = player.upgrades[type] || 0;
@@ -59,12 +63,15 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
 
     setPurchasing(type);
     try {
-      await PlayerService.purchaseUpgrade(player.fid, type, cost);
-      // Optimistic update could be done here, but onUpdate() reloads data
-      await onUpdate();
-    } catch (e) {
+      if (onPurchase) {
+        await onPurchase(type);
+      } else {
+        await PlayerService.purchaseUpgrade(player.fid, type, cost);
+        if (onUpdate) await onUpdate();
+      }
+    } catch (e: any) {
       console.error(e);
-      setError("Purchase failed. Try again.");
+      setError(e.message || "Purchase failed. Try again.");
     } finally {
       setPurchasing(null);
     }
@@ -83,9 +90,9 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
   };
 
   return (
-    <div className="flex flex-col h-full bg-black text-white p-4 pb-24 overflow-y-auto">
+    <div className="flex flex-col w-full bg-black text-white p-4 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
+      <div className="flex items-center justify-between mb-6 bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm shrink-0">
         <div>
           <h2 className="text-xl font-bold text-white uppercase tracking-wider">Armory</h2>
           <p className="text-xs text-white/40">Upgrade your hardware</p>
@@ -151,8 +158,8 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate }) =>
 
               {/* Action */}
               <button
-                onClick={() => handlePurchase(key)}
-                disabled={!canAfford || isPurchasing}
+                onClick={() => handlePurchaseClick(key)}
+                disabled={!canAfford || isPurchasing || isProcessing}
                 className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-2 rounded-lg font-bold transition-all active:scale-95 ${
                   canAfford 
                     ? 'bg-white hover:bg-gray-200 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' 

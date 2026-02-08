@@ -371,6 +371,7 @@ const MainApp: React.FC = () => {
     } catch (e) {
         console.error("Purchase Error:", e);
         await loadData(); // Revert
+        throw e; // Rethrow for UpgradesTab to handle
     } finally {
         setProcessingPayment(false);
     }
@@ -613,8 +614,8 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="w-full h-full pt-[74px] pb-24 flex flex-col relative z-10 pointer-events-none overflow-y-auto custom-scrollbar">
-        <div className="w-full min-h-full flex flex-col pointer-events-auto relative">
+      <main className="w-full h-full pt-[74px] pb-24 flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
+        <div className="w-full min-h-full flex flex-col relative">
           
           <ParticleBackground />
 
@@ -677,7 +678,7 @@ const MainApp: React.FC = () => {
                 isProcessing={processingPayment} 
               />
             ) : activeTab === Tab.HARDWARE ? (
-              <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar items-center pb-8 p-5">
+              <div className="flex-1 flex flex-col gap-6 items-center pb-8 p-5">
                 <h2 className="text-4xl font-black italic tracking-tighter uppercase text-center w-full">Hardware</h2>
               <div className="p-5 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-center shrink-0">
                 <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">AUTO MINER</h3>
@@ -733,7 +734,7 @@ const MainApp: React.FC = () => {
               </div>
             </div>
           ) : activeTab === Tab.RANKINGS ? (
-            <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+            <div className="flex-1 flex flex-col gap-4">
                <div className="flex flex-col gap-2 shrink-0 px-4 pt-2">
                  <div className="flex justify-between items-center w-full">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
@@ -770,7 +771,7 @@ const MainApp: React.FC = () => {
                   </p>
                </div>
 
-               <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+               <div className="flex-1 space-y-2">
                   {isLeaderboardLoading ? (
                     <div className="flex flex-col items-center justify-center h-full opacity-50">
                       <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
@@ -816,7 +817,7 @@ const MainApp: React.FC = () => {
                </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 pb-4 items-center w-full">
+            <div className="flex-1 flex flex-col gap-3 pr-1 pb-4 items-center w-full">
                <h2 className="text-3xl font-black italic uppercase">PROFILE</h2>
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] flex flex-col items-center">
                   <h3 className="text-2xl font-black italic uppercase opacity-40 mb-5 tracking-widest">STATS</h3>

@@ -45,6 +45,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   const scoreRef = useRef(0);
   const particleIdRef = useRef(0);
   const requestRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0); // Grace period ref
 
   // Derived Constants based on Upgrades
   const rapidLiftMult = 1 + ((upgrades?.rapid_lift || 0) * 0.015);
@@ -152,11 +153,13 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     scoreRef.current = 0;
     setDisplayScore(0);
     cameraYRef.current = 0;
+    startTimeRef.current = Date.now(); // Set start time
     spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2, 0);
   }, [spawnBlock]);
 
   const handleAction = useCallback(() => {
-    if (!isActive || !currentBlockRef.current) return;
+    // Grace period check (500ms)
+    if (!isActive || !currentBlockRef.current || Date.now() - startTimeRef.current < 500) return;
 
     const currentBlock = currentBlockRef.current;
     const blocks = blocksRef.current;
@@ -349,10 +352,16 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   useEffect(() => {
     if (isActive) {
       initGame();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
+
+  useEffect(() => {
+    if (isActive) {
       requestRef.current = requestAnimationFrame(loop);
     }
     return () => cancelAnimationFrame(requestRef.current!);
-  }, [isActive, initGame, loop]);
+  }, [isActive, loop]);
 
   return (
     <div className="relative w-full h-full touch-none select-none bg-black overflow-hidden" onPointerDown={handleAction}>
@@ -363,8 +372,8 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
         className="w-full h-full object-cover"
       />
       
-      {/* In-Game Stats Overlay */}
-      <div className="absolute top-6 left-0 w-full px-6 flex justify-between items-center pointer-events-none z-20">
+      {/* In-Game Stats Overlay - Bottom Position */}
+      <div className="absolute bottom-6 left-0 w-full px-6 flex justify-between items-center pointer-events-none z-20">
          <div className="flex flex-col items-start bg-black/40 p-2 rounded-xl backdrop-blur-sm border border-white/5">
             <div className="text-[10px] font-black uppercase opacity-60 tracking-wider">Session XP</div>
             <div ref={xpRef} className="text-xl font-black italic text-white drop-shadow-md">+0 XP</div>
