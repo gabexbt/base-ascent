@@ -231,6 +231,17 @@ const MainApp: React.FC = () => {
     }
   }, [loadData, frameContext.isReady, activeTab]);
 
+  // Fallback for emulator/browser where frameContext might not be ready immediately
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!frameContext.isReady) {
+        console.log("Force loading data (Frame context timeout)");
+        loadData();
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [frameContext.isReady, loadData]);
+
   useEffect(() => {
     if (!frameContext.isReady || activeTab !== Tab.RANKINGS) return;
     const interval = setInterval(() => loadData(), 15000);
@@ -530,7 +541,7 @@ const MainApp: React.FC = () => {
       setTimeout(() => {
         setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
         setPaymentError(null);
-      }, 1500);
+      }, 1000);
     } finally {
       clearTimeout(safetyTimeout);
       setProcessingPayment(false);
@@ -719,7 +730,7 @@ const MainApp: React.FC = () => {
       setTimeout(() => {
         setPaymentStatus(prev => ({ ...prev, double: 'idle' }));
         setPaymentError(null);
-      }, 1500);
+      }, 1000);
     } finally {
       clearTimeout(safetyTimeout);
       setProcessingPayment(false);
@@ -760,7 +771,7 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="absolute inset-x-0 top-[74px] bottom-[200px] flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black">
+      <main className="absolute inset-x-0 top-[74px] bottom-[90px] flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black">
         <div className="w-full min-h-full flex flex-col relative pb-8">
           
           <ParticleBackground />
