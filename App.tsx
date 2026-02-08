@@ -737,7 +737,7 @@ const MainApp: React.FC = () => {
       <div className="w-full max-w-[480px] h-[100dvh] relative bg-black shadow-2xl flex flex-col">
       
       {/* Header - Always on top */}
-      <header className="w-full max-w-[480px] px-6 py-4 flex justify-between items-center border-b border-white/10 bg-black/80 backdrop-blur-sm shrink-0 z-20 fixed top-0 left-1/2 -translate-x-1/2">
+      <header className="w-full max-w-[480px] px-6 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] flex justify-between items-center border-b border-white/10 bg-black/80 backdrop-blur-sm shrink-0 z-20 fixed top-0 left-1/2 -translate-x-1/2">
         <div className="flex items-center gap-3">
           <img src={player?.pfpUrl || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full border border-white/20" alt="" />
           <div>
@@ -751,7 +751,7 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="absolute inset-x-0 top-[74px] flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black" style={{ bottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
+      <main className="absolute inset-x-0 flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black" style={{ top: 'calc(74px + env(safe-area-inset-top))', bottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
         <div className="w-full min-h-full flex flex-col relative pb-8">
           
           <ParticleBackground />
