@@ -93,21 +93,21 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
         osc.type = 'square';
         osc.frequency.setValueAtTime(120, now);
         osc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
-        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.setValueAtTime(1.0, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
         osc.start(now); osc.stop(now + 0.1);
       } else if (type === 'perfect') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(523.25, now);
         osc.frequency.linearRampToValueAtTime(1046.50, now + 0.15);
-        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.setValueAtTime(1.0, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
         osc.start(now); osc.stop(now + 0.3);
       } else if (type === 'fail') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(80, now);
         osc.frequency.linearRampToValueAtTime(30, now + 0.5);
-        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.setValueAtTime(1.0, now);
         gain.gain.linearRampToValueAtTime(0.001, now + 0.5);
         osc.start(now); osc.stop(now + 0.5);
       }
@@ -115,6 +115,11 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   }, []);
 
   const spawnBlock = useCallback((width: number, y: number, currentScore: number) => {
+    const speedStep = Math.floor(currentScore / 5);
+    const speedMultiplier = Math.pow(1.07, speedStep);
+    const widthStep = Math.floor(currentScore / 10);
+    const widthMultiplier = Math.max(0.6, 1 - (widthStep * 0.02));
+    const nextWidth = Math.max(40, Math.floor(width * widthMultiplier));
     let baseSpeed = 1.0;
     
     if (currentScore < 50) {
@@ -126,12 +131,12 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       baseSpeed = 7.0 + ((currentScore - 50) * 0.1) + swing;
     }
     
-    const finalSpeed = Math.min(baseSpeed, 12.0) * (1.0 - stabilizerReduc);
+    const finalSpeed = Math.min(baseSpeed * speedMultiplier, 16.0) * (1.0 - stabilizerReduc);
 
     currentBlockRef.current = {
-      x: Math.random() > 0.5 ? 0 : GAME_WIDTH - width,
+      x: Math.random() > 0.5 ? 0 : GAME_WIDTH - nextWidth,
       y,
-      width,
+      width: nextWidth,
       color: WHITE,
       speed: finalSpeed,
       direction: Math.random() > 0.5 ? 1 : -1,
@@ -363,9 +368,15 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     return () => cancelAnimationFrame(requestRef.current!);
   }, [isActive, loop]);
 
+  const displayAltitude = Math.floor(displayScore * rapidLiftMult);
+
   return (
     <div className="flex flex-col w-full h-full bg-black select-none touch-none" onPointerDown={handleAction}>
-      <div className="flex-1 relative overflow-hidden">
+      <div className="h-10 w-full bg-black/80 border-b border-white/10 flex items-center justify-center">
+        <div className="text-[10px] font-black uppercase tracking-widest text-white/40 mr-2">Altitude</div>
+        <div className="text-lg font-black italic text-white">{displayAltitude}m</div>
+      </div>
+      <div className="flex-1 relative overflow-hidden max-h-[520px]">
         <canvas
             ref={canvasRef}
             width={GAME_WIDTH}

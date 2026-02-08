@@ -41,6 +41,7 @@ interface UpgradesTabProps {
 
 export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPurchase, isProcessing }) => {
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [purchaseStatus, setPurchaseStatus] = useState<Record<string, 'processing' | 'success'>>({});
   const [error, setError] = useState<string | null>(null);
 
   const calculateCost = (baseCost: number, level: number) => {
@@ -48,7 +49,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
   };
 
   const handlePurchaseClick = async (type: string) => {
-    if (isProcessing || purchasing) return;
+    if (isProcessing || purchasing || purchaseStatus[type] === 'success') return;
     
     const config = UPGRADES_CONFIG[type as keyof typeof UPGRADES_CONFIG];
     // @ts-ignore
@@ -62,6 +63,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
     }
 
     setPurchasing(type);
+    setPurchaseStatus(prev => ({ ...prev, [type]: 'processing' }));
     try {
       if (onPurchase) {
         await onPurchase(type);
@@ -69,10 +71,23 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
         await PlayerService.purchaseUpgrade(player.fid, type, cost);
         if (onUpdate) await onUpdate();
       }
+      setPurchaseStatus(prev => ({ ...prev, [type]: 'success' }));
+      setTimeout(() => {
+        setPurchaseStatus(prev => {
+          const next = { ...prev };
+          delete next[type];
+          return next;
+        });
+      }, 1000);
     } catch (e: any) {
       console.error("Purchase Error Details:", e);
       const msg = e.message || e.error_description || e.details || "Purchase failed. Try again.";
       setError(msg);
+      setPurchaseStatus(prev => {
+        const next = { ...prev };
+        delete next[type];
+        return next;
+      });
     } finally {
       setPurchasing(null);
     }
@@ -119,7 +134,8 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
           const currentLevel = player.upgrades?.[key] || 0;
           const cost = calculateCost(config.baseCost, currentLevel);
           const canAfford = player.totalGold >= cost;
-          const isPurchasing = purchasing === key;
+          const isPurchasing = purchasing === key || purchaseStatus[key] === 'processing';
+          const isSuccess = purchaseStatus[key] === 'success';
 
           return (
             <div key={key} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden group">
@@ -160,15 +176,19 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
               {/* Action */}
               <button
                 onClick={() => handlePurchaseClick(key)}
-                disabled={!canAfford || isPurchasing || isProcessing}
+                disabled={!canAfford || isPurchasing || isProcessing || isSuccess}
                 className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-2 rounded-lg font-bold transition-all active:scale-95 ${
-                  canAfford 
-                    ? 'bg-white hover:bg-gray-200 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
-                    : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                  isSuccess
+                    ? 'bg-green-500 text-black'
+                    : canAfford 
+                      ? 'bg-white hover:bg-gray-200 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
+                      : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
                 }`}
               >
                 {isPurchasing ? (
-                  <span className="animate-spin text-xl">⟳</span>
+                  <span className="text-xs uppercase opacity-80">Processing...</span>
+                ) : isSuccess ? (
+                  <span className="text-xs uppercase opacity-80">Success!</span>
                 ) : (
                   <>
                     <span className="text-xs uppercase opacity-80 mb-0.5">Buy</span>

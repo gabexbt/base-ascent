@@ -100,7 +100,7 @@ const MainApp: React.FC = () => {
       audioRef.current = null;
     }
     const audio = new Audio(randomTrack);
-    audio.volume = 0.10; // Lowered from 0.15
+    audio.volume = 0.3;
     audio.loop = true;
     audio.play().catch(e => console.log("Audio play failed:", e));
     audioRef.current = audio;
@@ -387,17 +387,21 @@ const MainApp: React.FC = () => {
     const newBankedXp = (player.bankedPassiveXp || 0) + pendingXp;
 
     try {
-      // Safety timeout
       const safetyTimeout = setTimeout(() => setProcessingPayment(false), 15000);
       
       const cost = MINER_LEVELS[level].cost.toFixed(2);
-      // @ts-ignore
-      const { transactionId } = await pay({
-        amount: cost,
-        currency: 'USDC',
-        to: RECIPIENT_WALLET,
-        testnet: IS_TESTNET
-      });
+      const testMode = IS_TESTNET || !address;
+      let transactionId: string | undefined = 'test-mode';
+      if (!testMode) {
+        // @ts-ignore
+        const payment = await pay({
+          amount: cost,
+          currency: 'USDC',
+          to: RECIPIENT_WALLET,
+          testnet: IS_TESTNET
+        });
+        transactionId = payment?.transactionId;
+      }
 
       // Optimistic update to prevent UI reset flash
       setPlayer({
@@ -553,20 +557,23 @@ const MainApp: React.FC = () => {
 
     setProcessingPayment(true);
     try {
-       // Safety timeout
        const safetyTimeout = setTimeout(() => {
            setProcessingPayment(false);
            alert("Transaction timed out. Please try again.");
        }, 20000);
 
-       // USDC Payment
-       // @ts-ignore
-       const { transactionId } = await pay({
-          amount: '0.10',
-          currency: 'USDC',
-          to: RECIPIENT_WALLET,
-          testnet: IS_TESTNET
-       });
+       const testMode = IS_TESTNET || !address;
+       let transactionId: string | undefined = 'test-mode';
+       if (!testMode) {
+         // @ts-ignore
+         const payment = await pay({
+            amount: '0.10',
+            currency: 'USDC',
+            to: RECIPIENT_WALLET,
+            testnet: IS_TESTNET
+         });
+         transactionId = payment?.transactionId;
+       }
        
        // Call Service
        await PlayerService.doubleUpRun(
@@ -613,9 +620,9 @@ const MainApp: React.FC = () => {
 
   return (
     // Outer Wrapper - Mobile Simulator Container
-    <div className="min-h-screen bg-black flex justify-center text-white font-sans overflow-hidden">
+      <div className="h-[100dvh] bg-black flex justify-center text-white font-sans">
       {/* Inner App Container */}
-      <div className="w-full max-w-[480px] h-full relative bg-black shadow-2xl flex flex-col">
+      <div className="w-full max-w-[480px] h-[100dvh] relative bg-black shadow-2xl flex flex-col">
       
       {/* Header - Always on top */}
       <header className="w-full max-w-[480px] px-6 py-4 flex justify-between items-center border-b border-white/10 bg-black/80 backdrop-blur-sm shrink-0 z-20 fixed top-0 left-1/2 -translate-x-1/2">
@@ -632,7 +639,7 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="w-full h-full pt-[74px] pb-32 flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
+      <main className="w-full h-[100dvh] pt-[74px] pb-[140px] flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
         <div className="w-full min-h-full flex flex-col relative">
           
           <ParticleBackground />
@@ -643,7 +650,7 @@ const MainApp: React.FC = () => {
                 {status === GameStatus.PLAYING ? (
                   // Game Container
                   <div className="flex-1 flex flex-col items-center justify-center min-h-0">
-                    <div className="w-full max-w-[340px] aspect-[2/3] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 my-4">
+                    <div className="w-full max-w-[340px] max-h-[520px] aspect-[2/3] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 my-4">
                       <GameEngine 
                         isActive={true} 
                         onGameOver={handleGameOver} 
