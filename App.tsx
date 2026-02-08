@@ -360,11 +360,12 @@ const MainApp: React.FC = () => {
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, recharge: 'loading' }));
+    
     const safetyTimeout = setTimeout(() => {
       setProcessingPayment(false);
       setPaymentStatus(prev => ({ ...prev, recharge: 'idle' }));
       setPaymentError("Payment timed out");
-    }, 20000);
+    }, 15000);
 
     try {
       // @ts-ignore
@@ -384,6 +385,7 @@ const MainApp: React.FC = () => {
       await PlayerService.rechargeAscents(player.fid, '0.10', txId || 'base-pay');
       await loadData();
 
+      clearTimeout(safetyTimeout);
       setPaymentStatus(prev => ({ ...prev, recharge: 'success' }));
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, recharge: 'idle' })), 1200);
     } catch (e: any) {
@@ -475,29 +477,36 @@ const MainApp: React.FC = () => {
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, miner: 'loading' }));
     
-    // Calculate pending passive XP to bank before upgrade
-    const hours = (Date.now() - player.lastClaimAt.getTime()) / 3600000;
-    const pendingXp = Math.floor(hours * MINER_LEVELS[player.minerLevel].xpPerHour);
-    const newBankedXp = (player.bankedPassiveXp || 0) + pendingXp;
+    const safetyTimeout = setTimeout(() => {
+      setProcessingPayment(false);
+      setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
+      setPaymentError("Transaction timed out");
+    }, 15000);
+    
+    // Calculate pending passive XP before upgrade
+    const currentMiner = MINER_LEVELS[player.minerLevel]; // Use current level for pending calc
+    let newBankedXp = player.bankedPassiveXp || 0;
+    
+    if (player.minerLevel > 0 && currentMiner) {
+      const now = new Date();
+      const lastClaim = new Date(player.lastClaimAt);
+      const hours = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+      const pending = Math.floor(hours * currentMiner.xpPerHour);
+      newBankedXp += pending;
+    }
 
     try {
-      const minerConfig = MINER_LEVELS[level];
-      if (!minerConfig) throw new Error("Invalid miner level");
-      
-      const cost = minerConfig.cost.toFixed(2);
-      
-      console.log(`Upgrading to level ${level} for ${cost} USDC`);
+      const nextMiner = MINER_LEVELS[level]; // Target level config
+      if (!nextMiner) return;
+      const cost = nextMiner.cost;
 
       // @ts-ignore
       const payment = await safePay(pay({
-        amount: cost, 
-        currency: 'USDC',
+        amount: cost.toFixed(2),
         to: RECIPIENT_WALLET,
         chainId: IS_TESTNET ? 84532 : 8453
       }));
-      
-      const txId = payment?.id; // Get transaction ID from response
-
+      const txId = payment?.id;
 
       // Optimistic Update
       setPlayer({
@@ -508,9 +517,10 @@ const MainApp: React.FC = () => {
       });
 
       await PlayerService.upgradeMiner(player.fid, level);
-      await PlayerService.recordTransaction(player.fid, cost, 'miner_purchase', txId || 'base-pay', { miner_level: level });
+      await PlayerService.recordTransaction(player.fid, cost.toString(), 'miner_purchase', txId || 'base-pay', { miner_level: level });
       await loadData();
       
+      clearTimeout(safetyTimeout);
       setPaymentStatus(prev => ({ ...prev, miner: 'success' }));
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
     } catch (e: any) {
@@ -520,8 +530,9 @@ const MainApp: React.FC = () => {
       setTimeout(() => {
         setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
         setPaymentError(null);
-      }, 3000);
+      }, 1500);
     } finally {
+      clearTimeout(safetyTimeout);
       setProcessingPayment(false);
     }
   };
@@ -669,8 +680,8 @@ const MainApp: React.FC = () => {
     const safetyTimeout = setTimeout(() => {
       setProcessingPayment(false);
       setPaymentStatus(prev => ({ ...prev, double: 'idle' }));
-      setPaymentError("Payment timed out");
-    }, 20000);
+      setPaymentError("Transaction timed out");
+    }, 15000);
     try {
        // @ts-ignore
        const payment = await safePay(pay({
@@ -749,8 +760,8 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="absolute inset-0 top-[74px] bottom-0 flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black">
-        <div className="w-full min-h-full flex flex-col relative pb-[140px]">
+      <main className="absolute inset-x-0 top-[74px] bottom-[200px] flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black">
+        <div className="w-full min-h-full flex flex-col relative pb-8">
           
           <ParticleBackground />
 
@@ -759,7 +770,7 @@ const MainApp: React.FC = () => {
               <div className="flex flex-col items-center w-full min-h-full pb-8">
                 {status === GameStatus.PLAYING ? (
                   <>
-                    <div className="w-full max-w-[340px] aspect-[2/3] max-h-[520px] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-4 mb-4">
+                    <div className="w-full max-w-[340px] aspect-[2/3] max-h-[520px] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-4 mb-12">
                       <GameEngine 
                         ref={gameRef}
                         isActive={true} 
@@ -770,20 +781,7 @@ const MainApp: React.FC = () => {
                         goldRef={sessionGoldRef}
                       />
                     </div>
-                    
-                    <div className="w-full max-w-[340px] px-1 z-20">
-                      <div className="h-14 w-full bg-[#0A0A0A] border border-white/15 flex justify-between items-center px-6 rounded-2xl shadow-xl">
-                        <div className="flex flex-col items-start">
-                          <div className="text-[10px] font-black uppercase text-green-400 tracking-wider mb-0.5">Session XP</div>
-                          <div ref={sessionXpRef} className="text-xl font-black italic text-white">+0 XP</div>
-                        </div>
-                        <div className="w-px h-8 bg-white/10"></div>
-                        <div className="flex flex-col items-end">
-                          <div className="text-[10px] font-black uppercase text-yellow-400 tracking-wider mb-0.5">Session Gold</div>
-                          <div ref={sessionGoldRef} className="text-xl font-black italic text-yellow-400">+0 GOLD</div>
-                        </div>
-                      </div>
-                    </div>
+
                   </>
                 ) : status === GameStatus.GAMEOVER && gameOverData ? (
                   <div className="w-full p-5">
@@ -1059,6 +1057,23 @@ const MainApp: React.FC = () => {
         </div>
       </div>
       </main>
+
+      {/* Session Stats - Fixed above Bottom Nav */}
+      {status === GameStatus.PLAYING && activeTab === Tab.ASCENT && (
+        <div className="fixed bottom-[160px] left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 z-40 animate-in slide-in-from-bottom-4 fade-in duration-500 pointer-events-none">
+           <div className="h-14 w-full bg-[#0A0A0A] border border-white/15 flex justify-between items-center px-6 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.5)] backdrop-blur-md">
+             <div className="flex flex-col items-start">
+               <div className="text-[10px] font-black uppercase text-green-400 tracking-wider mb-0.5">Session XP</div>
+               <div ref={sessionXpRef} className="text-xl font-black italic text-white">+0 XP</div>
+             </div>
+             <div className="w-px h-8 bg-white/10"></div>
+             <div className="flex flex-col items-end">
+               <div className="text-[10px] font-black uppercase text-yellow-400 tracking-wider mb-0.5">Session Gold</div>
+               <div ref={sessionGoldRef} className="text-xl font-black italic text-yellow-400">+0 GOLD</div>
+             </div>
+           </div>
+        </div>
+      )}
 
       {/* Bottom Navigation - Fixed */}
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center px-6 py-4 bg-black/95 backdrop-blur-md border-t border-white/10 shrink-0 z-50 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
