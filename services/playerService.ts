@@ -251,23 +251,29 @@ export const PlayerService = {
   },
 
   async getPlayerRank(fid: number, type: 'skill' | 'grind'): Promise<number> {
-    const orderBy = type === 'skill' ? 'leaderboard_high_score' : 'leaderboard_total_xp';
-    let query = supabase
+    const isSkill = type === 'skill';
+    const flexField = isSkill ? 'has_used_altitude_flex' : 'has_used_xp_flex';
+    
+    // First check if player is eligible (has flexed)
+    const { data: p } = await supabase
       .from('players')
-      .select('fid')
-      .order(orderBy, { ascending: false });
+      .select(`leaderboard_high_score, leaderboard_total_xp, ${flexField}`)
+      .eq('fid', fid)
+      .maybeSingle();
 
-    if (type === 'skill') {
-      query = query.eq('has_used_altitude_flex', true);
-    } else {
-      query = query.eq('has_used_xp_flex', true);
-    }
+    if (!p || !p[flexField]) return 0;
 
-    const { data } = await query;
+    const score = isSkill ? p.leaderboard_high_score : p.leaderboard_total_xp;
+    const orderField = isSkill ? 'leaderboard_high_score' : 'leaderboard_total_xp';
 
-    if (!data) return 0;
-    const index = data.findIndex(p => p.fid === fid);
-    return index >= 0 ? index + 1 : 0;
+    // Count players with strictly higher score
+    const { count } = await supabase
+      .from('players')
+      .select('*', { count: 'exact', head: true })
+      .eq(flexField, true)
+      .gt(orderField, score);
+
+    return (count || 0) + 1;
   },
 
   async completeTask(fid: number, taskId: string, xpReward: number) {

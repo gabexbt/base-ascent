@@ -419,11 +419,20 @@ const MainApp: React.FC = () => {
     return Math.floor(hours * currentMiner.xpPerHour) + (player.bankedPassiveXp || 0);
   }, [player, currentMiner, now]);
 
+  const handleRankingChange = (type: 'skill' | 'grind') => {
+    if (type === rankingType) return;
+    setRankingType(type);
+    setLeaderboard([]); // Clear immediately to avoid flickering
+    setIsLeaderboardLoading(true); // Set loading state immediately
+  };
+
   const syncStatus = useMemo(() => {
     if (!player) return 'UNSYNCED';
     if (rankingType === 'skill') {
+      if (!player.hasUsedAltitudeFlex) return 'UNSYNCED';
       return (player.leaderboardHighScore === player.highScore && player.highScore > 0) ? 'SYNCED' : 'UNSYNCED';
     }
+    if (!player.hasUsedXpFlex) return 'UNSYNCED';
     return (player.leaderboardTotalXp === player.totalXp && player.totalXp > 0) ? 'SYNCED' : 'UNSYNCED';
   }, [player, rankingType]);
 
@@ -542,8 +551,8 @@ const MainApp: React.FC = () => {
                  <div className="flex justify-between items-center w-full">
                     <h2 className="text-3xl font-black italic uppercase tracking-tighter">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
                     <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
-                        <button onClick={() => setRankingType('skill')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
-                        <button onClick={() => setRankingType('grind')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
+                        <button onClick={() => handleRankingChange('skill')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
+                        <button onClick={() => handleRankingChange('grind')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
                     </div>
                  </div>
                </div>
