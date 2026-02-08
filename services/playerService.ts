@@ -29,7 +29,8 @@ export const PlayerService = {
           has_used_altitude_flex: false,
           has_used_xp_flex: false,
           banked_passive_xp: 0,
-          last_claim_at: new Date().toISOString()
+          last_claim_at: new Date().toISOString(),
+          upgrades: { rapid_lift: 0, magnet: 0, battery: 0, luck: 0, stabilizer: 0 }
         };
 
         const { data: created, error: createError } = await supabase
@@ -178,22 +179,45 @@ export const PlayerService = {
   },
 
   async recordTransaction(fid: number, amountUsdc: string, transactionType: string, transactionHash: string, metadata?: any) {
-    const { data: player } = await supabase.from('players').select('fid').eq('fid', fid).maybeSingle();
+    const { error } = await supabase.rpc('rpc_record_transaction', {
+      p_fid: fid,
+      p_amount: amountUsdc,
+      p_type: transactionType,
+      p_hash: transactionHash,
+      p_meta: metadata || {}
+    });
+    if (error) console.error("Record Transaction Error:", error);
+  },
 
-    if (player) {
-      await supabase
-        .from('transactions')
-        .insert([
-          {
-            fid,
-            amount_usdc: amountUsdc,
-            transaction_type: transactionType,
-            transaction_hash: transactionHash,
-            status: 'confirmed',
-            metadata: metadata || {},
-          },
-        ]);
-    }
+  async purchaseUpgrade(fid: number, type: string, cost: number) {
+    const { error } = await supabase.rpc('rpc_purchase_upgrade', {
+      p_fid: fid,
+      p_upgrade_type: type,
+      p_cost: cost
+    });
+    if (error) throw error;
+  },
+
+  async doubleUpRun(fid: number, score: number, xp: number, gold: number, txHash: string, amountUsdc: string) {
+    const { error } = await supabase.rpc('rpc_double_up_run', {
+      p_fid: fid,
+      p_score: score,
+      p_xp: xp,
+      p_gold: gold,
+      p_tx_hash: txHash,
+      p_amount_usdc: amountUsdc
+    });
+    if (error) throw error;
+  },
+
+  async getGlobalRevenue(): Promise<number> {
+    const { data, error } = await supabase
+      .from('global_stats')
+      .select('total_revenue')
+      .eq('id', 1)
+      .maybeSingle();
+    if (error || !data) return 0;
+    return Number(data.total_revenue);
   },
 
   mapToPlayer(db: any): Player {
@@ -204,20 +228,20 @@ export const PlayerService = {
       totalXp: db.total_xp,
       totalGold: db.total_gold,
       highScore: db.high_score,
-      leaderboardHighScore: db.leaderboard_high_score || 0,
-      leaderboardTotalXp: db.leaderboard_total_xp || 0,
       totalRuns: db.total_runs,
       referralCount: db.referral_count,
       referralXpEarned: db.referral_xp_earned,
       minerLevel: db.miner_level,
       referrerFid: db.referrer_fid,
-      hasUploadedScore: db.has_uploaded_score, // Keep for compat
+      leaderboardHighScore: db.leaderboard_high_score,
+      leaderboardTotalXp: db.leaderboard_total_xp,
       hasUsedAltitudeFlex: db.has_used_altitude_flex,
       hasUsedXpFlex: db.has_used_xp_flex,
-      completedTasks: db.completed_tasks || [],
+      completedTasks: db.completed_tasks,
       lastClaimAt: new Date(db.last_claim_at).getTime(),
-      bankedPassiveXp: db.banked_passive_xp || 0,
+      bankedPassiveXp: db.banked_passive_xp,
       walletAddress: db.wallet_address,
+      upgrades: typeof db.upgrades === 'string' ? JSON.parse(db.upgrades) : (db.upgrades || { rapid_lift: 0, magnet: 0, battery: 0, luck: 0, stabilizer: 0 })
     };
   }
 };

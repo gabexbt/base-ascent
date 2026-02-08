@@ -1,3 +1,11 @@
+export interface Upgrades {
+  rapid_lift: number;
+  magnet: number;
+  battery: number;
+  luck: number;
+  stabilizer: number;
+}
+
 export interface Player {
   fid: number;
   username: string;
@@ -10,15 +18,24 @@ export interface Player {
   referralXpEarned: number;
   minerLevel: number;
   referrerFid?: number;
-  hasUploadedScore?: boolean; // Deprecated but kept for compatibility if needed
+  hasUploadedScore?: boolean;
   leaderboardHighScore: number;
   leaderboardTotalXp: number;
   hasUsedAltitudeFlex: boolean;
   hasUsedXpFlex: boolean;
   completedTasks?: string[];
-  lastClaimAt: number;
+  lastClaimAt: number; // timestamp
   bankedPassiveXp: number;
   walletAddress?: string;
+  upgrades: Upgrades;
+}
+
+export enum UpgradeType {
+  RAPID_LIFT = 'rapid_lift',
+  MAGNET = 'magnet',
+  BATTERY = 'battery',
+  LUCK = 'luck',
+  STABILIZER = 'stabilizer'
 }
 
 export interface LeaderboardEntry {
@@ -41,6 +58,7 @@ export enum GameStatus {
 
 export enum Tab {
   ASCENT = 'ASCENT',
+  UPGRADES = 'UPGRADES',
   HARDWARE = 'HARDWARE',
   RANKINGS = 'RANKINGS',
   PROFILE = 'PROFILE'

@@ -22,11 +22,44 @@ export const GOLD_PER_BLOCK = 20;
 
 export const MINER_LEVELS: Record<number, { cost: number; multiplier: number; xpPerHour: number }> = {
   0: { cost: 0, multiplier: 1.0, xpPerHour: 0 },
-  1: { cost: 0.99, multiplier: 1.2, xpPerHour: 1200 },
-  2: { cost: 1.25, multiplier: 1.4, xpPerHour: 3000 },
-  3: { cost: 1.49, multiplier: 1.6, xpPerHour: 6000 },
-  4: { cost: 1.75, multiplier: 1.8, xpPerHour: 9000 },
+  1: { cost: 0.99, multiplier: 1.1, xpPerHour: 1200 },
+  2: { cost: 1.25, multiplier: 1.25, xpPerHour: 3000 },
+  3: { cost: 1.49, multiplier: 1.5, xpPerHour: 6000 },
+  4: { cost: 1.75, multiplier: 1.75, xpPerHour: 9000 },
   5: { cost: 1.99, multiplier: 2.0, xpPerHour: 12000 },
+};
+
+export const UPGRADES_CONFIG = {
+  rapid_lift: { 
+    name: 'Rapid Lift', 
+    baseCost: 100, 
+    description: '+1.5% Block Height',
+    icon: '/assets/upgrades/rapid_lift.png'
+  },
+  magnet: { 
+    name: 'Block Magnet', 
+    baseCost: 150, 
+    description: '+5% Gold Yield',
+    icon: '/assets/upgrades/magnet.png'
+  },
+  battery: { 
+    name: 'XP Battery', 
+    baseCost: 200, 
+    description: '+5% Total XP',
+    icon: '/assets/upgrades/battery.png'
+  },
+  luck: { 
+    name: 'Luck Streak', 
+    baseCost: 250, 
+    description: 'Forgiveness',
+    icon: '/assets/upgrades/luck.png'
+  },
+  stabilizer: { 
+    name: 'Stabilizer', 
+    baseCost: 300, 
+    description: '-1% Block Speed',
+    icon: '/assets/upgrades/stabilizer.png'
+  }
 };
 
 export const LOADING_MESSAGES = [

@@ -11,7 +11,7 @@ import {
   XP_PER_BLOCK,
   GOLD_PER_BLOCK
 } from '../constants';
-import { Block } from '../types';
+import { Block, Upgrades } from '../types';
 
 interface Particle {
   id: number;
@@ -29,9 +29,10 @@ interface GameEngineProps {
   onGameOver: (score: number, xp: number, gold: number) => void;
   isActive: boolean;
   multiplier: number;
+  upgrades: Upgrades;
 }
 
-const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplier }) => {
+const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplier, upgrades }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   
@@ -44,6 +45,16 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
   const scoreRef = useRef(0);
   const particleIdRef = useRef(0);
   const requestRef = useRef<number>(0);
+
+  // Derived Constants based on Upgrades
+  const rapidLiftMult = 1 + ((upgrades?.rapid_lift || 0) * 0.015);
+  const effectiveBlockHeight = BLOCK_HEIGHT * rapidLiftMult;
+  
+  const magnetMult = 1 + ((upgrades?.magnet || 0) * 0.05);
+  const batteryMult = 1 + ((upgrades?.battery || 0) * 0.05);
+  
+  const luckTolerance = 10 + ((upgrades?.luck || 0) * 2); // Base 10px + 2px per level
+  const stabilizerReduc = (upgrades?.stabilizer || 0) * 0.01; // 1% per level
 
   // State only for UI triggers
   const [displayScore, setDisplayScore] = useState(0);
@@ -97,7 +108,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
       baseSpeed = 7.0 + ((currentScore - 50) * 0.1) + swing;
     }
     
-    const finalSpeed = Math.min(baseSpeed, 12.0);
+    const finalSpeed = Math.min(baseSpeed, 12.0) * (1.0 - stabilizerReduc);
 
     currentBlockRef.current = {
       x: Math.random() > 0.5 ? 0 : GAME_WIDTH - width,
@@ -108,7 +119,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
       direction: Math.random() > 0.5 ? 1 : -1,
       isPerfectHit: false
     };
-  }, []);
+  }, [stabilizerReduc]);
 
   const initGame = useCallback(() => {
     const baseBlock: Block = {
@@ -138,12 +149,26 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
     const overlapEnd = Math.min(lastBlock.x + lastBlock.width, currentBlock.x + currentBlock.width);
     const overlapWidth = overlapEnd - overlapStart;
 
-    const isPerfect = Math.abs(currentBlock.x - lastBlock.x) < 10;
+    const isPerfect = Math.abs(currentBlock.x - lastBlock.x) < luckTolerance;
     
     if (overlapWidth <= 0) {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       playSound('fail');
-      onGameOver(scoreRef.current, Math.floor(scoreRef.current * XP_PER_BLOCK * multiplier), Math.floor(scoreRef.current * GOLD_PER_BLOCK * multiplier));
+      
+      // Calculate Rewards
+      // Altitude = Blocks * Effective Height (Rapid Lift)
+      // Note: We use Math.ceil to ensure at least 1m if they placed blocks
+      const finalAltitude = Math.floor(scoreRef.current * rapidLiftMult); 
+      
+      // XP = Blocks * Base XP * Upgrade Mult * Miner Mult
+      const baseXp = scoreRef.current * XP_PER_BLOCK;
+      const finalXp = Math.floor(baseXp * batteryMult * multiplier);
+      
+      // Gold = Blocks * Base Gold * Upgrade Mult * Miner Mult
+      const baseGold = scoreRef.current * GOLD_PER_BLOCK;
+      const finalGold = Math.floor(baseGold * magnetMult * multiplier);
+
+      onGameOver(finalAltitude, finalXp, finalGold);
       return;
     }
 
@@ -180,7 +205,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
       cameraYRef.current += BLOCK_HEIGHT;
     }
     spawnBlock(finalWidth, targetY, scoreRef.current);
-  }, [isActive, onGameOver, multiplier, playSound, spawnBlock]);
+  }, [isActive, onGameOver, multiplier, playSound, spawnBlock, rapidLiftMult, batteryMult, magnetMult, luckTolerance]);
 
   const loop = useCallback(() => {
     if (!isActive) return;
@@ -271,13 +296,14 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
     for(let i=0; i<GAME_HEIGHT; i+=4) { ctx.fillRect(0, i, GAME_WIDTH, 1); }
 
-    // UI
+    // UI - Display Altitude instead of raw blocks
+    const currentAltitude = Math.floor(scoreRef.current * rapidLiftMult);
     ctx.fillStyle = WHITE;
     ctx.font = "800 60px 'JetBrains Mono'";
     ctx.textAlign = 'center';
     ctx.shadowBlur = 10;
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.fillText(`${scoreRef.current}`, GAME_WIDTH / 2, 100);
+    ctx.fillText(`${currentAltitude}`, GAME_WIDTH / 2, 100);
     ctx.shadowBlur = 0;
     
     // Subtext for altitude
@@ -287,7 +313,7 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
     ctx.globalAlpha = 1.0;
 
     requestRef.current = requestAnimationFrame(loop);
-  }, [isActive]);
+  }, [isActive, rapidLiftMult]);
 
   useEffect(() => {
     if (isActive) {
@@ -298,20 +324,13 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
   }, [isActive, initGame, loop]);
 
   return (
-    <div className="flex-1 flex flex-col justify-center px-4 py-2 touch-none">
-      <div 
-        className="relative flex flex-col items-center p-6 border-2 border-white/10 bg-white/5 rounded-[40px] shadow-2xl overflow-hidden cursor-pointer select-none active:scale-[0.99] transition-transform touch-none" 
-        onPointerDown={handleAction}
-      >
-        <div className="relative border-4 border-white/10 rounded-[32px] overflow-hidden bg-black shadow-inner">
-          <canvas 
-            ref={canvasRef} 
-            width={GAME_WIDTH} 
-            height={GAME_HEIGHT}
-            className="w-full max-w-[270px] h-auto mx-auto"
-          />
-        </div>
-      </div>
+    <div className="fixed inset-0 w-full h-full touch-none select-none z-0 bg-black" onPointerDown={handleAction}>
+      <canvas 
+        ref={canvasRef} 
+        width={GAME_WIDTH} 
+        height={GAME_HEIGHT}
+        className="w-full h-full object-cover"
+      />
     </div>
   );
 };
