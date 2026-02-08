@@ -60,6 +60,7 @@ const MainApp: React.FC = () => {
   const [player, setPlayer] = useState<Player | null>(null);
   const [playerRank, setPlayerRank] = useState<number>(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [rankingType, setRankingType] = useState<'skill' | 'grind'>('skill');
   const [taskTimers, setTaskTimers] = useState<Record<string, { time: number, focused: boolean }>>({});
   const [verifyingTaskId, setVerifyingTaskId] = useState<string | null>(null);
@@ -77,7 +78,7 @@ const MainApp: React.FC = () => {
       audioRef.current = null;
     }
     const audio = new Audio(randomTrack);
-    audio.volume = 0.3;
+    audio.volume = 0.15;
     audio.loop = true;
     audio.play().catch(e => console.log("Audio play failed:", e));
     audioRef.current = audio;
@@ -166,11 +167,14 @@ const MainApp: React.FC = () => {
         setPlayerRank(rank);
       }
 
+      setIsLeaderboardLoading(true);
       const board = await PlayerService.getLeaderboard(15, rankingType);
       setLeaderboard(board);
+      setIsLeaderboardLoading(false);
 
     } catch (e) {
       console.error("Load Error:", e);
+      setIsLeaderboardLoading(false);
     }
   }, [frameContext, rankingType]);
 
@@ -558,16 +562,27 @@ const MainApp: React.FC = () => {
                </div>
 
                <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
-                  {leaderboard.map((entry, idx) => (
-                    <div key={entry.fid} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl">
-                      <div className="flex items-center gap-4">
-                        <span className="text-[10px] font-black opacity-30">{idx + 1}</span>
-                        <img src={entry.pfpUrl || `https://picsum.photos/seed/${entry.fid}/32/32`} className="w-8 h-8 rounded-full opacity-60 border border-white/10" alt="" />
-                        <div className="text-sm font-bold">@{entry.username}</div>
-                      </div>
-                      <div className="text-lg font-black italic">{rankingType === 'skill' ? entry.highScore : entry.totalXp.toLocaleString()}</div>
+                  {isLeaderboardLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full opacity-50">
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
+                      <div className="text-[10px] font-black uppercase tracking-widest">LOADING RANKS...</div>
                     </div>
-                  ))}
+                  ) : leaderboard.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full opacity-30">
+                      <div className="text-[10px] font-black uppercase tracking-widest">NO RECORDS YET</div>
+                    </div>
+                  ) : (
+                    leaderboard.map((entry, idx) => (
+                      <div key={entry.fid} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+                        <div className="flex items-center gap-4">
+                          <span className="text-[10px] font-black opacity-30">{idx + 1}</span>
+                          <img src={entry.pfpUrl || `https://picsum.photos/seed/${entry.fid}/32/32`} className="w-8 h-8 rounded-full opacity-60 border border-white/10" alt="" />
+                          <div className="text-sm font-bold">@{entry.username}</div>
+                        </div>
+                        <div className="text-lg font-black italic">{rankingType === 'skill' ? entry.highScore : entry.totalXp.toLocaleString()}</div>
+                      </div>
+                    ))
+                  )}
                </div>
                <div className="shrink-0 p-4 border border-white/10 bg-white/5 rounded-3xl space-y-4">
                   <div className="flex justify-between items-center px-2">

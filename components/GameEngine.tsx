@@ -64,22 +64,22 @@ const GameEngine: React.FC<GameEngineProps> = ({ onGameOver, isActive, multiplie
         osc.type = 'square';
         osc.frequency.setValueAtTime(120, now);
         osc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
-        gain.gain.setValueAtTime(0.007, now);
-        gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
         osc.start(now); osc.stop(now + 0.1);
       } else if (type === 'perfect') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(523.25, now);
         osc.frequency.linearRampToValueAtTime(1046.50, now + 0.15);
-        gain.gain.setValueAtTime(0.02, now);
-        gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.3);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
         osc.start(now); osc.stop(now + 0.3);
       } else if (type === 'fail') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(80, now);
         osc.frequency.linearRampToValueAtTime(30, now + 0.5);
-        gain.gain.setValueAtTime(0.01, now);
-        gain.gain.linearRampToValueAtTime(0.0005, now + 0.5);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.5);
         osc.start(now); osc.stop(now + 0.5);
       }
     } catch (e) {}
