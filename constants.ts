@@ -14,8 +14,12 @@ export const SUBMIT_FEE_ETH = '0.00005';
 export const UPLOAD_FEE_USD = 1.0; 
 export const FLEX_FEE_USDC = '0.10';
 
+import { IS_TESTNET } from './network';
+
 export const DEV_WALLET = '0x53481a207B5dd683a7C018157709A5092774b09A'; 
-export const USDC_BASE_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+export const USDC_BASE_ADDRESS = IS_TESTNET 
+  ? '0x036CbD53842c5426634e7929541eC2318f3dCF7e' // Base Sepolia USDC
+  : '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'; // Base Mainnet USDC
 
 export const XP_PER_BLOCK = 10;
 export const GOLD_PER_BLOCK = 20;

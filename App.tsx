@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider, createConfig, http, useAccount, useReadContract } from 'wagmi';
-import { base } from 'viem/chains';
+import { base, baseSepolia } from 'viem/chains';
 import { formatUnits, erc20Abi } from 'viem';
 import { coinbaseWallet } from 'wagmi/connectors';
 import { pay, getPaymentStatus } from '@base-org/account';
@@ -17,9 +17,12 @@ import { IS_TESTNET, RECIPIENT_WALLET } from './network';
 import { PlayerService } from './services/playerService';
 
 const config = createConfig({
-  chains: [base],
+  chains: IS_TESTNET ? [baseSepolia] : [base],
   connectors: [coinbaseWallet({ appName: 'Base Ascent' })],
-  transports: { [base.id]: http(process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org') },
+  transports: { 
+    [base.id]: http(process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org'),
+    [baseSepolia.id]: http('https://sepolia.base.org')
+  },
 });
 
 const queryClient = new QueryClient();
@@ -464,9 +467,14 @@ const MainApp: React.FC = () => {
     const pendingXp = Math.floor(hours * MINER_LEVELS[player.minerLevel].xpPerHour);
     const newBankedXp = (player.bankedPassiveXp || 0) + pendingXp;
 
+    // Safety timeout to prevent stuck state
+    const safetyTimer = setTimeout(() => {
+        setProcessingPayment(false);
+        setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
+        setPaymentError("Transaction timed out");
+    }, 15000);
+
     try {
-      const safetyTimeout = setTimeout(() => setProcessingPayment(false), 15000);
-      
       const cost = MINER_LEVELS[level].cost.toFixed(2);
       // @ts-ignore
       const { transactionId } = await safePay(pay({
@@ -475,6 +483,8 @@ const MainApp: React.FC = () => {
         to: RECIPIENT_WALLET,
         testnet: IS_TESTNET
       }));
+
+      clearTimeout(safetyTimer); // Clear timeout on success
 
       // Optimistic update to prevent UI reset flash
       setPlayer({
@@ -487,11 +497,12 @@ const MainApp: React.FC = () => {
       await PlayerService.upgradeMiner(player.fid, level);
       await PlayerService.recordTransaction(player.fid, cost, 'miner_purchase', transactionId || 'base-pay', { miner_level: level });
       await loadData();
-      clearTimeout(safetyTimeout);
+      
       setPaymentStatus(prev => ({ ...prev, miner: 'success' }));
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1200);
     } catch (e: any) {
       console.error(e);
+      clearTimeout(safetyTimer); // Clear timeout on error
       // Do NOT reload data here to prevent state reset on payment cancel
       setPaymentStatus(prev => ({ ...prev, miner: 'error' }));
       setPaymentError(e?.message || 'Payment failed');
@@ -721,8 +732,8 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="w-full h-[100dvh] pt-[74px] pb-[calc(200px+env(safe-area-inset-bottom))] flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
-        <div className="w-full min-h-full flex flex-col relative">
+      <main className="w-full h-[100dvh] pt-[74px] flex flex-col relative z-10 overflow-y-auto custom-scrollbar overscroll-none">
+        <div className="w-full min-h-full flex flex-col relative pb-[calc(160px+env(safe-area-inset-bottom))]">
           
           <ParticleBackground />
 
@@ -742,14 +753,18 @@ const MainApp: React.FC = () => {
                         goldRef={sessionGoldRef}
                       />
                     </div>
-                    <div className="h-14 w-full max-w-[340px] bg-[#0A0A0A] border border-white/10 flex justify-between items-center px-6 rounded-2xl shrink-0 z-20">
-                       <div className="flex flex-col items-start">
-                          <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Session XP</div>
-                          <div ref={sessionXpRef} className="text-xl font-black italic text-white">+0 XP</div>
-                       </div>
-                       <div className="flex flex-col items-end">
-                          <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Session Gold</div>
-                          <div ref={sessionGoldRef} className="text-xl font-black italic text-yellow-400">+0 GOLD</div>
+                    <div className="w-full max-w-[340px] flex flex-col gap-1 shrink-0 z-20 mt-4 mb-2">
+                       {/* Session HUD - Positioned below game stack, above nav */}
+                       <div className="h-12 w-full bg-[#0A0A0A]/90 backdrop-blur-md border border-white/10 flex justify-between items-center px-6 rounded-xl shadow-lg">
+                          <div className="flex flex-col items-start">
+                             <div className="text-[9px] font-black uppercase text-green-400 tracking-wider">Session XP</div>
+                             <div ref={sessionXpRef} className="text-lg font-black italic text-white">+0 XP</div>
+                          </div>
+                          <div className="w-px h-6 bg-white/10"></div>
+                          <div className="flex flex-col items-end">
+                             <div className="text-[9px] font-black uppercase text-yellow-400 tracking-wider">Session Gold</div>
+                             <div ref={sessionGoldRef} className="text-lg font-black italic text-yellow-400">+0 GOLD</div>
+                          </div>
                        </div>
                     </div>
                   </div>
