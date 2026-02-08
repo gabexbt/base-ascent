@@ -160,15 +160,13 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
               </div>
 
               {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-bold text-white text-lg leading-tight">{config.name}</h3>
-                  <span className="shrink-0 bg-white/10 text-white text-[clamp(9px,2.2vw,11px)] font-bold px-2 py-0.5 rounded border border-white/20 whitespace-nowrap">
-                    Lvl {currentLevel}
-                  </span>
-                </div>
-                <p className="text-white/60 text-sm leading-snug mt-1">{config.description}</p>
-                <div className="text-xs text-white/40 mt-1">
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <h3 className="font-bold text-white text-lg leading-tight mb-1">{config.name}</h3>
+                <span className="self-start bg-white/10 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-white/20 whitespace-nowrap">
+                  Lvl {currentLevel}
+                </span>
+                <p className="text-white/60 text-xs leading-snug mt-2 line-clamp-2">{config.description}</p>
+                <div className="text-[10px] text-white/40 mt-1">
                   Next: <span className="text-white/80">+{Math.pow(1.5, currentLevel + 1).toFixed(1)}x scaling</span>
                 </div>
               </div>

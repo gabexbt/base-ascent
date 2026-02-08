@@ -10,11 +10,15 @@ interface GameOverProps {
   onDoubleUp?: () => void;
   isProcessing?: boolean;
   doubleUpStatus?: 'idle' | 'loading' | 'success' | 'error';
+  ascentsRemaining?: number;
+  onRefill?: () => void;
 }
 
-const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHighScore, onPlayAgain, onGoHome, onDoubleUp, isProcessing, doubleUpStatus }) => {
+const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHighScore, onPlayAgain, onGoHome, onDoubleUp, isProcessing, doubleUpStatus, ascentsRemaining = 0, onRefill }) => {
+  const canPlay = ascentsRemaining > 0;
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-between py-8 px-6 text-center animate-in zoom-in h-full overflow-y-auto">
+    <div className="flex-1 flex flex-col items-center justify-between py-8 px-6 text-center animate-in zoom-in h-full overflow-y-auto custom-scrollbar">
       <div className="flex-1 flex flex-col justify-center gap-4 w-full">
         <div className="space-y-1">
           <div className="text-[10px] opacity-40 uppercase font-black tracking-[0.4em]">{isHighScore ? 'NEW HIGH SCORE!' : 'ASCENT COMPLETE'}</div>
@@ -67,12 +71,21 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
       </div>
 
       <div className="w-full max-w-[320px] mx-auto space-y-3 mt-4 shrink-0">
-        <button
-          onClick={onPlayAgain}
-          className="w-full bg-white text-black py-4 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)]"
-        >
-          Play Again
-        </button>
+        {canPlay ? (
+          <button
+            onClick={onPlayAgain}
+            className="w-full bg-white text-black py-4 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)]"
+          >
+            Play Again ({ascentsRemaining})
+          </button>
+        ) : (
+          <button
+            onClick={onRefill}
+            className="w-full bg-[#FFD700] text-black py-4 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] border-[#FFD700] shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] animate-pulse"
+          >
+            Refill Ascents ($0.10)
+          </button>
+        )}
         <button
           onClick={onGoHome}
           className="w-full border-2 border-white/30 text-white/80 hover:text-white hover:border-white py-4 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all bg-black/40 backdrop-blur-sm"

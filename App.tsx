@@ -492,7 +492,7 @@ const MainApp: React.FC = () => {
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1200);
     } catch (e: any) {
       console.error(e);
-      await loadData();
+      // Do NOT reload data here to prevent state reset on payment cancel
       setPaymentStatus(prev => ({ ...prev, miner: 'error' }));
       setPaymentError(e?.message || 'Payment failed');
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
@@ -721,7 +721,7 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="w-full h-[100dvh] pt-[74px] pb-[calc(140px+env(safe-area-inset-bottom))] flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
+      <main className="w-full h-[100dvh] pt-[74px] pb-[calc(200px+env(safe-area-inset-bottom))] flex flex-col relative z-10 overflow-y-auto custom-scrollbar">
         <div className="w-full min-h-full flex flex-col relative">
           
           <ParticleBackground />
@@ -742,7 +742,7 @@ const MainApp: React.FC = () => {
                         goldRef={sessionGoldRef}
                       />
                     </div>
-                    <div className="h-14 w-full max-w-[340px] bg-[#0A0A0A] border border-white/10 flex justify-between items-center px-6 rounded-2xl">
+                    <div className="h-14 w-full max-w-[340px] bg-[#0A0A0A] border border-white/10 flex justify-between items-center px-6 rounded-2xl shrink-0 z-20">
                        <div className="flex flex-col items-start">
                           <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Session XP</div>
                           <div ref={sessionXpRef} className="text-xl font-black italic text-white">+0 XP</div>
@@ -764,6 +764,8 @@ const MainApp: React.FC = () => {
                     onDoubleUp={handleDoubleUp}
                     isProcessing={processingPayment}
                     doubleUpStatus={paymentStatus.double}
+                    ascentsRemaining={player?.ascentsRemaining}
+                    onRefill={handleRechargeAscents}
                   />
                 ) : status === GameStatus.IDLE ? (
                   <div className="flex-1 flex flex-col items-center gap-2 text-center animate-in fade-in duration-500">
@@ -778,7 +780,7 @@ const MainApp: React.FC = () => {
                       {/* Ascents Counter */}
                       <div className="flex flex-col items-center gap-1">
                         <span className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Ascents Available</span>
-                        <span className={`text-5xl font-black ${player?.ascentsRemaining === 0 ? 'text-red-500' : 'text-white'} drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-colors duration-300`}>
+                        <span className={`text-4xl font-black ${player?.ascentsRemaining === 0 ? 'text-red-500' : 'text-white'} drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-colors duration-300`}>
                           {player?.ascentsRemaining ?? 0}
                         </span>
                       </div>
