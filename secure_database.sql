@@ -397,7 +397,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Complete Task
+-- Complete Task (Fixed NULL Handling)
 CREATE OR REPLACE FUNCTION rpc_complete_task(
     p_fid BIGINT, 
     p_task_id TEXT, 
@@ -408,13 +408,27 @@ CREATE OR REPLACE FUNCTION rpc_complete_task(
 DECLARE v_tasks TEXT[];
 BEGIN
     SELECT completed_tasks INTO v_tasks FROM players WHERE fid = p_fid;
+    -- Handle NULL case for safety
+    IF v_tasks IS NULL THEN v_tasks := '{}'; END IF;
+    
     IF p_task_id = ANY(v_tasks) THEN RETURN; END IF;
+    
     UPDATE players SET 
-        completed_tasks = array_append(completed_tasks, p_task_id), 
+        completed_tasks = array_append(COALESCE(completed_tasks, '{}'), p_task_id), 
         total_xp = total_xp + p_xp_reward,
         total_gold = total_gold + p_gold_reward,
         ascents_remaining = ascents_remaining + p_ascents_reward
     WHERE fid = p_fid;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Reset Player (Dev Tool - For Testing Referrals)
+CREATE OR REPLACE FUNCTION rpc_reset_player(p_fid BIGINT) RETURNS VOID AS $$
+BEGIN
+    DELETE FROM transactions WHERE fid = p_fid;
+    DELETE FROM armory_upgrades WHERE fid = p_fid;
+    DELETE FROM leaderboard WHERE fid = p_fid;
+    DELETE FROM players WHERE fid = p_fid;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

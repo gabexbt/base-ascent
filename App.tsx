@@ -144,7 +144,11 @@ const MainApp: React.FC = () => {
       let fid = frameContext.user.fid;
       let username = frameContext.user.username;
       let pfpUrl = frameContext.user.pfpUrl;
-      let referrer = frameContext.referrerFid;
+      
+      // Parse Referrer from URL (priority) or Frame Context
+      const searchParams = new URLSearchParams(window.location.search);
+      const refParam = searchParams.get('ref');
+      let referrer = refParam || frameContext.referrerFid;
 
       // Fallback for non-frame environments (browser testing) ONLY if fid is missing
       if (!fid) {
@@ -252,7 +256,10 @@ const MainApp: React.FC = () => {
                    completedTasks: [...(prev.completedTasks || []), taskId]
                 }) : null);
                 
-                PlayerService.completeTask(player.fid, taskId, 50000, 10000, 5).then(() => loadData());
+                // Sync first to ensure DB has latest stats before adding rewards
+                PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns)
+                  .then(() => PlayerService.completeTask(player.fid, taskId, 50000, 10000, 5))
+                  .then(() => loadData());
               }
               delete next[taskId];
             }
@@ -365,7 +372,9 @@ const MainApp: React.FC = () => {
   };
 
   const handleCopy = () => {
-    const url = `https://base.app/app/base-ascent.vercel.app?ref=${player?.username || player?.fid}`;
+    // Prefer FID for safer referrals, fallback to username
+    const refId = player?.fid || player?.username;
+    const url = `https://base.app/app/base-ascent.vercel.app?ref=${refId}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

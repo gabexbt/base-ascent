@@ -3,7 +3,7 @@ import { Player, LeaderboardEntry } from '../types';
 import { MINER_LEVELS } from '../constants';
 
 export const PlayerService = {
-  async getPlayer(fid: number, username: string, pfpUrl?: string, referrerFid?: number): Promise<Player | null> {
+  async getPlayer(fid: number, username: string, pfpUrl?: string, referrer?: string | number): Promise<Player | null> {
     try {
       const { data, error } = await supabase
         .from('players')
@@ -12,6 +12,27 @@ export const PlayerService = {
         .maybeSingle();
 
       if (!data) {
+        // Resolve referrer
+        let finalReferrerFid: number | null = null;
+        if (referrer) {
+          if (typeof referrer === 'number') {
+            finalReferrerFid = referrer;
+          } else if (!isNaN(Number(referrer))) {
+            finalReferrerFid = Number(referrer);
+          } else {
+            // It's a username string, look it up
+            const { data: refUser } = await supabase
+              .from('players')
+              .select('fid')
+              .eq('username', referrer)
+              .maybeSingle();
+            if (refUser) finalReferrerFid = refUser.fid;
+          }
+        }
+        
+        // Prevent self-referral
+        if (finalReferrerFid === fid) finalReferrerFid = null;
+
         const newPlayer = {
           fid,
           username,
@@ -25,7 +46,7 @@ export const PlayerService = {
           referral_count: 0,
           referral_xp_earned: 0,
           miner_level: 0,
-          referrer_fid: (referrerFid && referrerFid !== fid) ? referrerFid : null,
+          referrer_fid: finalReferrerFid,
           has_used_altitude_flex: false,
           has_used_xp_flex: false,
           banked_passive_xp: 0,
