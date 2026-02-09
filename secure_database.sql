@@ -338,6 +338,7 @@ CREATE OR REPLACE FUNCTION rpc_double_up_run(
     p_amount_usdc NUMERIC
 ) RETURNS VOID AS $$
 BEGIN
+    -- Update Player Stats (Base Stats Only)
     UPDATE players SET 
         total_xp = total_xp + p_xp,
         total_gold = total_gold + p_gold,
@@ -345,6 +346,7 @@ BEGIN
         updated_at = NOW()
     WHERE fid = p_fid;
 
+    -- Record Transaction
     INSERT INTO transactions (fid, amount_usdc, transaction_type, transaction_hash, status, metadata)
     VALUES (p_fid, p_amount_usdc, 'double_up', p_tx_hash, 'confirmed', jsonb_build_object('score', p_score, 'xp', p_xp));
 

@@ -147,7 +147,10 @@ const MainApp: React.FC = () => {
       
       // Parse Referrer from URL (priority) or Frame Context
       const searchParams = new URLSearchParams(window.location.search);
-      const refParam = searchParams.get('ref');
+      // Also check hash params just in case (e.g. #/?ref=...)
+      const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
+      const refParam = searchParams.get('ref') || hashParams.get('ref');
+      
       let referrer = refParam || frameContext.referrerFid;
 
       // Fallback for non-frame environments (browser testing) ONLY if fid is missing
@@ -640,10 +643,14 @@ const MainApp: React.FC = () => {
     return (player.leaderboardTotalXp === player.totalXp && player.totalXp > 0) ? 'SYNCED' : 'UNSYNCED';
   }, [player, rankingType]);
 
+  const [showConfetti, setShowConfetti] = useState(false); // Deprecated, but keeping var for cleanup if needed, will replace logic
+  const [showDoubleSuccess, setShowDoubleSuccess] = useState(false);
+
   const handleDoubleUp = async () => {
     if (!gameOverData || !player) return;
     
-    if (gameOverData.score <= player.highScore) return;
+    // REMOVED: Incorrect check that blocked execution because player.highScore was already updated
+    // if (gameOverData.score <= player.highScore) return;
 
     setProcessingPayment(true);
     setPaymentError(null);
@@ -682,7 +689,8 @@ const MainApp: React.FC = () => {
        
        await loadData();
        setPaymentStatus(prev => ({ ...prev, double: 'success' }));
-       setTimeout(() => setPaymentStatus(prev => ({ ...prev, double: 'idle' })), 1200);
+       setShowDoubleSuccess(true);
+       
     } catch (e: any) {
       console.error(e);
       setPaymentStatus(prev => ({ ...prev, double: 'error' }));
@@ -769,6 +777,51 @@ const MainApp: React.FC = () => {
                       ascentsRemaining={player?.ascentsRemaining}
                       onRefill={handleRechargeAscents}
                     />
+                    {showDoubleSuccess && gameOverData && (
+                      <div className="absolute inset-0 z-50 flex flex-col items-center justify-center animate-in fade-in duration-300">
+                         {/* Overlay Background */}
+                         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+                         
+                         {/* Content */}
+                         <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-[320px] p-8 text-center animate-in zoom-in-95 duration-300">
+                            
+                            {/* Title */}
+                            <div className="text-6xl font-black text-[#FFD700] italic uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(255,215,0,0.5)] scale-110 mb-4 animate-bounce">
+                               DOUBLED!
+                            </div>
+
+                            {/* Stats */}
+                            <div className="flex flex-col gap-4 w-full">
+                               <div className="bg-white/10 border border-white/10 rounded-2xl p-4 backdrop-blur-md">
+                                  <div className="text-[10px] opacity-60 uppercase font-bold tracking-widest mb-1">New Altitude</div>
+                                  <div className="text-4xl font-black italic">{gameOverData.score}m</div>
+                               </div>
+                               
+                               <div className="grid grid-cols-2 gap-4">
+                                  <div className="bg-white/10 border border-white/10 rounded-2xl p-3 backdrop-blur-md">
+                                    <div className="text-[9px] opacity-60 uppercase font-bold tracking-widest mb-1">XP Earned</div>
+                                    <div className="text-2xl font-black italic text-purple-400">+{gameOverData.xp}</div>
+                                  </div>
+                                  <div className="bg-white/10 border border-white/10 rounded-2xl p-3 backdrop-blur-md">
+                                    <div className="text-[9px] opacity-60 uppercase font-bold tracking-widest mb-1">Gold Earned</div>
+                                    <div className="text-2xl font-black italic text-yellow-400">+{gameOverData.gold}</div>
+                                  </div>
+                               </div>
+                            </div>
+
+                            {/* Continue Button */}
+                            <button 
+                              onClick={() => {
+                                setShowDoubleSuccess(false);
+                                setPaymentStatus(prev => ({ ...prev, double: 'idle' }));
+                              }}
+                              className="w-full py-5 mt-4 bg-white text-black font-black text-xl uppercase rounded-[2rem] shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-95 transition-all"
+                            >
+                              Continue
+                            </button>
+                         </div>
+                      </div>
+                    )}
                   </div>
                 ) : status === GameStatus.IDLE ? (
                   <div className="flex-1 flex flex-col items-center text-center animate-in fade-in slide-in-from-top-8 duration-700 w-full px-5 py-6 h-full justify-between overflow-hidden">
