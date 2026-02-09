@@ -18,6 +18,12 @@
     "deepLinkUrl": "https://base-ascent.vercel.app",
     "splashImageUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/icon.png",
     "splashBackgroundColor": "#000000",
-    "webhookUrl": "https://base-ascent.vercel.app/api/frame-webhook"
+    "webhookUrl": "https://base-ascent.vercel.app/api/frame-webhook",
+    "screenshotUrls": ["https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png"],
+    "heroImageUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png",
+    "tagline": "Ascend To New Heights",
+    "ogTitle": "Base Ascent",
+    "ogDescription": "The ultimate on-chain stacking game. Build your tower, upgrade your miner, and dominate the leaderboards.",
+    "ogImageUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png"
   }
 }

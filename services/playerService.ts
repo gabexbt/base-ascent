@@ -195,11 +195,13 @@ export const PlayerService = {
     return (count || 0) + 1;
   },
 
-  async completeTask(fid: number, taskId: string, xpReward: number) {
+  async completeTask(fid: number, taskId: string, xpReward: number, goldReward: number, ascentsReward: number) {
     const { error } = await supabase.rpc('rpc_complete_task', {
       p_fid: fid,
       p_task_id: taskId,
-      p_xp_reward: xpReward
+      p_xp_reward: xpReward,
+      p_gold_reward: goldReward,
+      p_ascents_reward: ascentsReward
     });
     if (error) console.error("Complete Task Error:", error);
   },

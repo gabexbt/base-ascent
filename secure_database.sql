@@ -192,10 +192,8 @@ CREATE OR REPLACE FUNCTION rpc_sync_stats(
 ) RETURNS VOID AS $$
 DECLARE
     v_old_xp INT;
-    v_referrer BIGINT;
-    v_kickback INT;
 BEGIN
-    SELECT total_xp, referrer_fid INTO v_old_xp, v_referrer FROM players WHERE fid = p_fid;
+    SELECT total_xp INTO v_old_xp FROM players WHERE fid = p_fid;
     IF NOT FOUND THEN RETURN; END IF;
     
     UPDATE players 
@@ -206,18 +204,6 @@ BEGIN
         total_runs = GREATEST(total_runs, p_runs),
         updated_at = NOW()
     WHERE fid = p_fid;
-
-    -- Referral Kickback
-    IF v_referrer IS NOT NULL AND p_xp > v_old_xp THEN
-        v_kickback := FLOOR((p_xp - v_old_xp) * 0.20);
-        IF v_kickback > 0 THEN
-            UPDATE players 
-            SET 
-                total_xp = total_xp + v_kickback, 
-                referral_xp_earned = referral_xp_earned + v_kickback 
-            WHERE fid = v_referrer;
-        END IF;
-    END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -232,8 +218,10 @@ DECLARE
     v_pending INT;
     v_multiplier NUMERIC;
     v_final_claim INT;
+    v_referrer BIGINT;
+    v_kickback INT;
 BEGIN
-    SELECT miner_level, last_claim_at, banked_passive_xp INTO v_miner_level, v_last_claim, v_banked
+    SELECT miner_level, last_claim_at, banked_passive_xp, referrer_fid INTO v_miner_level, v_last_claim, v_banked, v_referrer
     FROM players WHERE fid = p_fid;
     
     IF NOT FOUND OR v_miner_level = 0 THEN RETURN; END IF;
@@ -262,6 +250,18 @@ BEGIN
             last_claim_at = NOW(),
             updated_at = NOW()
         WHERE fid = p_fid;
+
+        -- Referral Kickback (Hardware Only)
+        IF v_referrer IS NOT NULL THEN
+            v_kickback := FLOOR(v_final_claim * 0.20);
+            IF v_kickback > 0 THEN
+                UPDATE players 
+                SET 
+                    total_xp = total_xp + v_kickback, 
+                    referral_xp_earned = referral_xp_earned + v_kickback 
+                WHERE fid = v_referrer;
+            END IF;
+        END IF;
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -398,12 +398,23 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Complete Task
-CREATE OR REPLACE FUNCTION rpc_complete_task(p_fid BIGINT, p_task_id TEXT, p_xp_reward INT) RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION rpc_complete_task(
+    p_fid BIGINT, 
+    p_task_id TEXT, 
+    p_xp_reward INT,
+    p_gold_reward INT DEFAULT 0,
+    p_ascents_reward INT DEFAULT 0
+) RETURNS VOID AS $$
 DECLARE v_tasks TEXT[];
 BEGIN
     SELECT completed_tasks INTO v_tasks FROM players WHERE fid = p_fid;
     IF p_task_id = ANY(v_tasks) THEN RETURN; END IF;
-    UPDATE players SET completed_tasks = array_append(completed_tasks, p_task_id), total_xp = total_xp + p_xp_reward WHERE fid = p_fid;
+    UPDATE players SET 
+        completed_tasks = array_append(completed_tasks, p_task_id), 
+        total_xp = total_xp + p_xp_reward,
+        total_gold = total_gold + p_gold_reward,
+        ascents_remaining = ascents_remaining + p_ascents_reward
+    WHERE fid = p_fid;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

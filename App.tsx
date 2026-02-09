@@ -57,8 +57,6 @@ const MainApp: React.FC = () => {
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [rankingType, setRankingType] = useState<'skill' | 'grind'>('skill');
   const [taskTimers, setTaskTimers] = useState<Record<string, { time: number, focused: boolean }>>({});
-  const [verifyingTaskId, setVerifyingTaskId] = useState<string | null>(null);
-  const [hasLeftWindow, setHasLeftWindow] = useState(false);
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<{ miner: 'idle' | 'loading' | 'success' | 'error'; double: 'idle' | 'loading' | 'success' | 'error'; flex: 'idle' | 'loading' | 'success' | 'error'; recharge: 'idle' | 'loading' | 'success' | 'error' }>({ miner: 'idle', double: 'idle', flex: 'idle', recharge: 'idle' });
@@ -223,8 +221,8 @@ const MainApp: React.FC = () => {
   }, [loadData, frameContext.isReady, activeTab]);
 
   useEffect(() => {
-    if (!frameContext.isReady || activeTab !== Tab.RANKINGS) return;
-    const interval = setInterval(() => loadData(), 15000);
+    if (!frameContext.isReady || (activeTab !== Tab.RANKINGS && activeTab !== Tab.PROFILE)) return;
+    const interval = setInterval(() => loadData(), 10000);
     return () => clearInterval(interval);
   }, [frameContext.isReady, activeTab, loadData]);
   
@@ -245,14 +243,16 @@ const MainApp: React.FC = () => {
             changed = true;
             if (next[taskId].time === 0) {
               if (player) {
-                // Optimistic update
+                // Optimistic update: 50,000 XP, 10,000 GOLD, 5 Free Spins
                 setPlayer(prev => prev ? ({
                    ...prev,
-                   totalXp: prev.totalXp + 500,
+                   totalXp: prev.totalXp + 50000,
+                   totalGold: prev.totalGold + 10000,
+                   ascentsRemaining: (prev.ascentsRemaining || 0) + 5,
                    completedTasks: [...(prev.completedTasks || []), taskId]
                 }) : null);
                 
-                PlayerService.completeTask(player.fid, taskId, 500).then(() => loadData());
+                PlayerService.completeTask(player.fid, taskId, 50000, 10000, 5).then(() => loadData());
               }
               delete next[taskId];
             }
@@ -264,51 +264,22 @@ const MainApp: React.FC = () => {
     return () => clearInterval(interval);
   }, [player, loadData]);
 
+  // Game interruption on visibility change
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // End game on tab switch/minimize
-        if (status === GameStatus.PLAYING) {
+      if (document.hidden && status === GameStatus.PLAYING) {
            gameRef.current?.endGame();
-        }
-        if (verifyingTaskId) setHasLeftWindow(true);
-      } else {
-        if (verifyingTaskId && hasLeftWindow) {
-          setTaskTimers(prev => ({ ...prev, [verifyingTaskId]: { time: 10, focused: true } }));
-          setVerifyingTaskId(null);
-          setHasLeftWindow(false);
-        }
       }
     };
-
-    const handleBlur = () => {
-      if (verifyingTaskId) setHasLeftWindow(true);
-    };
-
-    const handleFocus = () => {
-      if (verifyingTaskId && hasLeftWindow) {
-        setTaskTimers(prev => ({ ...prev, [verifyingTaskId]: { time: 10, focused: true } }));
-        setVerifyingTaskId(null);
-        setHasLeftWindow(false);
-      }
-    };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [verifyingTaskId, hasLeftWindow, status]);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [status]);
 
   const handleTaskClick = (taskId: string, url: string) => {
     if (player?.completedTasks?.includes(taskId)) return;
     window.open(url, '_blank');
-    setVerifyingTaskId(taskId);
-    setHasLeftWindow(true);
+    // Start 10s verification timer immediately
+    setTaskTimers(prev => ({ ...prev, [taskId]: { time: 10, focused: true } }));
   };
 
   const [isStarting, setIsStarting] = useState(false);
@@ -1049,9 +1020,9 @@ const MainApp: React.FC = () => {
                        { id: 'post-interaction', l: 'Engagement Booster', u: 'https://warpcast.com/gabexbt/0x892a0' }
                      ].map(t => (
                         <div key={t.id} className="w-full p-4 border border-white/10 rounded-[28px] flex items-center justify-between bg-black/50">
-                           <div className="text-left"><div className="text-[10px] font-black uppercase">{t.l}</div><div className="text-[8px] opacity-40">+500 XP</div></div>
-                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={player?.completedTasks?.includes(t.id) || taskTimers[t.id]?.time > 0 || (verifyingTaskId === t.id)} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95 disabled:opacity-50 transition-all min-w-[80px]">
-                              {player?.completedTasks?.includes(t.id) ? 'DONE' : taskTimers[t.id]?.time > 0 ? `CHECKING... ${taskTimers[t.id].time}s` : verifyingTaskId === t.id ? 'WAITING...' : 'CLAIM XP'}
+                           <div className="text-left"><div className="text-[10px] font-black uppercase">{t.l}</div><div className="text-[8px] opacity-40">+50K XP • 10K GOLD • 5 SPINS</div></div>
+                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={player?.completedTasks?.includes(t.id) || (taskTimers[t.id]?.time > 0)} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95 disabled:opacity-50 transition-all min-w-[80px]">
+                              {player?.completedTasks?.includes(t.id) ? 'DONE' : taskTimers[t.id]?.time > 0 ? `CHECKING...` : 'CLAIM XP'}
                            </button>
                         </div>
                      ))}
