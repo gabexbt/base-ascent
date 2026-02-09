@@ -7,6 +7,10 @@
   "frame": {
     "version": "1",
     "name": "Base Ascent",
+    "description": "The ultimate on-chain stacking game. Build your tower, upgrade your miner, and dominate the leaderboards.",
+    "subtitle": "Ascend to new heights",
+    "primaryCategory": "games",
+    "tags": ["game", "stacking", "base", "onchain"],
     "iconUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/icon.png",
     "homeUrl": "https://base-ascent.vercel.app",
     "imageUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png",
