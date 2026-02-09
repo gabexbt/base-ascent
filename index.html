@@ -12,6 +12,10 @@
     <meta property="og:title" content="Base Ascent" />
     <meta property="og:description" content="Ascend to new heights on Base." />
     <meta property="og:image" content="https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png" />
+    
+    <!-- Required for Base Embeds: 1.91:1 aspect ratio hint -->
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
@@ -20,8 +24,15 @@
     <meta property="twitter:description" content="Ascend to new heights on Base." />
     <meta property="twitter:image" content="https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png" />
 
-    <!-- Farcaster Frame -->
-    <meta property="fc:frame" content='{"version":"next","imageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png","button":{"title":"ASCEND TO NEW HEIGHTS","action":{"type":"launch_frame","name":"Base Ascent","url":"https://base-ascent.vercel.app","splashImageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png","splashBackgroundColor":"#000000"}}}' />
+    <!-- Farcaster Frame / Base Embed -->
+    <meta property="fc:frame" content='{"version":"next","imageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png","button":{"title":"Ascend To New Heights","action":{"type":"launch_frame","name":"Base Ascent","url":"https://base-ascent.vercel.app","splashImageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png","splashBackgroundColor":"#000000"}}}' />
+    
+    <!-- Fallback for older clients -->
+    <meta name="fc:frame" content="vNext" />
+    <meta name="fc:frame:image" content="https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png" />
+    <meta name="fc:frame:button:1" content="Ascend To New Heights" />
+    <meta name="fc:frame:button:1:action" content="link" />
+    <meta name="fc:frame:button:1:target" content="https://base-ascent.vercel.app" />
 
     <!-- PWA / Mobile Capable -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -29,7 +40,7 @@
     <meta name="theme-color" content="#000000" />
     <link rel="manifest" href="/manifest.json" />
 
-    <title>Base Ascent - Frame V2</title>
+    <title>Base Ascent</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;0,800;1,800&display=swap');

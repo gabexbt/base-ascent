@@ -4,7 +4,7 @@ export const BLACK = '#000000';
 export const WHITE = '#FFFFFF';
 export const GOLD_NEON = '#FFD700';
 
-export const LOGO_URL = '/logo.png'; 
+export const LOGO_URL = 'https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png'; 
 
 export const GAME_WIDTH = 440;
 export const GAME_HEIGHT = 660;
