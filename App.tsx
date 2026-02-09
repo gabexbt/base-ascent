@@ -647,7 +647,7 @@ const MainApp: React.FC = () => {
   const [showDoubleSuccess, setShowDoubleSuccess] = useState(false);
 
   const handleDoubleUp = async () => {
-    if (!gameOverData || !player) return;
+    if (!gameOverData || !player || showDoubleSuccess) return;
     
     // REMOVED: Incorrect check that blocked execution because player.highScore was already updated
     // if (gameOverData.score <= player.highScore) return;
@@ -749,7 +749,7 @@ const MainApp: React.FC = () => {
               <div className="flex flex-col items-center w-full min-h-full pb-10">
                 {status === GameStatus.PLAYING ? (
                   <>
-                    <div className="w-full max-w-[340px] aspect-[2/3] max-h-[520px] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-4 mb-12">
+                    <div className="w-full max-w-[340px] aspect-[2/3] max-h-[520px] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-4 mb-4 select-none touch-none">
                       <GameEngine 
                         ref={gameRef}
                         isActive={true} 
@@ -759,6 +759,18 @@ const MainApp: React.FC = () => {
                         xpRef={sessionXpRef}
                         goldRef={sessionGoldRef}
                       />
+                    </div>
+                    
+                    {/* Session Stats - Unobtrusive */}
+                    <div className="w-full max-w-[340px] grid grid-cols-2 gap-3 z-10 px-1">
+                       <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center">
+                          <div className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">XP Earned</div>
+                          <div ref={sessionXpRef} className="text-xl font-black italic text-green-400 leading-none">+0 XP</div>
+                       </div>
+                       <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center">
+                          <div className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Gold Earned</div>
+                          <div ref={sessionGoldRef} className="text-xl font-black italic text-yellow-400 leading-none">+0 GOLD</div>
+                       </div>
                     </div>
 
                   </>
@@ -824,7 +836,7 @@ const MainApp: React.FC = () => {
                     )}
                   </div>
                 ) : status === GameStatus.IDLE ? (
-                  <div className="flex-1 flex flex-col items-center text-center animate-in fade-in slide-in-from-top-8 duration-700 w-full px-5 py-6 h-full justify-between overflow-hidden">
+                  <div className="flex-1 flex flex-col items-center text-center w-full px-5 py-6 h-full justify-between overflow-hidden">
                      <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0">
                       <div className="w-full h-auto max-h-[30vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
                          <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.5]" alt="ASCENT" />

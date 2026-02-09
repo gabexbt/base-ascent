@@ -18,7 +18,7 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
   const canPlay = ascentsRemaining > 0;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-between py-8 px-6 text-center animate-in zoom-in h-full overflow-y-auto custom-scrollbar">
+    <div className="flex-1 flex flex-col items-center justify-between py-8 px-6 text-center h-full overflow-y-auto custom-scrollbar">
       <div className="flex-1 flex flex-col justify-center gap-4 w-full">
         <div className="space-y-1">
           <div className="text-[10px] opacity-40 uppercase font-black tracking-[0.4em]">{isHighScore ? 'NEW HIGH SCORE!' : 'ASCENT COMPLETE'}</div>
@@ -59,7 +59,7 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
                   {doubleUpStatus === 'loading' ? 'PROCESSING...' : doubleUpStatus === 'success' ? 'SUCCESS' : doubleUpStatus === 'error' ? 'FAILED' : 'DOUBLE IT ALL'}
                 </span>
                 <span className="text-[10px] bg-black/20 px-3 py-1 rounded-full font-bold tracking-widest text-black/80">
-                  {doubleUpStatus === 'loading' ? 'CONFIRM IN WALLET' : doubleUpStatus === 'success' ? 'DOUBLED' : doubleUpStatus === 'error' ? 'TRY AGAIN' : 'PAY $0.10 USDC'}
+                  {doubleUpStatus === 'loading' ? 'CONFIRM IN WALLET' : doubleUpStatus === 'success' ? 'DOUBLED' : doubleUpStatus === 'error' ? 'TRY AGAIN' : '$0.10 USDC'}
                 </span>
               </div>
             </button>
