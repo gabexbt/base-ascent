@@ -7,10 +7,10 @@
   "frame": {
     "version": "1",
     "name": "Base Ascent",
-    "iconUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png",
+    "iconUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/icon.png",
     "homeUrl": "https://base-ascent.vercel.app",
-    "imageUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png",
-    "buttonText": "ASCEND TO NEW HEIGHTS",
+    "imageUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png",
+    "buttonText": "Ascend To New Heights",
     "deepLinkUrl": "https://base-ascent.vercel.app",
     "splashImageUrl": "https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png",
     "splashBackgroundColor": "#000000",
