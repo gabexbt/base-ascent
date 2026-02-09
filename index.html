@@ -11,7 +11,7 @@
     <meta property="og:url" content="https://base.app/app/base-ascent.vercel.app" />
     <meta property="og:title" content="Base Ascent" />
     <meta property="og:description" content="Ascend to new heights on Base." />
-    <meta property="og:image" content="https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png" />
+    <meta property="og:image" content="https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png" />
     
     <!-- Required for Base Embeds: 1.91:1 aspect ratio hint -->
     <meta property="og:image:width" content="1200" />
@@ -22,19 +22,16 @@
     <meta property="twitter:url" content="https://base.app/app/base-ascent.vercel.app" />
     <meta property="twitter:title" content="Base Ascent" />
     <meta property="twitter:description" content="Ascend to new heights on Base." />
-    <meta property="twitter:image" content="https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png" />
+    <meta property="twitter:image" content="https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png" />
 
-    <!-- Farcaster Frame / Base Embed -->
-    <meta property="fc:frame" content='{"version":"next","imageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png","button":{"title":"Ascend To New Heights","action":{"type":"launch_frame","name":"Base Ascent","url":"https://base-ascent.vercel.app","splashImageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/logo.png","splashBackgroundColor":"#000000"}}}' />
+    <!-- Base Mini App (Standard) -->
+    <meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png","button":{"title":"Ascend To New Heights","action":{"type":"launch_frame","name":"Base Ascent","url":"https://base-ascent.vercel.app","splashImageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/icon.png","splashBackgroundColor":"#000000"}}}' />
+
+    <!-- Farcaster Frame (Legacy/Fallback) -->
+    <meta property="fc:frame" content='{"version":"next","imageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png","button":{"title":"Ascend To New Heights","action":{"type":"launch_frame","name":"Base Ascent","url":"https://base-ascent.vercel.app","splashImageUrl":"https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/icon.png","splashBackgroundColor":"#000000"}}}' />
     
     <!-- Fallback for older clients -->
-    <meta name="fc:frame" content="vNext" />
-    <meta name="fc:frame:image" content="https://dmsu9i0cpetrkesy.public.blob.vercel-storage.com/image.png" />
-    <meta name="fc:frame:button:1" content="Ascend To New Heights" />
-    <meta name="fc:frame:button:1:action" content="link" />
-    <meta name="fc:frame:button:1:target" content="https://base-ascent.vercel.app" />
-
-    <!-- PWA / Mobile Capable -->
+    <!-- Removed legacy vNext tags to avoid validation conflicts -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#000000" />
