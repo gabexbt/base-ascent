@@ -739,8 +739,8 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className={`absolute inset-x-0 flex flex-col z-10 ${activeTab === Tab.ASCENT ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-black`} style={{ top: 'calc(74px + env(safe-area-inset-top))', bottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
-        <div className={`w-full ${activeTab === Tab.ASCENT ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT ? 'pb-0' : 'pb-8'}`}>
+      <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-black`} style={{ top: 'calc(74px + env(safe-area-inset-top))', bottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
+        <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT ? 'pb-0' : 'pb-8'}`}>
           
           <ParticleBackground />
 
@@ -836,17 +836,17 @@ const MainApp: React.FC = () => {
                     )}
                   </div>
                 ) : status === GameStatus.IDLE ? (
-                  <div className="flex-1 flex flex-col items-center text-center w-full px-5 py-6 h-full justify-between overflow-hidden">
+                  <div className="flex-1 flex flex-col items-center text-center w-full px-5 py-4 h-full justify-between overflow-hidden">
                      <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0">
-                      <div className="w-full h-auto max-h-[30vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
+                      <div className="w-full h-auto max-h-[25vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
                          <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.5]" alt="ASCENT" />
                       </div>
-                      <p className="text-[10px] opacity-40 uppercase tracking-[0.4em] font-black mt-6">ASCEND TO NEW HEIGHTS</p>
+                      <p className="text-[10px] opacity-40 uppercase tracking-[0.4em] font-black mt-4">ASCEND TO NEW HEIGHTS</p>
                     </div>
-                    <div className="flex flex-col items-center w-full shrink-0 gap-6 pb-8">
+                    <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-4">
                        
                       {/* Ascents Counter */}
-                      <div className="flex flex-col items-center gap-2">
+                      <div className="flex flex-col items-center gap-1">
                         <span className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Ascents Available</span>
                         <span className={`text-4xl font-black ${player?.ascentsRemaining === 0 ? 'text-red-500' : 'text-white'} drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-colors duration-300`}>
                           {player?.ascentsRemaining ?? 0}
@@ -963,7 +963,7 @@ const MainApp: React.FC = () => {
               </div>
             </div>
           ) : activeTab === Tab.RANKINGS ? (
-            <div className="flex flex-col w-full relative" style={{ height: 'calc(100dvh - 160px)' }}>
+            <div className="flex flex-col w-full h-full relative">
                {/* Scrollable List Wrapper */}
                <div className="flex-1 relative min-h-0">
                    <div className="h-full overflow-y-auto pb-6 custom-scrollbar px-4 pt-6 space-y-4">

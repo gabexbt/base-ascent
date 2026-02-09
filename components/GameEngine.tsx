@@ -124,15 +124,15 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const speedMultiplier = Math.pow(1.07, speedStep);
     const widthStep = Math.floor(currentScore / 10);
     const widthMultiplier = Math.max(0.6, 1 - (widthStep * 0.02));
-    // User requested fix: ensure next block is never larger than current width (no artificial floor at 40 that restores size)
+    // User requested fix: ensure next block is never larger than current width
     const nextWidth = Math.max(10, Math.floor(width * widthMultiplier));
+    
+    // Performance: Reuse object for speed? No, simple object is fine.
     let baseSpeed = 1.0;
     
     if (currentScore < 50) {
-      // Good playable speed start (6.0), very slow ramp to 7.0 over 50 levels
       baseSpeed = 6.0 + (currentScore * 0.02); 
     } else {
-      // Ramp up after 50
       const swing = Math.sin(currentScore * 0.5) * 0.5;
       baseSpeed = 7.0 + ((currentScore - 50) * 0.1) + swing;
     }
@@ -153,7 +153,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   const initGame = useCallback(() => {
     const baseBlock: Block = {
       x: (GAME_WIDTH - INITIAL_BLOCK_WIDTH) / 2,
-      y: GAME_HEIGHT - BLOCK_HEIGHT,
+      y: GAME_HEIGHT - BLOCK_HEIGHT - 20, // Move up slightly to prevent bottom cutoff
       width: INITIAL_BLOCK_WIDTH,
       color: WHITE,
       speed: 0,
@@ -164,12 +164,11 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     scoreRef.current = 0;
     setDisplayScore(0);
     cameraYRef.current = 0;
-    startTimeRef.current = Date.now(); // Set start time
-    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2, 0);
+    startTimeRef.current = Date.now();
+    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2 - 20, 0); // Match base block offset
   }, [spawnBlock]);
 
   const handleAction = useCallback(() => {
-    // Grace period check (500ms)
     if (!isActive || !currentBlockRef.current || Date.now() - startTimeRef.current < 500) return;
 
     const currentBlock = currentBlockRef.current;
@@ -180,24 +179,24 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const overlapEnd = Math.min(lastBlock.x + lastBlock.width, currentBlock.x + currentBlock.width);
     const overlapWidth = overlapEnd - overlapStart;
 
-    const currentLuckTolerance = Math.max(4, luckTolerance - Math.floor(scoreRef.current / 10));
-    const isPerfect = Math.abs(currentBlock.x - lastBlock.x) < currentLuckTolerance;
-    const isForgiveness = isPerfect && overlapWidth < lastBlock.width;
+    // Fix Lucky Logic: Check exact difference for "True Perfect" vs "Lucky/Forgiveness"
+    // Floating point precision means overlapWidth < lastBlock.width is almost always true.
+    // We use a visual threshold (e.g. 3px) for "Skill Perfect".
+    const diff = Math.abs(currentBlock.x - lastBlock.x);
+    const isSkillPerfect = diff <= 3;
     
-    if (overlapWidth <= 0) {
+    const currentLuckTolerance = Math.max(4, luckTolerance - Math.floor(scoreRef.current / 10));
+    const isSavedByLuck = diff > 3 && diff < currentLuckTolerance;
+    
+    const isPerfect = isSkillPerfect || isSavedByLuck;
+    
+    if (overlapWidth <= 0 && !isPerfect) { // Double check !isPerfect for edge cases
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       playSound('gameover');
       
-      // Calculate Rewards
-      // Altitude = Blocks * Effective Height (Rapid Lift)
-      // Note: We use Math.ceil to ensure at least 1m if they placed blocks
       const finalAltitude = Math.floor(scoreRef.current * rapidLiftMult); 
-      
-      // XP = Blocks * Base XP * Upgrade Mult * Miner Mult
       const baseXp = scoreRef.current * XP_PER_BLOCK;
       const finalXp = Math.floor(baseXp * batteryMult * multiplier);
-      
-      // Gold = Blocks * Base Gold * Upgrade Mult * Miner Mult
       const baseGold = scoreRef.current * GOLD_PER_BLOCK;
       const finalGold = Math.floor(baseGold * magnetMult * multiplier);
 
@@ -212,10 +211,20 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       playSound('perfect');
       shakeRef.current = 35;
       const centerX = finalX + finalWidth / 2;
+      
+      // Visuals
       particlesRef.current.push(
-        { id: particleIdRef.current++, x: centerX, y: currentBlock.y, vx: 0, vy: 0, life: 0.8, scale: 1, type: 'flash' },
-        { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'PERFECT', life: 1.8, scale: 2.5, type: 'text' }
+        { id: particleIdRef.current++, x: centerX, y: currentBlock.y, vx: 0, vy: 0, life: 0.8, scale: 1, type: 'flash' }
       );
+
+      // Only show PERFECT text if it was a skill hit
+      if (isSkillPerfect) {
+         particlesRef.current.push(
+           { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'PERFECT', life: 1.8, scale: 2.5, type: 'text' }
+         );
+      }
+      
+      // Squares
       for (let i = 0; i < 15; i++) {
         particlesRef.current.push({
           id: particleIdRef.current++, x: centerX, y: currentBlock.y,
@@ -223,10 +232,12 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
           life: 1.2, scale: 4 + Math.random() * 6, type: 'square'
         });
       }
-      if (isForgiveness) {
+
+      // Only show LUCKY text if saved by upgrade (and NOT skill perfect)
+      if (isSavedByLuck) {
         particlesRef.current.push(
           { id: particleIdRef.current++, x: centerX, y: currentBlock.y + BLOCK_HEIGHT / 2, vx: 0, vy: 0, life: 1.0, scale: 10, type: 'ring' },
-          { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 24, vx: 0, vy: -0.6, text: 'LUCKY', life: 1.4, scale: 1.4, type: 'text' }
+          { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'LUCKY', life: 1.8, scale: 2.5, type: 'text' } // Replaced position to match PERFECT
         );
       }
     } else {
@@ -249,7 +260,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   const loop = useCallback(() => {
     if (!isActive) return;
 
-    const ctx = canvasRef.current?.getContext('2d');
+    const ctx = canvasRef.current?.getContext('2d', { alpha: false }); // Optimize: disable alpha if possible (though we use it)
     if (!ctx) return;
 
     // PHYSICS UPDATE
@@ -262,14 +273,31 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       }
     }
 
-    particlesRef.current = particlesRef.current.map(p => ({
-      ...p, x: p.x + p.vx, y: p.y + p.vy,
-      vy: p.type === 'square' ? p.vy + 0.25 : p.vy,
-      life: p.life - 0.02,
-      scale: p.type === 'text' ? p.scale : p.type === 'ring' ? p.scale * 1.06 : p.scale * 0.96
-    })).filter(p => p.life > 0);
+    // Optimization: In-place array update instead of map/filter to reduce GC
+    let activeParticles = 0;
+    for (let i = 0; i < particlesRef.current.length; i++) {
+      const p = particlesRef.current[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.type === 'square') p.vy += 0.25;
+      p.life -= 0.02;
+      
+      if (p.type === 'text') {
+        // keep scale
+      } else if (p.type === 'ring') {
+        p.scale *= 1.06;
+      } else {
+        p.scale *= 0.96;
+      }
+
+      if (p.life > 0) {
+        particlesRef.current[activeParticles++] = p;
+      }
+    }
+    particlesRef.current.length = activeParticles; // Truncate
 
     if (shakeRef.current > 0) shakeRef.current *= 0.85;
+    if (Math.abs(shakeRef.current) < 0.5) shakeRef.current = 0;
 
     // DRAWING
     ctx.fillStyle = BLACK;
@@ -278,15 +306,20 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     // Tech Grid
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
     ctx.lineWidth = 1;
-    for(let i=0; i<GAME_WIDTH/40; i++) { ctx.beginPath(); ctx.moveTo(i*40, 0); ctx.lineTo(i*40, GAME_HEIGHT); ctx.stroke(); }
-    for(let i=0; i<GAME_HEIGHT/40; i++) { ctx.beginPath(); ctx.moveTo(0, i*40); ctx.lineTo(GAME_WIDTH, i*40); ctx.stroke(); }
+    ctx.beginPath();
+    for(let i=0; i<=GAME_WIDTH; i+=40) { ctx.moveTo(i, 0); ctx.lineTo(i, GAME_HEIGHT); }
+    for(let i=0; i<=GAME_HEIGHT; i+=40) { ctx.moveTo(0, i); ctx.lineTo(GAME_WIDTH, i); }
+    ctx.stroke();
 
     ctx.save();
-    const sx = (Math.random() - 0.5) * shakeRef.current;
-    const sy = (Math.random() - 0.5) * shakeRef.current;
-    ctx.translate(sx, cameraYRef.current + sy);
+    if (shakeRef.current > 0) {
+      ctx.translate((Math.random() - 0.5) * shakeRef.current, cameraYRef.current + (Math.random() - 0.5) * shakeRef.current);
+    } else {
+      ctx.translate(0, cameraYRef.current);
+    }
 
-    blocksRef.current.forEach((b, i) => {
+    // Optimization: Batch drawing if possible, but gradients require per-block
+    blocksRef.current.forEach((b) => {
       const gradient = ctx.createLinearGradient(b.x, b.y, b.x, b.y + BLOCK_HEIGHT);
       if (b.isPerfectHit) {
         ctx.shadowBlur = 20; ctx.shadowColor = GOLD_NEON;
@@ -298,9 +331,12 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       }
       ctx.fillStyle = gradient;
       ctx.fillRect(b.x, b.y, b.width, BLOCK_HEIGHT - 6);
-      ctx.strokeStyle = b.isPerfectHit ? GOLD_NEON : WHITE;
-      ctx.lineWidth = b.isPerfectHit ? 2 : 1;
-      ctx.strokeRect(b.x, b.y, b.width, BLOCK_HEIGHT - 6);
+      
+      if (b.isPerfectHit) {
+        ctx.strokeStyle = GOLD_NEON;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(b.x, b.y, b.width, BLOCK_HEIGHT - 6);
+      }
     });
 
     if (currentBlockRef.current) {
@@ -311,12 +347,13 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       ctx.shadowBlur = 0;
     }
 
+    // Draw Particles
     particlesRef.current.forEach(p => {
       if (p.type === 'flash') {
         ctx.fillStyle = `rgba(255,215,0,${p.life * 0.8})`;
         ctx.fillRect(0, p.y - 1, GAME_WIDTH, 3);
       } else if (p.type === 'text') {
-        ctx.fillStyle = `rgba(255,215,0,${p.life})`; // Gold text
+        ctx.fillStyle = `rgba(255,215,0,${p.life})`;
         ctx.shadowColor = 'rgba(255,215,0,0.5)';
         ctx.shadowBlur = 10;
         ctx.font = `italic 900 ${14 * p.scale}px 'JetBrains Mono'`;
@@ -324,7 +361,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
         ctx.fillText(p.text!, p.x, p.y);
         ctx.shadowBlur = 0;
       } else if (p.type === 'ring') {
-        ctx.strokeStyle = `rgba(255,215,0,${p.life})`; // Gold ring for luck
+        ctx.strokeStyle = `rgba(255,215,0,${p.life})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.scale, 0, Math.PI * 2);
@@ -337,14 +374,15 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
 
     ctx.restore();
 
-    // Scanlines
+    // Scanlines (Batch)
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    for(let i=0; i<GAME_HEIGHT; i+=4) { ctx.fillRect(0, i, GAME_WIDTH, 1); }
+    ctx.beginPath();
+    for(let i=0; i<GAME_HEIGHT; i+=4) { ctx.rect(0, i, GAME_WIDTH, 1); }
+    ctx.fill();
 
-    // UI - Display Altitude instead of raw blocks
+    // UI - Display Altitude
     const currentAltitude = Math.floor(scoreRef.current * rapidLiftMult);
     
-    // Update Stats Overlay directly
     if (xpRef?.current && goldRef?.current) {
         const curXp = Math.floor(scoreRef.current * XP_PER_BLOCK * batteryMult * multiplier);
         const curGold = Math.floor(scoreRef.current * GOLD_PER_BLOCK * magnetMult * multiplier);
@@ -352,21 +390,18 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
         goldRef.current.innerText = `+${curGold} GOLD`;
     }
 
-    if (ctx) {
-       // Only draw score if needed, but we use overlay now
-    }
-    
     ctx.fillStyle = WHITE;
     ctx.font = "800 60px 'JetBrains Mono'";
     ctx.textAlign = 'center';
     ctx.shadowBlur = 10;
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.fillText(`${currentAltitude}`, GAME_WIDTH / 2, 100);
+    // User Request: Move meter counter down
+    ctx.fillText(`${currentAltitude}`, GAME_WIDTH / 2, 120); 
     ctx.shadowBlur = 0;
     
     ctx.font = "900 12px 'JetBrains Mono'";
     ctx.globalAlpha = 0.6;
-    ctx.fillText('METERS', GAME_WIDTH / 2, 120);
+    ctx.fillText('METERS', GAME_WIDTH / 2, 140);
     ctx.globalAlpha = 1.0;
 
     requestRef.current = requestAnimationFrame(loop);
