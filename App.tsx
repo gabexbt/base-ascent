@@ -570,7 +570,7 @@ const MainApp: React.FC = () => {
     }
   };
 
-  const handleGameOver = async (score: number, xp: number, gold: number) => {
+  const handleGameOver = useCallback(async (score: number, xp: number, gold: number) => {
     stopAudio();
     const isNewHighScore = player ? score > player.highScore : false;
     setGameOverData({ score, xp, gold, isNewHighScore });
@@ -597,7 +597,7 @@ const MainApp: React.FC = () => {
       PlayerService.syncPlayerStats(player.fid, updatedPlayer.totalXp, updatedPlayer.totalGold, updatedPlayer.highScore, updatedPlayer.totalRuns).catch(console.error);
     }
     setStatus(GameStatus.GAMEOVER);
-  };
+  }, [player, stopAudio]);
 
   const handlePlayAgain = () => {
     handleStartGame();
@@ -739,17 +739,17 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className="absolute inset-x-0 flex flex-col z-10 overflow-y-auto custom-scrollbar overscroll-none bg-black" style={{ top: 'calc(74px + env(safe-area-inset-top))', bottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
-        <div className="w-full min-h-full flex flex-col relative pb-8">
+      <main className={`absolute inset-x-0 flex flex-col z-10 ${activeTab === Tab.ASCENT ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-black`} style={{ top: 'calc(74px + env(safe-area-inset-top))', bottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
+        <div className={`w-full ${activeTab === Tab.ASCENT ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT ? 'pb-0' : 'pb-8'}`}>
           
           <ParticleBackground />
 
-          <div className="flex-1 flex flex-col relative w-full" key={activeTab}>
+          <div className="flex-1 flex flex-col relative w-full h-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
-              <div className="flex flex-col items-center w-full min-h-full pb-10">
+              <div className="flex flex-col items-center w-full h-full pb-4 px-4">
                 {status === GameStatus.PLAYING ? (
                   <>
-                    <div className="w-full max-w-[340px] aspect-[2/3] max-h-[520px] bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-4 mb-4 select-none touch-none">
+                    <div className="w-full max-w-[340px] flex-1 min-h-0 bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-2 mb-2 select-none touch-none">
                       <GameEngine 
                         ref={gameRef}
                         isActive={true} 
@@ -762,7 +762,7 @@ const MainApp: React.FC = () => {
                     </div>
                     
                     {/* Session Stats - Unobtrusive */}
-                    <div className="w-full max-w-[340px] grid grid-cols-2 gap-3 z-10 px-1">
+                    <div className="w-full max-w-[340px] grid grid-cols-2 gap-3 z-10 shrink-0">
                        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center">
                           <div className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">XP Earned</div>
                           <div ref={sessionXpRef} className="text-xl font-black italic text-green-400 leading-none">+0 XP</div>
@@ -1107,23 +1107,6 @@ const MainApp: React.FC = () => {
         </div>
       </div>
       </main>
-
-      {/* Session Stats - Fixed above Bottom Nav */}
-      {status === GameStatus.PLAYING && activeTab === Tab.ASCENT && (
-        <div className="fixed bottom-[160px] left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 z-40 animate-in slide-in-from-bottom-4 fade-in duration-500 pointer-events-none">
-           <div className="h-14 w-full bg-[#0A0A0A] border border-white/15 flex justify-between items-center px-6 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.5)] backdrop-blur-md">
-             <div className="flex flex-col items-start">
-               <div className="text-[10px] font-black uppercase text-green-400 tracking-wider mb-0.5">Session XP</div>
-               <div ref={sessionXpRef} className="text-xl font-black italic text-white">+0 XP</div>
-             </div>
-             <div className="w-px h-8 bg-white/10"></div>
-             <div className="flex flex-col items-end">
-               <div className="text-[10px] font-black uppercase text-yellow-400 tracking-wider mb-0.5">Session Gold</div>
-               <div ref={sessionGoldRef} className="text-xl font-black italic text-yellow-400">+0 GOLD</div>
-             </div>
-           </div>
-        </div>
-      )}
 
       {/* Bottom Navigation - Fixed */}
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center px-6 py-4 bg-black/95 backdrop-blur-md border-t border-white/10 shrink-0 z-50 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">

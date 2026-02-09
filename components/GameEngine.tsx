@@ -400,4 +400,4 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   );
 });
 
-export default GameEngine;
+export default React.memo(GameEngine);
