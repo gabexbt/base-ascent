@@ -133,7 +133,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const nextWidth = Math.max(10, Math.floor(width * widthMultiplier));
     
     // 1. Base Speed Parameters
-    const BASE_SPEED = 10; 
+    const BASE_SPEED = 8; 
     const MAX_SPEED = 24; 
 
     // 2. Fast Acceleration (Score 0-150)
@@ -277,7 +277,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     scoreRef.current += 1;
     setDisplayScore(scoreRef.current);
 
-    const targetY = GAME_HEIGHT - (blocksRef.current.length + 1) * BLOCK_HEIGHT;
+    const targetY = GAME_HEIGHT - (blocksRef.current.length + 1) * BLOCK_HEIGHT - 80;
     if (targetY < GAME_HEIGHT / 2) {
       cameraYRef.current += BLOCK_HEIGHT;
     }
