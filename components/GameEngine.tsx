@@ -133,11 +133,11 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const nextWidth = Math.max(10, Math.floor(width * widthMultiplier));
     
     // 1. Base Speed Parameters
-    const BASE_SPEED = 8; 
+    const BASE_SPEED = 6; 
     const MAX_SPEED = 24; 
 
     // 2. Fast Acceleration (Score 0-150)
-    let speed = BASE_SPEED + (MAX_SPEED - BASE_SPEED) * (1 - Math.exp(-0.03 * currentScore));
+    let speed = BASE_SPEED + (MAX_SPEED - BASE_SPEED) * (1 - Math.exp(-0.02 * currentScore));
 
     // 3. The "Jitter" (Score 80-250)
     if (currentScore > 80) {
@@ -164,7 +164,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   const initGame = useCallback(() => {
     const baseBlock: Block = {
       x: (GAME_WIDTH - INITIAL_BLOCK_WIDTH) / 2,
-      y: GAME_HEIGHT - BLOCK_HEIGHT - 80, // Adjusted further up to prevent cutoff
+      y: GAME_HEIGHT - BLOCK_HEIGHT - 20, // Adjusted to sit on edge
       width: INITIAL_BLOCK_WIDTH,
       color: WHITE,
       speed: 0,
@@ -178,7 +178,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     setDisplayScore(0);
     cameraYRef.current = 0;
     startTimeRef.current = Date.now();
-    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2 - 80, 0); 
+    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2 - 20, 0); 
   }, [spawnBlock]);
 
   const handleAction = useCallback(() => {
@@ -193,7 +193,8 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const overlapWidth = overlapEnd - overlapStart;
 
     const diff = Math.abs(currentBlock.x - lastBlock.x);
-    const isSkillPerfect = diff <= 3;
+    const perfectThreshold = scoreRef.current < 40 ? 6 : 3;
+    const isSkillPerfect = diff <= perfectThreshold;
     
     // Gridlock (Auto-correct) Logic
     let isGridlockSaved = false;
@@ -277,7 +278,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     scoreRef.current += 1;
     setDisplayScore(scoreRef.current);
 
-    const targetY = GAME_HEIGHT - (blocksRef.current.length + 1) * BLOCK_HEIGHT - 80;
+    const targetY = GAME_HEIGHT - (blocksRef.current.length + 1) * BLOCK_HEIGHT - 20;
     if (targetY < GAME_HEIGHT / 2) {
       cameraYRef.current += BLOCK_HEIGHT;
     }
