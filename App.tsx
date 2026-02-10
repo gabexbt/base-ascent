@@ -149,13 +149,30 @@ const MainApp: React.FC = () => {
       let pfpUrl = frameContext.user.pfpUrl;
       
       // Parse Referrer from URL (priority) or Frame Context
-      const searchParams = new URLSearchParams(window.location.search);
-      // Also check hash params just in case (e.g. #/?ref=...)
-      const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
-      // Also check if ref is the FIRST param in search, sometimes ?ref=123 is not parsed correctly if malformed
-      const refParam = searchParams.get('ref') || hashParams.get('ref') || (window.location.search.includes('ref=') ? window.location.search.split('ref=')[1]?.split('&')[0] : null);
+      // Robust extraction: Search entire URL string for ref=... pattern
+      const fullUrl = window.location.href;
+      const refMatch = fullUrl.match(/[?&]ref=([^&#]+)/);
+      let rawRef = refMatch ? refMatch[1] : null;
+
+      // Also check standard params just in case
+      if (!rawRef) {
+        const searchParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
+        rawRef = searchParams.get('ref') || hashParams.get('ref');
+      }
+
+      // Clean the referrer string
+      const cleanRef = rawRef ? rawRef.replace(/[^a-zA-Z0-9_-]/g, '') : null;
       
-      let referrer = refParam || frameContext.referrerFid;
+      // PERSISTENCE: Check local storage if URL param is missing
+      // This handles redirects where params might be stripped but were caught earlier
+      const storedRef = localStorage.getItem('referral_code');
+      let referrer = cleanRef || storedRef || frameContext.referrerFid;
+
+      // Save to local storage if found
+      if (cleanRef) {
+        localStorage.setItem('referral_code', cleanRef);
+      }
 
       // Fallback for non-frame environments (browser testing) ONLY if fid is missing
       if (!fid) {
@@ -329,7 +346,10 @@ const MainApp: React.FC = () => {
     setTaskTimers(prev => ({ ...prev, [taskId]: { time: 10, focused: true } }));
   };
 
+  const [neynarLoading, setNeynarLoading] = useState(false);
+
   const handleNeynarConfirm = useCallback(async () => {
+    setNeynarLoading(true);
     try {
       // Attempt to add frame (enable notifications)
       const result = await sdk.actions.addFrame();
@@ -338,18 +358,32 @@ const MainApp: React.FC = () => {
          console.log("Frame added/Notifications enabled:", result.notificationDetails);
          // Immediate success if added
          setShowNeynarGuide(false);
-         setTaskTimers(prev => ({ ...prev, ['neynar-notifications']: { time: 2, focused: true } })); // Short timer to trigger claim
+         setTaskTimers(prev => ({ ...prev, ['neynar-notifications']: { time: 2, focused: true } })); 
       } else {
-        // User rejected or failed
-        console.log("User declined to add frame");
+        // If result.added is false, it might be because:
+        // 1. User rejected
+        // 2. Already added (SDK might return false or error, behavior varies)
+        // 3. Context invalid
+        console.log("User declined or already added");
+        
+        // We will NOT auto-close here, we let the user click "I've done this" if they are stuck
+        // But we stop loading
       }
     } catch (e) {
       console.error("Add Frame/Notification Error:", e);
-      // Fallback for non-frame environments (dev testing)
-      setShowNeynarGuide(false);
-      setTaskTimers(prev => ({ ...prev, ['neynar-notifications']: { time: 10, focused: true } }));
+      // If error, we stop loading and let user manually close/claim
+    } finally {
+      setNeynarLoading(false);
     }
   }, []);
+
+  // Manual override for users who are stuck or already added
+  const handleNeynarManualClose = () => {
+    setShowNeynarGuide(false);
+    // We assume if they are manually closing from this screen, they might have done it.
+    // We trigger the timer to verify/claim.
+    setTaskTimers(prev => ({ ...prev, ['neynar-notifications']: { time: 5, focused: true } }));
+  };
 
   const [isStarting, setIsStarting] = useState(false);
 
@@ -1223,13 +1257,22 @@ const MainApp: React.FC = () => {
              </div>
 
              <div className="flex gap-3">
-               <button onClick={() => setShowNeynarGuide(false)} className="flex-1 py-3 text-[13px] font-semibold bg-[#2a2a2a] text-white rounded-xl active:scale-95 transition-all">
-                 Skip
-               </button>
-               <button onClick={handleNeynarConfirm} className="flex-1 py-3 text-[13px] font-semibold bg-white text-black rounded-xl active:scale-95 transition-all">
-                 Add
-               </button>
-             </div>
+                 <button 
+                   onClick={handleNeynarManualClose} 
+                   className="flex-1 py-3 text-[13px] font-semibold bg-[#2a2a2a] text-white rounded-xl active:scale-95 transition-all"
+                 >
+                   I've done this
+                 </button>
+                 <button 
+                   onClick={handleNeynarConfirm} 
+                   disabled={neynarLoading}
+                   className="flex-1 py-3 text-[13px] font-semibold bg-white text-black rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+                 >
+                   {neynarLoading ? (
+                     <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                   ) : 'Add'}
+                 </button>
+               </div>
           </div>
         </div>
       )}

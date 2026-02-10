@@ -78,37 +78,55 @@ export const PlayerService = {
       }
 
       // Late Referral Attribution (Fix for existing users)
-      if (!data.referrer_fid && referrer) {
+      if (referrer) {
+        // We check even if data.referrer_fid exists, to debug or fix potential mismatches (optional, but safer to stick to null check for now to avoid overwrites)
+        // However, user specifically said it didn't update.
+        
+        console.log(`[Referral Debug] Processing. Player: ${fid}, Current Referrer: ${data.referrer_fid}, Incoming: ${referrer}`);
+
         let finalReferrerFid: number | null = null;
+        
         if (typeof referrer === 'number') {
           finalReferrerFid = referrer;
         } else if (!isNaN(Number(referrer))) {
           finalReferrerFid = Number(referrer);
         } else {
           // It's a username string, look it up
+          const cleanUsername = String(referrer).trim();
+          console.log(`[Referral Debug] Looking up username: ${cleanUsername}`);
           const { data: refUser } = await supabase
             .from('players')
             .select('fid')
-            .eq('username', referrer)
+            .eq('username', cleanUsername)
             .maybeSingle();
-          if (refUser) finalReferrerFid = refUser.fid;
+          if (refUser) {
+             finalReferrerFid = refUser.fid;
+             console.log(`[Referral Debug] Resolved username ${cleanUsername} to FID ${finalReferrerFid}`);
+          } else {
+             console.log(`[Referral Debug] Could not resolve username ${cleanUsername}`);
+          }
         }
 
-        // Additional check: Ensure we are not overwriting if DB actually has one (double check)
-        // and prevent self-referral
+        // Only update if we have a valid new referrer and the user currently has NONE
+        // We do NOT overwrite existing referrers to prevent abuse/hijacking
         if (finalReferrerFid && finalReferrerFid !== fid && !data.referrer_fid) {
-           console.log(`Attributing referral for ${fid} to ${finalReferrerFid}`);
+           console.log(`[Referral Debug] Attributing referral for ${fid} to ${finalReferrerFid}`);
            const { error: updateError } = await supabase
              .from('players')
              .update({ referrer_fid: finalReferrerFid })
              .eq('fid', fid);
              
            if (!updateError) {
+             console.log("[Referral Debug] DB Update Success. Incrementing count.");
              await this.incrementReferralCount(finalReferrerFid);
              data.referrer_fid = finalReferrerFid;
            } else {
-             console.error("Failed to attribute referral:", updateError);
+             console.error("[Referral Debug] Failed to attribute referral:", updateError);
            }
+        } else {
+           if (data.referrer_fid) console.log(`[Referral Debug] User already has referrer: ${data.referrer_fid}. Ignoring new: ${finalReferrerFid}`);
+           if (finalReferrerFid === fid) console.log("[Referral Debug] Self-referral detected.");
+           if (!finalReferrerFid) console.log("[Referral Debug] Invalid referrer ID.");
         }
       }
 
