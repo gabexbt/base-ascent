@@ -172,7 +172,15 @@ const MainApp: React.FC = () => {
 
       if (data) {
         let mergedPlayer = { ...data };
-        if (localData) {
+        
+        // Check for Remote Reset (Token Mismatch)
+        const serverResetToken = data.resetToken;
+        const localResetToken = localData?.resetToken;
+
+        // If server has a token and it differs from local, strictly use server data (RESET)
+        const isRemoteReset = serverResetToken && serverResetToken !== localResetToken;
+
+        if (localData && !isRemoteReset) {
           if (localData.highScore > mergedPlayer.highScore) {
              mergedPlayer.highScore = localData.highScore;
              mergedPlayer.hasUploadedScore = false; 
@@ -183,7 +191,22 @@ const MainApp: React.FC = () => {
           if (localData.totalRuns > mergedPlayer.totalRuns) {
              mergedPlayer.totalRuns = localData.totalRuns;
           }
+          if (localData.totalGold > mergedPlayer.totalGold) { // Persist Gold too
+             mergedPlayer.totalGold = localData.totalGold;
+          }
         }
+        
+        // Update local storage with latest token if reset occurred
+        if (isRemoteReset || !localData) {
+           localStorage.setItem(`player_stats_v2_${fid}`, JSON.stringify({
+             highScore: mergedPlayer.highScore,
+             totalXp: mergedPlayer.totalXp,
+             totalGold: mergedPlayer.totalGold,
+             totalRuns: mergedPlayer.totalRuns,
+             resetToken: serverResetToken
+           }));
+        }
+
         setPlayer(mergedPlayer);
         
         const rank = await PlayerService.getPlayerRank(data.fid, rankingType);
@@ -591,7 +614,8 @@ const MainApp: React.FC = () => {
         highScore: updatedPlayer.highScore,
         totalXp: updatedPlayer.totalXp,
         totalGold: updatedPlayer.totalGold, // Persist Gold too
-        totalRuns: updatedPlayer.totalRuns
+        totalRuns: updatedPlayer.totalRuns,
+        resetToken: player.resetToken // Preserve reset token
       }));
       
       // Auto-save run count to DB in background (best effort)

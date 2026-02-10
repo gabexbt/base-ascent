@@ -442,12 +442,12 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       {/* Altitude Counter Overlay */}
       <div 
         className="absolute left-0 right-0 z-20 flex flex-col items-center justify-center pointer-events-none transition-all duration-300"
-        style={{ top: '15%' }} 
+        style={{ top: '12%' }} 
       >
-        <div className="text-6xl font-black text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.5)] tracking-tighter" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+        <div className="text-5xl font-black text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.5)] tracking-tighter text-center w-full" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           {displayScore}
         </div>
-        <div className="text-xs font-black text-white/60 uppercase tracking-[0.2em] mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+        <div className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mt-1 text-center w-full" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           Meters
         </div>
       </div>

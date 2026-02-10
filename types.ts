@@ -29,6 +29,7 @@ export interface Player {
   walletAddress?: string;
   ascentsRemaining: number;
   upgrades: Upgrades;
+  resetToken?: string;
 }
 
 export enum UpgradeType {

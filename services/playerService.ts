@@ -317,7 +317,8 @@ export const PlayerService = {
       bankedPassiveXp: db.banked_passive_xp,
       walletAddress: db.wallet_address,
       ascentsRemaining: db.ascents_remaining || 0,
-      upgrades: typeof db.upgrades === 'string' ? JSON.parse(db.upgrades) : (db.upgrades || { rapid_lift: 0, magnet: 0, battery: 0, luck: 0, stabilizer: 0 })
+      upgrades: typeof db.upgrades === 'string' ? JSON.parse(db.upgrades) : (db.upgrades || { rapid_lift: 0, magnet: 0, battery: 0, luck: 0, stabilizer: 0 }),
+      resetToken: db.reset_token
     };
   }
 };
