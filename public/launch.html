@@ -62,12 +62,19 @@
     <h2 style="margin-bottom: 8px;">Launching Base Ascent...</h2>
     <p class="message">Click below to open the game in Base.</p>
     
+    <div id="status-log" style="font-family: monospace; font-size: 10px; color: #666; margin-bottom: 10px; height: 15px;">Initializing...</div>
+
     <a id="launch-btn" href="#" class="btn">OPEN IN BASE</a>
 
     <script>
         // CONFIG
         const SUPABASE_URL = 'https://acwxyvfyshztkbsayibr.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjd3h5dmZ5c2h6dGtic2F5aWJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0Mzc4NjUsImV4cCI6MjA4NjAxMzg2NX0.FTVIg0-gTfThZJsJx6wwJyDr6g2_kFMof1pPkRHVzG0';
+
+        function logStatus(msg) {
+            document.getElementById('status-log').innerText = msg;
+            console.log(msg);
+        }
 
         // 1. Get the referral code
         const params = new URLSearchParams(window.location.search);
@@ -83,17 +90,29 @@
         
         // 2. Construct the Deep Link
         const baseUrl = "https://base.app/app/base-ascent.vercel.app";
+        // Also construct a fallback base:// scheme URL which sometimes works better
+        const baseSchemeUrl = "base://app/base-ascent.vercel.app"; 
+        
         const finalUrl = ref ? `${baseUrl}?ref=${ref}` : baseUrl;
+        const finalSchemeUrl = ref ? `${baseSchemeUrl}?ref=${ref}` : baseSchemeUrl;
 
         // 3. Update the button immediately
         const btn = document.getElementById('launch-btn');
         btn.href = finalUrl;
-
+        
+        // Try to handle "App Store" prompt by using the scheme if clicked directly? 
+        // Or just let the user click. 
+        // Ideally, we want the HTTPS link because it's universal.
+        
         // 4. Log the click for Deferred Deep Linking
         async function logClick() {
-            if (!ref) return;
+            if (!ref) {
+                logStatus("No referral code found.");
+                return;
+            }
+            logStatus(`Logging referral: ${ref}...`);
             try {
-                await fetch(`${SUPABASE_URL}/rest/v1/rpc/log_referral_click`, {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/log_referral_click`, {
                     method: 'POST',
                     headers: {
                         'apikey': SUPABASE_KEY,
@@ -102,9 +121,15 @@
                     },
                     body: JSON.stringify({ p_code: ref })
                 });
-                console.log('Click logged');
+                
+                if (res.ok) {
+                    logStatus(`Referral ${ref} logged!`);
+                } else {
+                    const err = await res.text();
+                    logStatus(`Error logging: ${err}`);
+                }
             } catch (e) {
-                console.error('Log failed', e);
+                logStatus(`Exception: ${e.message}`);
             }
         }
 

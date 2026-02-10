@@ -298,8 +298,12 @@ const MainApp: React.FC = () => {
        // Only check if player exists and has NO referrer
        if (player && !player.referrerFid && !player.referrerUsername) {
           // Avoid checking multiple times if already checked
-          if (sessionStorage.getItem('deferred_checked')) return;
+          if (sessionStorage.getItem('deferred_checked')) {
+             PlayerService.log('Deferred Check Skipped: Already checked session');
+             return;
+          }
           
+          PlayerService.log('Starting Deferred Deep Link Check...');
           sessionStorage.setItem('deferred_checked', 'true');
           const code = await PlayerService.checkDeferredReferral();
           
@@ -309,7 +313,11 @@ const MainApp: React.FC = () => {
              if (res.success) {
                 PlayerService.log(`Deferred Referral Redeemed: ${code}`);
                 loadData(); // Refresh to show referrer
+             } else {
+                PlayerService.log(`Redeem Failed: ${res.message}`);
              }
+          } else {
+             PlayerService.log('No Deferred Deep Link Found for IP');
           }
        }
     };
