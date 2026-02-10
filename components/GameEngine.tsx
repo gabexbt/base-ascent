@@ -164,7 +164,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   const initGame = useCallback(() => {
     const baseBlock: Block = {
       x: (GAME_WIDTH - INITIAL_BLOCK_WIDTH) / 2,
-      y: GAME_HEIGHT - BLOCK_HEIGHT - 50, // Elevated platform effect
+      y: GAME_HEIGHT - BLOCK_HEIGHT, // Snapped to edge
       width: INITIAL_BLOCK_WIDTH,
       color: WHITE,
       speed: 0,
@@ -178,7 +178,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     setDisplayScore(0);
     cameraYRef.current = 0;
     startTimeRef.current = Date.now();
-    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2 - 50, 0); 
+    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2, 0); 
   }, [spawnBlock]);
 
   const handleAction = useCallback(() => {
@@ -249,7 +249,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       } else if (isGridlockSaved) {
          particlesRef.current.push(
            { id: particleIdRef.current++, x: centerX, y: impactY, vx: 0, vy: 0, life: 1.0, scale: 10, type: 'ring' },
-           { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'LUCKY', life: 1.8, scale: 2.5, type: 'text' }
+           { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'GRIDLOCK!', life: 1.8, scale: 2.5, type: 'text' }
          );
       }
       
@@ -269,7 +269,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     if (isCrit) {
         const centerX = finalX + finalWidth / 2;
          particlesRef.current.push(
-           { id: particleIdRef.current++, x: centerX + 40, y: currentBlock.y - 20, vx: 1, vy: -3, text: 'CRIT!', life: 1.5, scale: 2.0, type: 'text' }
+           { id: particleIdRef.current++, x: centerX + 40, y: currentBlock.y - 20, vx: 1, vy: -3, text: 'LUCKY!', life: 1.5, scale: 2.0, type: 'text' }
          );
     }
 
@@ -278,7 +278,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     scoreRef.current += 1;
     setDisplayScore(scoreRef.current);
 
-    const targetY = GAME_HEIGHT - (blocksRef.current.length + 1) * BLOCK_HEIGHT - 50;
+    const targetY = GAME_HEIGHT - (blocksRef.current.length + 1) * BLOCK_HEIGHT;
     if (targetY < GAME_HEIGHT / 2) {
       cameraYRef.current += BLOCK_HEIGHT;
     }
@@ -461,7 +461,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
             ref={canvasRef}
             width={GAME_WIDTH}
             height={GAME_HEIGHT}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-bottom"
         />
       </div>
     </div>

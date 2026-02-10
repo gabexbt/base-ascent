@@ -153,7 +153,13 @@ export const getUpgradeCost = (id: string, level: number): number => {
   // Level is current level. Cost is for the NEXT level (level + 1 logic usually, but here 'level' input is current owned level)
   // Base cost is for Level 1 (owned 0). 
   // Formula: base * (multiplier ^ currentLevel)
-  return Math.floor(upgrade.baseCost * Math.pow(upgrade.costMultiplier, level));
+  const rawCost = Math.floor(upgrade.baseCost * Math.pow(upgrade.costMultiplier, level));
+  
+  // Clean rounding logic
+  if (rawCost < 1000) return Math.round(rawCost / 10) * 10;
+  if (rawCost < 10000) return Math.round(rawCost / 100) * 100;
+  if (rawCost < 100000) return Math.round(rawCost / 1000) * 1000;
+  return Math.round(rawCost / 5000) * 5000;
 };
 
 export const LOADING_MESSAGES = [

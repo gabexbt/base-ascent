@@ -729,8 +729,7 @@ const MainApp: React.FC = () => {
         <div className="flex items-center gap-3">
           <img src={player?.pfpUrl || "https://picsum.photos/40/40"} className="w-10 h-10 rounded-full border border-white/20" alt="" />
           <div>
-            <div className="text-sm font-bold">@{player?.username}</div>
-            <div className="text-[9px] opacity-40 uppercase tracking-widest">FID: {player?.fid}</div>
+            <div className="text-sm font-bold">@{player?.username?.replace(/\.base\.eth$/, '')}</div>
           </div>
         </div>
         <div className="text-right">
@@ -1022,7 +1021,7 @@ const MainApp: React.FC = () => {
                                 <div className="flex items-center gap-4">
                                   <span className="text-[10px] font-black opacity-30">{idx + 1}</span>
                                   <img src={entry.pfpUrl || `https://picsum.photos/seed/${entry.fid}/32/32`} className="w-8 h-8 rounded-full opacity-60 border border-white/10" alt="" />
-                                  <div className="text-sm font-bold">@{entry.username}</div>
+                                  <div className="text-sm font-bold">@{entry.username?.replace(/\.base\.eth$/, '')}</div>
                                 </div>
                                 <div className="text-lg font-black italic">{rankingType === 'skill' ? entry.highScore : entry.totalXp.toLocaleString()}</div>
                               </div>
