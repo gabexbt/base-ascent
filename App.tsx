@@ -142,28 +142,35 @@ const MainApp: React.FC = () => {
 
   const loadData = useCallback(async (silent = false) => {
     try {
-      if (!frameContext.isReady) return;
-      
-      let fid = frameContext.user.fid;
-      let username = frameContext.user.username;
-      let pfpUrl = frameContext.user.pfpUrl;
+      if (frameContext.user?.fid) {
+        // Log URL for debugging
+        const currentUrl = window.location.href;
+        if (!silent) { // Only log on initial load/explicit refresh to avoid spam
+             PlayerService.log(`URL: ${currentUrl}`);
+        }
+
+        let fid = frameContext.user.fid;
+        let username = frameContext.user.username;
+        let pfpUrl = frameContext.user.pfpUrl;
       
       // Parse Referrer from URL (priority) or Frame Context
-      // Robust extraction: Search entire URL string for ref=... pattern
+      // Get URL params for referral
       const fullUrl = window.location.href;
-      const refMatch = fullUrl.match(/[?&]ref=([^&#]+)/);
-      let rawRef = refMatch ? refMatch[1] : null;
+      const refMatch = fullUrl.match(/[?&](ref|referrer)=([^&#]+)/);
+      let rawRef = refMatch ? refMatch[2] : null;
 
       // Also check standard params just in case
       if (!rawRef) {
         const searchParams = new URLSearchParams(window.location.search);
         const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
-        rawRef = searchParams.get('ref') || hashParams.get('ref');
+        rawRef = searchParams.get('ref') || searchParams.get('referrer') || hashParams.get('ref') || hashParams.get('referrer');
       }
 
       // Clean the referrer string
       const cleanRef = rawRef ? rawRef.replace(/[^a-zA-Z0-9_-]/g, '') : null;
       
+      if (cleanRef) PlayerService.log(`Found Ref: ${cleanRef}`);
+
       // PERSISTENCE: Check local storage if URL param is missing
       // This handles redirects where params might be stripped but were caught earlier
       const storedRef = localStorage.getItem('referral_code');

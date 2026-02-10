@@ -39,7 +39,7 @@ export const FarcasterProvider: React.FC<{ children: ReactNode }> = ({ children 
         // 3. Handle Referrals (Preserving your logic)
         const urlParams = new URLSearchParams(window.location.search);
         const pathSegments = window.location.pathname.split('/');
-        const referrerFid = urlParams.get('referrer') || (pathSegments[1] === 'r' ? pathSegments[2] : null);
+        const referrerFid = urlParams.get('referrer') || urlParams.get('ref') || (pathSegments[1] === 'r' ? pathSegments[2] : null);
 
         // 4. Set State
         setFrameContext({
