@@ -152,7 +152,8 @@ const MainApp: React.FC = () => {
       const searchParams = new URLSearchParams(window.location.search);
       // Also check hash params just in case (e.g. #/?ref=...)
       const hashParams = new URLSearchParams(window.location.hash.split('?')[1]);
-      const refParam = searchParams.get('ref') || hashParams.get('ref');
+      // Also check if ref is the FIRST param in search, sometimes ?ref=123 is not parsed correctly if malformed
+      const refParam = searchParams.get('ref') || hashParams.get('ref') || (window.location.search.includes('ref=') ? window.location.search.split('ref=')[1]?.split('&')[0] : null);
       
       let referrer = refParam || frameContext.referrerFid;
 
@@ -335,14 +336,19 @@ const MainApp: React.FC = () => {
       
       if (result.added) {
          console.log("Frame added/Notifications enabled:", result.notificationDetails);
+         // Immediate success if added
+         setShowNeynarGuide(false);
+         setTaskTimers(prev => ({ ...prev, ['neynar-notifications']: { time: 2, focused: true } })); // Short timer to trigger claim
+      } else {
+        // User rejected or failed
+        console.log("User declined to add frame");
       }
     } catch (e) {
       console.error("Add Frame/Notification Error:", e);
+      // Fallback for non-frame environments (dev testing)
+      setShowNeynarGuide(false);
+      setTaskTimers(prev => ({ ...prev, ['neynar-notifications']: { time: 10, focused: true } }));
     }
-    
-    // Always proceed to verification timer (fallback for existing users or manual setups)
-    setShowNeynarGuide(false);
-    setTaskTimers(prev => ({ ...prev, ['neynar-notifications']: { time: 10, focused: true } }));
   }, []);
 
   const [isStarting, setIsStarting] = useState(false);
@@ -1189,29 +1195,39 @@ const MainApp: React.FC = () => {
       </nav>
 
       {showNeynarGuide && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="w-full max-w-sm bg-[#1a1a1a] border border-white/10 rounded-[32px] p-6 text-center relative overflow-hidden">
-             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
-             <h3 className="text-xl font-black italic mb-4">ENABLE NOTIFICATIONS</h3>
-             <p className="text-[10px] opacity-60 mb-6 leading-relaxed">
-               Pin the app and enable notifications to never miss a reward drop or leaderboard update.
-             </p>
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-[320px] bg-[#1a1a1a] rounded-[24px] p-6 text-center shadow-2xl animate-in fade-in zoom-in duration-200">
+             <div className="w-12 h-12 mx-auto mb-4 bg-white rounded-xl flex items-center justify-center">
+               <img src="/icon.png" alt="App Icon" className="w-12 h-12 rounded-xl" onError={(e) => e.currentTarget.style.display = 'none'} />
+               <span className="text-black text-2xl" style={{ display: 'none' }}>🚀</span>
+             </div>
+             
+             <h3 className="text-lg font-bold text-white mb-2">Add Base Ascent to Base</h3>
              
              <div className="space-y-3 mb-6">
-                <a href="https://docs.base.org/mini-apps/technical-guides/neynar-notifications" target="_blank" rel="noreferrer" className="block w-full p-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold hover:bg-white/10 transition-all">
-                   Base Docs: Neynar Notifications
-                </a>
-                <a href="https://docs.neynar.com/reference/publish-frame-notifications" target="_blank" rel="noreferrer" className="block w-full p-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold hover:bg-white/10 transition-all">
-                   Neynar API Reference
-                </a>
+                <div className="bg-[#2a2a2a] p-3 rounded-xl flex items-center gap-3 text-left">
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white shrink-0"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                   <div>
+                     <div className="text-[13px] font-semibold text-white">Add to pinned apps</div>
+                     <div className="text-[10px] text-gray-400">Find this app in Pinned Apps on Home</div>
+                   </div>
+                </div>
+                
+                <div className="bg-[#2a2a2a] p-3 rounded-xl flex items-center gap-3 text-left">
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white shrink-0"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                   <div>
+                     <div className="text-[13px] font-semibold text-white">Enable notifications</div>
+                     <div className="text-[10px] text-gray-400">We will send you notifs about this mini app</div>
+                   </div>
+                </div>
              </div>
 
              <div className="flex gap-3">
-               <button onClick={() => setShowNeynarGuide(false)} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-white/5 rounded-xl">
-                 Close
+               <button onClick={() => setShowNeynarGuide(false)} className="flex-1 py-3 text-[13px] font-semibold bg-[#2a2a2a] text-white rounded-xl active:scale-95 transition-all">
+                 Skip
                </button>
-               <button onClick={handleNeynarConfirm} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-white text-black rounded-xl">
-                 Enable & Verify
+               <button onClick={handleNeynarConfirm} className="flex-1 py-3 text-[13px] font-semibold bg-white text-black rounded-xl active:scale-95 transition-all">
+                 Add
                </button>
              </div>
           </div>

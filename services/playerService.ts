@@ -85,6 +85,7 @@ export const PlayerService = {
         } else if (!isNaN(Number(referrer))) {
           finalReferrerFid = Number(referrer);
         } else {
+          // It's a username string, look it up
           const { data: refUser } = await supabase
             .from('players')
             .select('fid')
@@ -93,10 +94,21 @@ export const PlayerService = {
           if (refUser) finalReferrerFid = refUser.fid;
         }
 
-        if (finalReferrerFid && finalReferrerFid !== fid) {
-           await supabase.from('players').update({ referrer_fid: finalReferrerFid }).eq('fid', fid);
-           await this.incrementReferralCount(finalReferrerFid);
-           data.referrer_fid = finalReferrerFid;
+        // Additional check: Ensure we are not overwriting if DB actually has one (double check)
+        // and prevent self-referral
+        if (finalReferrerFid && finalReferrerFid !== fid && !data.referrer_fid) {
+           console.log(`Attributing referral for ${fid} to ${finalReferrerFid}`);
+           const { error: updateError } = await supabase
+             .from('players')
+             .update({ referrer_fid: finalReferrerFid })
+             .eq('fid', fid);
+             
+           if (!updateError) {
+             await this.incrementReferralCount(finalReferrerFid);
+             data.referrer_fid = finalReferrerFid;
+           } else {
+             console.error("Failed to attribute referral:", updateError);
+           }
         }
       }
 
