@@ -413,29 +413,12 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     for(let i=0; i<GAME_HEIGHT; i+=4) { ctx.rect(0, i, GAME_WIDTH, 1); }
     ctx.fill();
 
-    // UI - Display Altitude
-    const currentAltitude = Math.floor(scoreRef.current);
-    
     if (xpRef?.current && goldRef?.current) {
         const curXp = Math.floor(scoreRef.current * XP_PER_BLOCK * overclockMult * multiplier);
         const curGold = Math.floor(scoreRef.current * GOLD_PER_BLOCK * midasMult * multiplier);
         xpRef.current.innerText = `+${curXp} XP`;
         goldRef.current.innerText = `+${curGold} GOLD`;
     }
-
-    ctx.fillStyle = WHITE;
-    ctx.font = "800 60px 'JetBrains Mono'";
-    ctx.textAlign = 'center';
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    // User Request: Move meter counter down
-    ctx.fillText(`${currentAltitude}`, GAME_WIDTH / 2, 120); 
-    ctx.shadowBlur = 0;
-    
-    ctx.font = "900 12px 'JetBrains Mono'";
-    ctx.globalAlpha = 0.6;
-    ctx.fillText('METERS', GAME_WIDTH / 2, 140);
-    ctx.globalAlpha = 1.0;
 
     requestRef.current = requestAnimationFrame(loop);
   }, [isActive, onGameOver, multiplier, playSound, spawnBlock, overclockMult, midasMult]);
@@ -455,7 +438,19 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   }, [isActive, loop]);
 
   return (
-    <div className="flex flex-col w-full h-full bg-black select-none touch-none" onPointerDown={handleAction}>
+    <div className="flex flex-col w-full h-full bg-black select-none touch-none relative" onPointerDown={handleAction}>
+      {/* Altitude Counter Overlay */}
+      <div 
+        className="absolute left-0 right-0 z-20 flex flex-col items-center justify-center pointer-events-none transition-all duration-300"
+        style={{ top: '15%' }} 
+      >
+        <div className="text-6xl font-black text-white drop-shadow-[0_0_10px_rgba(0,0,0,0.5)] tracking-tighter" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          {displayScore}
+        </div>
+        <div className="text-xs font-black text-white/60 uppercase tracking-[0.2em] mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          Meters
+        </div>
+      </div>
       <div className="flex-1 relative overflow-hidden max-h-[520px]">
         <canvas
             ref={canvasRef}

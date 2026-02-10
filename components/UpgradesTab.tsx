@@ -187,7 +187,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
                   <>
                     <span className="text-xs uppercase opacity-80 mb-0.5">Buy</span>
                     <div className="flex items-center gap-1 text-sm">
-                      <span>{cost}</span>
+                      <span>{cost.toLocaleString()}</span>
                     </div>
                   </>
                 )}

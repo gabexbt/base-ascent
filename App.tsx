@@ -45,6 +45,7 @@ interface GameOverData {
   xp: number;
   gold: number;
   isNewHighScore: boolean;
+  hasDoubled: boolean;
 }
 
 const MainApp: React.FC = () => {
@@ -166,7 +167,7 @@ const MainApp: React.FC = () => {
       setGlobalRevenue(revenue);
       
       // Load local high score / xp if available (persistence fix)
-      const localStore = localStorage.getItem(`player_stats_${fid}`);
+      const localStore = localStorage.getItem(`player_stats_v2_${fid}`);
       let localData = localStore ? JSON.parse(localStore) : null;
 
       if (data) {
@@ -573,7 +574,7 @@ const MainApp: React.FC = () => {
   const handleGameOver = useCallback(async (score: number, xp: number, gold: number) => {
     stopAudio();
     const isNewHighScore = player ? score > player.highScore : false;
-    setGameOverData({ score, xp, gold, isNewHighScore });
+    setGameOverData({ score, xp, gold, isNewHighScore, hasDoubled: false });
     if (player) {
       // Update local state
       const updatedPlayer = {
@@ -586,7 +587,7 @@ const MainApp: React.FC = () => {
       setPlayer(updatedPlayer);
 
       // Save to localStorage for persistence across sessions
-      localStorage.setItem(`player_stats_${player.fid}`, JSON.stringify({
+      localStorage.setItem(`player_stats_v2_${player.fid}`, JSON.stringify({
         highScore: updatedPlayer.highScore,
         totalXp: updatedPlayer.totalXp,
         totalGold: updatedPlayer.totalGold, // Persist Gold too
@@ -685,6 +686,7 @@ const MainApp: React.FC = () => {
          score: gameOverData.score * 2,
          xp: gameOverData.xp * 2,
          gold: gameOverData.gold * 2,
+         hasDoubled: true
        });
        
        await loadData();
@@ -787,6 +789,7 @@ const MainApp: React.FC = () => {
                       doubleUpStatus={paymentStatus.double}
                       ascentsRemaining={player?.ascentsRemaining}
                       onRefill={handleRechargeAscents}
+                      hasDoubled={gameOverData.hasDoubled}
                     />
                     {showDoubleSuccess && gameOverData && (
                       <div className="absolute inset-0 z-50 flex flex-col items-center justify-center animate-in fade-in duration-300">

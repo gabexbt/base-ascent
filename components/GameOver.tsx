@@ -12,9 +12,10 @@ interface GameOverProps {
   doubleUpStatus?: 'idle' | 'loading' | 'success' | 'error';
   ascentsRemaining?: number;
   onRefill?: () => void;
+  hasDoubled?: boolean;
 }
 
-const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHighScore, onPlayAgain, onGoHome, onDoubleUp, isProcessing, doubleUpStatus, ascentsRemaining = 0, onRefill }) => {
+const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHighScore, onPlayAgain, onGoHome, onDoubleUp, isProcessing, doubleUpStatus, ascentsRemaining = 0, onRefill, hasDoubled = false }) => {
   const canPlay = ascentsRemaining > 0;
 
   return (
@@ -46,11 +47,11 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
           </div>
         </div>
         
-        {isHighScore && onDoubleUp && (
+        {isHighScore && onDoubleUp && !hasDoubled && (
           <div className="w-full max-w-[320px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
             <button
               onClick={onDoubleUp}
-              disabled={isProcessing}
+              disabled={isProcessing || doubleUpStatus === 'success'}
               className="w-full relative overflow-hidden group bg-gradient-to-r from-yellow-600 to-yellow-400 text-black py-4 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] border-yellow-300 shadow-[0_0_30px_rgba(255,215,0,0.4)] hover:shadow-[0_0_50px_rgba(255,215,0,0.6)] disabled:opacity-50 disabled:pointer-events-none"
             >
               <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500"></div>
