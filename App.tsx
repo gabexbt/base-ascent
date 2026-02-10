@@ -12,7 +12,7 @@ import { UpgradesTab } from './components/UpgradesTab';
 import { FarcasterProvider, useFarcaster } from './context/FarcasterContext';
 import { useCasterContract } from './hooks/useCasterContract';
 import { GameStatus, Player, LeaderboardEntry, Tab, UpgradeType } from './types';
-import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS, UPGRADES_CONFIG } from './constants';
+import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS, getUpgradeCost } from './constants';
 import { IS_TESTNET, RECIPIENT_WALLET } from './network';
 import { PlayerService } from './services/playerService';
 
@@ -413,7 +413,7 @@ const MainApp: React.FC = () => {
   const handlePurchaseUpgrade = async (type: UpgradeType) => {
     if (!player) return;
     const currentLevel = player.upgrades?.[type] || 0;
-    const cost = Math.floor(UPGRADES_CONFIG[type].baseCost * Math.pow(1.5, currentLevel));
+    const cost = getUpgradeCost(type, currentLevel);
     
     if (player.totalGold < cost) return;
 

@@ -126,8 +126,8 @@ export const UPGRADES: UpgradeConfig[] = [
   } 
 ];
 
-// Compatibility mapping for old code if needed, but we will update components
-export const UPGRADES_CONFIG = {}; 
+// Compatibility mapping removed
+ 
 
 export const getUpgradeValue = (id: string, level: number): number => {
   const upgrade = UPGRADES.find(u => u.id === id);
