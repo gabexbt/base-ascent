@@ -89,7 +89,7 @@ const MainApp: React.FC = () => {
       audioRef.current = null;
     }
     const audio = new Audio(randomTrack);
-    audio.volume = 0.2;
+    audio.volume = 0.12;
     audio.loop = true;
     audio.play().catch(e => console.log("Audio play failed:", e));
     audioRef.current = audio;

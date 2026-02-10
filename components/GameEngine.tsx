@@ -98,7 +98,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(200, now);
         osc.frequency.exponentialRampToValueAtTime(90, now + 0.12);
-        gain.gain.setValueAtTime(0.9, now);
+        gain.gain.setValueAtTime(1.8, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
         osc.start(now); osc.stop(now + 0.12);
       } else if (type === 'perfect') {
@@ -133,7 +133,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const nextWidth = Math.max(10, Math.floor(width * widthMultiplier));
     
     // 1. Base Speed Parameters
-    const BASE_SPEED = 6; 
+    const BASE_SPEED = 3.5; 
     const MAX_SPEED = 24; 
 
     // 2. Fast Acceleration (Score 0-150)
@@ -164,7 +164,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   const initGame = useCallback(() => {
     const baseBlock: Block = {
       x: (GAME_WIDTH - INITIAL_BLOCK_WIDTH) / 2,
-      y: GAME_HEIGHT - BLOCK_HEIGHT - 20, // Adjusted to sit on edge
+      y: GAME_HEIGHT - BLOCK_HEIGHT - 50, // Elevated platform effect
       width: INITIAL_BLOCK_WIDTH,
       color: WHITE,
       speed: 0,
@@ -178,7 +178,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     setDisplayScore(0);
     cameraYRef.current = 0;
     startTimeRef.current = Date.now();
-    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2 - 20, 0); 
+    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2 - 50, 0); 
   }, [spawnBlock]);
 
   const handleAction = useCallback(() => {
@@ -193,7 +193,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const overlapWidth = overlapEnd - overlapStart;
 
     const diff = Math.abs(currentBlock.x - lastBlock.x);
-    const perfectThreshold = scoreRef.current < 40 ? 6 : 3;
+    const perfectThreshold = scoreRef.current < 40 ? 9 : 3;
     const isSkillPerfect = diff <= perfectThreshold;
     
     // Gridlock (Auto-correct) Logic
@@ -278,7 +278,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     scoreRef.current += 1;
     setDisplayScore(scoreRef.current);
 
-    const targetY = GAME_HEIGHT - (blocksRef.current.length + 1) * BLOCK_HEIGHT - 20;
+    const targetY = GAME_HEIGHT - (blocksRef.current.length + 1) * BLOCK_HEIGHT - 50;
     if (targetY < GAME_HEIGHT / 2) {
       cameraYRef.current += BLOCK_HEIGHT;
     }
