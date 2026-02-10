@@ -3,6 +3,17 @@ import { Player, LeaderboardEntry } from '../types';
 import { MINER_LEVELS } from '../constants';
 
 export const PlayerService = {
+  logs: [] as string[],
+
+  log(msg: string) {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMsg = `[${timestamp}] ${msg}`;
+    this.logs.push(logMsg);
+    console.log(logMsg);
+    // Keep only last 20 logs to prevent memory issues
+    if (this.logs.length > 20) this.logs.shift();
+  },
+
   async getPlayer(fid: number, username: string, pfpUrl?: string, referrer?: string | number): Promise<Player | null> {
     try {
       const { data, error } = await supabase
@@ -67,7 +78,15 @@ export const PlayerService = {
           await this.incrementReferralCount(newPlayer.referrer_fid);
         }
 
-        return created ? this.mapToPlayer(created) : null;
+        if (created) {
+           const p = this.mapToPlayer(created);
+           if (p.referrerFid) {
+             const { data: refUser } = await supabase.from('players').select('username').eq('fid', p.referrerFid).maybeSingle();
+             if (refUser) p.referrerUsername = refUser.username;
+           }
+           return p;
+        }
+        return null;
       }
 
       // Check for PFP update
@@ -82,7 +101,7 @@ export const PlayerService = {
         // We check even if data.referrer_fid exists, to debug or fix potential mismatches (optional, but safer to stick to null check for now to avoid overwrites)
         // However, user specifically said it didn't update.
         
-        console.log(`[Referral Debug] Processing. Player: ${fid}, Current Referrer: ${data.referrer_fid}, Incoming: ${referrer}`);
+        this.log(`Processing Referral. Player: ${fid}, Current: ${data.referrer_fid}, Incoming: ${referrer}`);
 
         let finalReferrerFid: number | null = null;
         
@@ -93,7 +112,7 @@ export const PlayerService = {
         } else {
           // It's a username string, look it up
           const cleanUsername = String(referrer).trim();
-          console.log(`[Referral Debug] Looking up username: ${cleanUsername}`);
+          this.log(`Looking up username: ${cleanUsername}`);
           const { data: refUser } = await supabase
             .from('players')
             .select('fid')
@@ -101,37 +120,48 @@ export const PlayerService = {
             .maybeSingle();
           if (refUser) {
              finalReferrerFid = refUser.fid;
-             console.log(`[Referral Debug] Resolved username ${cleanUsername} to FID ${finalReferrerFid}`);
+             this.log(`Resolved username ${cleanUsername} to FID ${finalReferrerFid}`);
           } else {
-             console.log(`[Referral Debug] Could not resolve username ${cleanUsername}`);
+             this.log(`Could not resolve username ${cleanUsername}`);
           }
         }
 
         // Only update if we have a valid new referrer and the user currently has NONE
         // We do NOT overwrite existing referrers to prevent abuse/hijacking
         if (finalReferrerFid && finalReferrerFid !== fid && !data.referrer_fid) {
-           console.log(`[Referral Debug] Attributing referral for ${fid} to ${finalReferrerFid}`);
+           this.log(`Attributing referral for ${fid} to ${finalReferrerFid}`);
            const { error: updateError } = await supabase
              .from('players')
              .update({ referrer_fid: finalReferrerFid })
              .eq('fid', fid);
              
            if (!updateError) {
-             console.log("[Referral Debug] DB Update Success. Incrementing count.");
+             this.log("DB Update Success. Incrementing count.");
              await this.incrementReferralCount(finalReferrerFid);
              data.referrer_fid = finalReferrerFid;
            } else {
              console.error("[Referral Debug] Failed to attribute referral:", updateError);
+             this.log(`Failed to attribute: ${updateError.message}`);
            }
         } else {
-           if (data.referrer_fid) console.log(`[Referral Debug] User already has referrer: ${data.referrer_fid}. Ignoring new: ${finalReferrerFid}`);
-           if (finalReferrerFid === fid) console.log("[Referral Debug] Self-referral detected.");
-           if (!finalReferrerFid) console.log("[Referral Debug] Invalid referrer ID.");
+           if (data.referrer_fid) this.log(`User already has referrer: ${data.referrer_fid}. Ignoring new: ${finalReferrerFid}`);
+           if (finalReferrerFid === fid) this.log("Self-referral detected.");
+           if (!finalReferrerFid) this.log("Invalid referrer ID.");
         }
       }
 
       if (error) throw error;
-      return this.mapToPlayer(data);
+      
+      const player = this.mapToPlayer(data);
+      if (player.referrerFid) {
+         const { data: refUser } = await supabase
+           .from('players')
+           .select('username')
+           .eq('fid', player.referrerFid)
+           .maybeSingle();
+         if (refUser) player.referrerUsername = refUser.username;
+      }
+      return player;
     } catch (e) {
       console.error("PlayerService.getPlayer Error:", e);
       return null;

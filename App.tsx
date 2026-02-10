@@ -347,6 +347,7 @@ const MainApp: React.FC = () => {
   };
 
   const [neynarLoading, setNeynarLoading] = useState(false);
+  const [debugRefresh, setDebugRefresh] = useState(0); // For forcing debug console updates
 
   const handleNeynarConfirm = useCallback(async () => {
     setNeynarLoading(true);
@@ -1171,6 +1172,11 @@ const MainApp: React.FC = () => {
                </div>
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
                   <h3 className="text-xs font-black uppercase opacity-30 text-center mb-4 tracking-[0.2em]">INVITE RECRUITS</h3>
+                  {player?.referrerUsername && (
+                    <div className="text-[9px] text-center font-bold text-green-400 mb-4 uppercase tracking-wider animate-in fade-in slide-in-from-top-2">
+                       Referred by @{player.referrerUsername}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between bg-black/50 border border-white/10 p-4 rounded-[28px] text-center mb-3">
                     <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{player?.referralCount || 0}</span></div>
                     <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{player?.referralXpEarned || 0} XP</span></div>
@@ -1197,6 +1203,29 @@ const MainApp: React.FC = () => {
                         </div>
                      ))}
                   </div>
+               </div>
+
+               {/* Mobile Debug Console - Remove or set DEBUG=false before public launch */}
+               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] mt-4">
+                  <div className="flex items-center justify-between mb-4 px-2">
+                    <h3 className="text-[10px] font-black uppercase opacity-30 tracking-widest">DEBUG CONSOLE</h3>
+                    <button 
+                      onClick={() => setDebugRefresh(prev => prev + 1)}
+                      className="text-[9px] font-bold bg-white/10 px-2 py-1 rounded-lg active:scale-95"
+                    >
+                      REFRESH
+                    </button>
+                  </div>
+                  <div className="bg-black/50 p-4 rounded-xl font-mono text-[9px] text-green-400 h-32 overflow-y-auto space-y-1 border border-white/5">
+                    {PlayerService.logs.length === 0 ? (
+                      <div className="opacity-30 italic text-center py-4">No logs yet...</div>
+                    ) : (
+                      PlayerService.logs.map((log, i) => (
+                        <div key={i} className="break-all border-b border-white/5 pb-1 last:border-0">{log}</div>
+                      ))
+                    )}
+                  </div>
+                  <div className="text-[8px] opacity-30 text-center mt-2">Screenshots of this help debug referral issues.</div>
                </div>
             </div>
           )}

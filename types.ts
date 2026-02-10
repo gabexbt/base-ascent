@@ -18,6 +18,7 @@ export interface Player {
   referralXpEarned: number;
   minerLevel: number;
   referrerFid?: number;
+  referrerUsername?: string;
   hasUploadedScore?: boolean;
   leaderboardHighScore: number;
   leaderboardTotalXp: number;
