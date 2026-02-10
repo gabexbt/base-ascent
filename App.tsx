@@ -138,7 +138,7 @@ const MainApp: React.FC = () => {
   }, [player?.fid, address]);
 
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     try {
       if (!frameContext.isReady) return;
       
@@ -228,14 +228,14 @@ const MainApp: React.FC = () => {
         return board;
       };
 
-      setIsLeaderboardLoading(true);
+      if (!silent) setIsLeaderboardLoading(true);
       const board = await fetchLeaderboard();
       setLeaderboard(board);
-      setIsLeaderboardLoading(false);
+      if (!silent) setIsLeaderboardLoading(false);
 
     } catch (e) {
       console.error("Load Error:", e);
-      setIsLeaderboardLoading(false);
+      if (!silent) setIsLeaderboardLoading(false);
     }
   }, [frameContext, rankingType]);
 
@@ -253,9 +253,13 @@ const MainApp: React.FC = () => {
 
   useEffect(() => {
     if (!frameContext.isReady || (activeTab !== Tab.RANKINGS && activeTab !== Tab.PROFILE)) return;
-    const interval = setInterval(() => loadData(), 10000);
+    
+    // Only refresh silently if we already have data
+    const shouldSilentRefresh = leaderboard.length > 0;
+    
+    const interval = setInterval(() => loadData(shouldSilentRefresh), 10000); 
     return () => clearInterval(interval);
-  }, [frameContext.isReady, activeTab, loadData]);
+  }, [frameContext.isReady, activeTab, loadData, leaderboard.length]);
   
   // Separate loading state management
   useEffect(() => {

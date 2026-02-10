@@ -164,11 +164,13 @@ export const PlayerService = {
 
   async getLeaderboard(limit: number = 15, sortBy: 'skill' | 'grind' = 'skill'): Promise<LeaderboardEntry[]> {
     // Sort by the Leaderboard Snapshot columns
+    // Tie-breaker: Last synced time (DESC) -> MOST RECENT sync gets better rank
     const orderBy = sortBy === 'skill' ? 'leaderboard_high_score' : 'leaderboard_total_xp';
     let query = supabase
       .from('players')
       .select('fid, username, pfp_url, miner_level, leaderboard_high_score, leaderboard_total_xp')
       .order(orderBy, { ascending: false })
+      .order('last_synced_at', { ascending: false }) // Most recent sync wins tie
       .limit(limit);
 
     if (sortBy === 'skill') {
@@ -197,7 +199,7 @@ export const PlayerService = {
     
     const { data: p } = await supabase
       .from('players')
-      .select(`leaderboard_high_score, leaderboard_total_xp, ${flexField}`)
+      .select(`leaderboard_high_score, leaderboard_total_xp, last_synced_at, ${flexField}`)
       .eq('fid', fid)
       .maybeSingle();
 
@@ -205,15 +207,29 @@ export const PlayerService = {
 
     const score = isSkill ? p.leaderboard_high_score : p.leaderboard_total_xp;
     const orderField = isSkill ? 'leaderboard_high_score' : 'leaderboard_total_xp';
+    const mySyncTime = p.last_synced_at;
 
     // Count players with strictly higher score
-    const { count } = await supabase
+    const { count: strictlyBetterCount } = await supabase
       .from('players')
       .select('*', { count: 'exact', head: true })
       .eq(flexField, true)
       .gt(orderField, score);
 
-    return (count || 0) + 1;
+    // Count players with SAME score but MORE RECENT sync time
+    let tiedBetterCount = 0;
+    if (mySyncTime) {
+       const { count } = await supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true })
+        .eq(flexField, true)
+        .eq(orderField, score)
+        .gt('last_synced_at', mySyncTime); // Changed from lt to gt
+       
+       tiedBetterCount = count || 0;
+    }
+
+    return (strictlyBetterCount || 0) + (tiedBetterCount || 0) + 1;
   },
 
   async completeTask(fid: number, taskId: string, xpReward: number, goldReward: number, ascentsReward: number) {
