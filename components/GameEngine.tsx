@@ -8,6 +8,8 @@ import {
   WHITE, 
   BLACK,
   GOLD_NEON,
+  XP_PER_BLOCK,
+  GOLD_PER_BLOCK,
   getUpgradeValue
 } from '../constants';
 import { Block, Upgrades } from '../types';
@@ -411,11 +413,11 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     ctx.fill();
 
     // UI - Display Altitude
-    const currentAltitude = Math.floor(scoreRef.current * rapidLiftMult);
+    const currentAltitude = Math.floor(scoreRef.current);
     
     if (xpRef?.current && goldRef?.current) {
-        const curXp = Math.floor(scoreRef.current * XP_PER_BLOCK * batteryMult * multiplier);
-        const curGold = Math.floor(scoreRef.current * GOLD_PER_BLOCK * magnetMult * multiplier);
+        const curXp = Math.floor(scoreRef.current * XP_PER_BLOCK * overclockMult * multiplier);
+        const curGold = Math.floor(scoreRef.current * GOLD_PER_BLOCK * midasMult * multiplier);
         xpRef.current.innerText = `+${curXp} XP`;
         goldRef.current.innerText = `+${curGold} GOLD`;
     }
@@ -435,7 +437,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     ctx.globalAlpha = 1.0;
 
     requestRef.current = requestAnimationFrame(loop);
-  }, [isActive, onGameOver, multiplier, playSound, spawnBlock, rapidLiftMult, batteryMult, magnetMult, luckTolerance]);
+  }, [isActive, onGameOver, multiplier, playSound, spawnBlock, overclockMult, midasMult]);
 
   useEffect(() => {
     if (isActive) {

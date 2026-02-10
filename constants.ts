@@ -21,7 +21,7 @@ export const USDC_BASE_ADDRESS = IS_TESTNET
   ? '0x036CbD53842c5426634e7929541eC2318f3dCF7e'
   : '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 
-export const XP_PER_BLOCK = 10;
+export const XP_PER_BLOCK = 35;
 export const GOLD_PER_BLOCK = 20;
 
 export const MINER_LEVELS: Record<number, { cost: number; multiplier: number; xpPerHour: number }> = {

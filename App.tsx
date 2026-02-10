@@ -458,7 +458,7 @@ const MainApp: React.FC = () => {
     }, 15000);
     
     // Calculate pending passive XP before upgrade
-    const currentMiner = MINER_LEVELS[player.minerLevel]; // Use current level for pending calc
+    const currentMiner = MINER_LEVELS[player.minerLevel] || MINER_LEVELS[0]; // Use current level for pending calc
     let newBankedXp = player.bankedPassiveXp || 0;
     
     if (player.minerLevel > 0 && currentMiner) {
@@ -609,7 +609,7 @@ const MainApp: React.FC = () => {
     setActiveTab(Tab.ASCENT);
   };
 
-  const currentMiner = MINER_LEVELS[player?.minerLevel || 0];
+  const currentMiner = MINER_LEVELS[player?.minerLevel || 0] || MINER_LEVELS[0];
   const nextMiner = player && player.minerLevel < 5 ? MINER_LEVELS[player.minerLevel + 1] : null;
 
   const [now, setNow] = useState(Date.now());
