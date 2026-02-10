@@ -8,8 +8,7 @@ import {
   WHITE, 
   BLACK,
   GOLD_NEON,
-  XP_PER_BLOCK,
-  GOLD_PER_BLOCK
+  getUpgradeValue
 } from '../constants';
 import { Block, Upgrades } from '../types';
 
@@ -48,16 +47,17 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   const particleIdRef = useRef(0);
   const requestRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0); // Grace period ref
+  
+  // Bonus tracking for Lucky Strike
+  const bonusXpRef = useRef(0);
+  const bonusGoldRef = useRef(0);
 
   // Derived Constants based on Upgrades
-  const rapidLiftMult = 1 + ((upgrades?.rapid_lift || 0) * 0.015);
-  const effectiveBlockHeight = BLOCK_HEIGHT * rapidLiftMult;
-  
-  const magnetMult = 1 + ((upgrades?.magnet || 0) * 0.05);
-  const batteryMult = 1 + ((upgrades?.battery || 0) * 0.05);
-  
-  const luckTolerance = 10 + ((upgrades?.luck || 0) * 2); // Base 10px + 2px per level
-  const stabilizerReduc = (upgrades?.stabilizer || 0) * 0.01; // 1% per level
+  const midasMult = 1 + (getUpgradeValue('midas_touch', upgrades?.midas_touch || 0) / 100);
+  const overclockMult = 1 + (getUpgradeValue('overclock', upgrades?.overclock || 0) / 100);
+  const gridlockChance = getUpgradeValue('gridlock', upgrades?.gridlock || 0) / 100;
+  const stabilizerReduc = getUpgradeValue('stabilizer', upgrades?.stabilizer || 0) / 100;
+  const luckyStrikeChance = getUpgradeValue('lucky_strike', upgrades?.lucky_strike || 0) / 100;
 
   // State only for UI triggers
   const [displayScore, setDisplayScore] = useState(0);
@@ -66,12 +66,17 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   React.useImperativeHandle(ref, () => ({
     endGame: () => {
       if (!isActive) return;
-      const finalAltitude = Math.floor(scoreRef.current * rapidLiftMult);
-      const baseXp = scoreRef.current * XP_PER_BLOCK;
-      const finalXp = Math.floor(baseXp * batteryMult * multiplier);
-      const baseGold = scoreRef.current * GOLD_PER_BLOCK;
-      const finalGold = Math.floor(baseGold * magnetMult * multiplier);
-      onGameOver(finalAltitude, finalXp, finalGold);
+      const finalAltitude = scoreRef.current; // Altitude is just score (blocks)
+      
+      // XP Formula: Linear Grind (35 XP per block)
+      const baseGameXP = scoreRef.current * 35;
+      const totalXP = Math.floor((baseGameXP + bonusXpRef.current) * overclockMult * multiplier);
+      
+      // Gold Formula
+      const baseGold = scoreRef.current * 20; // 20 Gold per block base
+      const totalGold = Math.floor((baseGold + bonusGoldRef.current) * midasMult * multiplier);
+
+      onGameOver(finalAltitude, totalXP, totalGold);
     }
   }));
 
@@ -120,24 +125,28 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   }, []);
 
   const spawnBlock = useCallback((width: number, y: number, currentScore: number) => {
-    const speedStep = Math.floor(currentScore / 5);
-    const speedMultiplier = Math.pow(1.07, speedStep);
+    // Width Logic (Keep existing)
     const widthStep = Math.floor(currentScore / 10);
     const widthMultiplier = Math.max(0.6, 1 - (widthStep * 0.02));
-    // User requested fix: ensure next block is never larger than current width
     const nextWidth = Math.max(10, Math.floor(width * widthMultiplier));
     
-    // Performance: Reuse object for speed? No, simple object is fine.
-    let baseSpeed = 1.0;
-    
-    if (currentScore < 50) {
-      baseSpeed = 6.0 + (currentScore * 0.02); 
-    } else {
-      const swing = Math.sin(currentScore * 0.5) * 0.5;
-      baseSpeed = 7.0 + ((currentScore - 50) * 0.1) + swing;
+    // 1. Base Speed Parameters
+    const BASE_SPEED = 10; 
+    const MAX_SPEED = 24; 
+
+    // 2. Fast Acceleration (Score 0-150)
+    let speed = BASE_SPEED + (MAX_SPEED - BASE_SPEED) * (1 - Math.exp(-0.03 * currentScore));
+
+    // 3. The "Jitter" (Score 80-250)
+    if (currentScore > 80) {
+      // Variance caps at 20%
+      const intensity = Math.min(0.20, (currentScore - 80) * 0.002);
+      const jitter = 1 + (Math.random() * intensity - (intensity / 2));
+      speed *= jitter;
     }
     
-    const finalSpeed = Math.min(baseSpeed * speedMultiplier, 16.0) * (1.0 - stabilizerReduc);
+    // Apply Stabilizer upgrade
+    const finalSpeed = Math.min(speed, 30.0) * (1.0 - stabilizerReduc);
 
     currentBlockRef.current = {
       x: Math.random() > 0.5 ? 0 : GAME_WIDTH - nextWidth,
@@ -153,7 +162,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   const initGame = useCallback(() => {
     const baseBlock: Block = {
       x: (GAME_WIDTH - INITIAL_BLOCK_WIDTH) / 2,
-      y: GAME_HEIGHT - BLOCK_HEIGHT - 20, // Move up slightly to prevent bottom cutoff
+      y: GAME_HEIGHT - BLOCK_HEIGHT - 80, // Adjusted further up to prevent cutoff
       width: INITIAL_BLOCK_WIDTH,
       color: WHITE,
       speed: 0,
@@ -162,10 +171,12 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     };
     blocksRef.current = [baseBlock];
     scoreRef.current = 0;
+    bonusXpRef.current = 0;
+    bonusGoldRef.current = 0;
     setDisplayScore(0);
     cameraYRef.current = 0;
     startTimeRef.current = Date.now();
-    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2 - 20, 0); // Match base block offset
+    spawnBlock(INITIAL_BLOCK_WIDTH, GAME_HEIGHT - BLOCK_HEIGHT * 2 - 80, 0); 
   }, [spawnBlock]);
 
   const handleAction = useCallback(() => {
@@ -179,70 +190,84 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
     const overlapEnd = Math.min(lastBlock.x + lastBlock.width, currentBlock.x + currentBlock.width);
     const overlapWidth = overlapEnd - overlapStart;
 
-    // Fix Lucky Logic: Check exact difference for "True Perfect" vs "Lucky/Forgiveness"
-    // Floating point precision means overlapWidth < lastBlock.width is almost always true.
-    // We use a visual threshold (e.g. 3px) for "Skill Perfect".
     const diff = Math.abs(currentBlock.x - lastBlock.x);
     const isSkillPerfect = diff <= 3;
     
-    const currentLuckTolerance = Math.max(4, luckTolerance - Math.floor(scoreRef.current / 10));
-    const isSavedByLuck = diff > 3 && diff < currentLuckTolerance;
+    // Gridlock (Auto-correct) Logic
+    let isGridlockSaved = false;
+    if (!isSkillPerfect && overlapWidth > 0) {
+        if (Math.random() < gridlockChance) {
+            isGridlockSaved = true;
+        }
+    }
     
-    const isPerfect = isSkillPerfect || isSavedByLuck;
+    const isPerfect = isSkillPerfect || isGridlockSaved;
     
-    if (overlapWidth <= 0 && !isPerfect) { // Double check !isPerfect for edge cases
+    if (overlapWidth <= 0) {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       playSound('gameover');
       
-      const finalAltitude = Math.floor(scoreRef.current * rapidLiftMult); 
-      const baseXp = scoreRef.current * XP_PER_BLOCK;
-      const finalXp = Math.floor(baseXp * batteryMult * multiplier);
-      const baseGold = scoreRef.current * GOLD_PER_BLOCK;
-      const finalGold = Math.floor(baseGold * magnetMult * multiplier);
+      const finalAltitude = scoreRef.current; 
+      const baseGameXP = scoreRef.current * 35;
+      const totalXP = Math.floor((baseGameXP + bonusXpRef.current) * overclockMult * multiplier);
+      const baseGold = scoreRef.current * 20;
+      const totalGold = Math.floor((baseGold + bonusGoldRef.current) * midasMult * multiplier);
 
-      onGameOver(finalAltitude, finalXp, finalGold);
+      onGameOver(finalAltitude, totalXP, totalGold);
       return;
     }
 
     const finalWidth = isPerfect ? lastBlock.width : overlapWidth;
     const finalX = isPerfect ? lastBlock.x : overlapStart;
 
+    // Lucky Strike (Crit) Logic
+    let isCrit = false;
+    if (Math.random() < luckyStrikeChance) {
+        isCrit = true;
+        bonusXpRef.current += 35; 
+        bonusGoldRef.current += 20; 
+    }
+
     if (isPerfect) {
       playSound('perfect');
       shakeRef.current = 35;
       const centerX = finalX + finalWidth / 2;
+      const impactY = currentBlock.y + BLOCK_HEIGHT; 
       
       // Visuals
       particlesRef.current.push(
-        { id: particleIdRef.current++, x: centerX, y: currentBlock.y, vx: 0, vy: 0, life: 0.8, scale: 1, type: 'flash' }
+        { id: particleIdRef.current++, x: centerX, y: impactY, vx: 0, vy: 0, life: 0.8, scale: 1, type: 'flash' }
       );
 
-      // Only show PERFECT text if it was a skill hit
       if (isSkillPerfect) {
          particlesRef.current.push(
            { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'PERFECT', life: 1.8, scale: 2.5, type: 'text' }
+         );
+      } else if (isGridlockSaved) {
+         particlesRef.current.push(
+           { id: particleIdRef.current++, x: centerX, y: impactY, vx: 0, vy: 0, life: 1.0, scale: 10, type: 'ring' },
+           { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'LUCKY', life: 1.8, scale: 2.5, type: 'text' }
          );
       }
       
       // Squares
       for (let i = 0; i < 15; i++) {
         particlesRef.current.push({
-          id: particleIdRef.current++, x: centerX, y: currentBlock.y,
+          id: particleIdRef.current++, x: centerX, y: impactY,
           vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15 - 5,
           life: 1.2, scale: 4 + Math.random() * 6, type: 'square'
         });
       }
-
-      // Only show LUCKY text if saved by upgrade (and NOT skill perfect)
-      if (isSavedByLuck) {
-        particlesRef.current.push(
-          { id: particleIdRef.current++, x: centerX, y: currentBlock.y + BLOCK_HEIGHT / 2, vx: 0, vy: 0, life: 1.0, scale: 10, type: 'ring' },
-          { id: particleIdRef.current++, x: centerX, y: currentBlock.y - 45, vx: 0, vy: -2, text: 'LUCKY', life: 1.8, scale: 2.5, type: 'text' } // Replaced position to match PERFECT
-        );
-      }
     } else {
       playSound('hit');
       shakeRef.current = 6;
+    }
+
+    if (isCrit) {
+        const centerX = finalX + finalWidth / 2;
+         particlesRef.current.push(
+           { id: particleIdRef.current++, x: centerX + 40, y: currentBlock.y - 20, vx: 1, vy: -3, text: 'CRIT!', life: 1.5, scale: 2.0, type: 'text' }
+         );
     }
 
     const newBlock: Block = { ...currentBlock, x: finalX, width: finalWidth, isPerfectHit: isPerfect };
@@ -255,7 +280,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       cameraYRef.current += BLOCK_HEIGHT;
     }
     spawnBlock(finalWidth, targetY, scoreRef.current);
-  }, [isActive, onGameOver, multiplier, playSound, spawnBlock, rapidLiftMult, batteryMult, magnetMult, luckTolerance]);
+  }, [isActive, onGameOver, multiplier, playSound, spawnBlock, gridlockChance, luckyStrikeChance, midasMult, overclockMult]);
 
   const loop = useCallback(() => {
     if (!isActive) return;
@@ -270,6 +295,11 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       if (b.x + b.width > GAME_WIDTH || b.x < 0) {
         b.direction *= -1;
         b.x += (b.speed + (Math.random() * 0.1)) * b.direction;
+      }
+
+      // 4. The "Sine Wave" (Score 250+)
+      if (scoreRef.current > 250) {
+        b.x += Math.sin(Date.now() / 150) * 3;
       }
     }
 

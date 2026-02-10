@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Player, UpgradeType } from '../types';
-import { UPGRADES_CONFIG } from '../constants';
+import { Player } from '../types';
+import { UPGRADES, getUpgradeCost, getUpgradeValue } from '../constants';
 import { PlayerService } from '../services/playerService';
 
 // Inline Icons to avoid lucide-react dependency
@@ -44,17 +44,12 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
   const [purchaseStatus, setPurchaseStatus] = useState<Record<string, 'processing' | 'success'>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const calculateCost = (baseCost: number, level: number) => {
-    return Math.floor(baseCost * Math.pow(1.5, level));
-  };
-
   const handlePurchaseClick = async (type: string) => {
     if (isProcessing || purchasing || purchaseStatus[type] === 'success') return;
     
-    const config = UPGRADES_CONFIG[type as keyof typeof UPGRADES_CONFIG];
     // @ts-ignore
     const currentLevel = player.upgrades[type] || 0;
-    const cost = calculateCost(config.baseCost, currentLevel);
+    const cost = getUpgradeCost(type, currentLevel);
 
     if (player.totalGold < cost) {
       setError("Not enough Gold!");
@@ -96,10 +91,10 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
   // Helper to get fallback icon
   const getIcon = (type: string) => {
     switch(type) {
-      case 'rapid_lift': return <Icons.ArrowUp className="w-8 h-8 text-blue-400" />;
-      case 'magnet': return <Icons.Magnet className="w-8 h-8 text-yellow-400" />;
-      case 'battery': return <Icons.Zap className="w-8 h-8 text-purple-400" />;
-      case 'luck': return <Icons.Crosshair className="w-8 h-8 text-green-400" />;
+      case 'midas_touch': return <Icons.Magnet className="w-8 h-8 text-yellow-400" />;
+      case 'overclock': return <Icons.Zap className="w-8 h-8 text-purple-400" />;
+      case 'gridlock': return <Icons.Crosshair className="w-8 h-8 text-blue-400" />;
+      case 'lucky_strike': return <Icons.ArrowUp className="w-8 h-8 text-green-400" />; // Changed to ArrowUp or maybe Zap with different color?
       case 'stabilizer': return <Icons.Gauge className="w-8 h-8 text-red-400" />;
       default: return <div className="w-8 h-8 bg-gray-600 rounded-full" />;
     }
@@ -129,24 +124,25 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
 
       {/* Upgrades List */}
       <div className="space-y-3">
-        {Object.entries(UPGRADES_CONFIG).map(([key, config]) => {
+        {UPGRADES.map((config) => {
           // @ts-ignore
-          const currentLevel = player.upgrades?.[key] || 0;
-          const cost = calculateCost(config.baseCost, currentLevel);
+          const currentLevel = player.upgrades?.[config.id] || 0;
+          const cost = getUpgradeCost(config.id, currentLevel);
+          const currentValue = getUpgradeValue(config.id, currentLevel);
           const canAfford = player.totalGold >= cost;
-          const isPurchasing = purchasing === key || purchaseStatus[key] === 'processing';
-          const isSuccess = purchaseStatus[key] === 'success';
+          const isPurchasing = purchasing === config.id || purchaseStatus[config.id] === 'processing';
+          const isSuccess = purchaseStatus[config.id] === 'success';
 
           return (
-            <div key={key} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden group">
+            <div key={config.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden group">
               {/* Background gradient effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
 
               {/* Icon */}
               <div className="flex-shrink-0 w-16 h-16 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 shadow-inner">
-                 {/* Try to use image, fallback to Lucide icon */}
+                 {/* Try to use image, fallback to Lucide icon - using ID for image path assumption */}
                  <img 
-                   src={config.icon} 
+                   src={`/assets/upgrades/${config.id}.png`} 
                    alt={config.name} 
                    className="w-12 h-12 object-contain" 
                    onError={(e) => {
@@ -155,7 +151,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
                    }}
                  />
                  <div className="fallback-icon hidden absolute">
-                   {getIcon(key)}
+                   {getIcon(config.id)}
                  </div>
               </div>
 
@@ -167,13 +163,13 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
                 </span>
                 <p className="text-white/60 text-xs leading-snug mt-2 line-clamp-2">{config.description}</p>
                 <div className="text-[10px] text-white/40 mt-1">
-                  Next: <span className="text-white/80">+{Math.pow(1.5, currentLevel + 1).toFixed(1)}x scaling</span>
+                  Current: <span className="text-white/80">{config.formatValue(currentValue)}</span>
                 </div>
               </div>
 
               {/* Action */}
               <button
-                onClick={() => handlePurchaseClick(key)}
+                onClick={() => handlePurchaseClick(config.id)}
                 disabled={!canAfford || isPurchasing || isProcessing || isSuccess}
                 className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-2 rounded-lg font-bold transition-all active:scale-95 ${
                   isSuccess

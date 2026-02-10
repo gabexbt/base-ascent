@@ -33,37 +33,127 @@ export const MINER_LEVELS: Record<number, { cost: number; multiplier: number; xp
   5: { cost: 1.99, multiplier: 2.0, xpPerHour: 12000 },
 };
 
-export const UPGRADES_CONFIG = {
-  rapid_lift: { 
-    name: 'Rapid Lift', 
-    baseCost: 100, 
-    description: '+1.5% Block Height',
-    icon: '/assets/upgrades/rapid_lift.png'
-  },
-  magnet: { 
-    name: 'Block Magnet', 
+export interface UpgradeTier {
+  range: [number, number];
+  value: number;
+}
+
+export interface UpgradeConfig {
+  id: string;
+  name: string;
+  description: string;
+  baseCost: number;
+  costMultiplier: number;
+  type: 'economy' | 'gameplay';
+  maxCap?: number;
+  tiers: UpgradeTier[];
+  formatValue: (val: number) => string;
+}
+
+export const UPGRADES: UpgradeConfig[] = [
+  { 
+    id: 'midas_touch', 
+    name: 'Midas Touch', 
+    description: 'Increases Gold earned per perfect stack.', 
     baseCost: 150, 
-    description: '+5% Gold Yield',
-    icon: '/assets/upgrades/magnet.png'
-  },
-  battery: { 
-    name: 'XP Battery', 
+    costMultiplier: 1.6, 
+    type: 'economy', 
+    tiers: [ 
+      { range: [1, 5], value: 3.0 },  
+      { range: [6, 15], value: 1.0 }, 
+      { range: [16, 20], value: 0.5 } 
+    ], 
+    formatValue: (val: number) => `+${val.toFixed(1)}% Gold Yield` 
+  }, 
+  { 
+    id: 'overclock', 
+    name: 'Overclock', 
+    description: 'Boosts total XP earned per game session.', 
     baseCost: 200, 
-    description: '+5% Total XP',
-    icon: '/assets/upgrades/battery.png'
-  },
-  luck: { 
-    name: 'Luck Streak', 
-    baseCost: 250, 
-    description: 'Forgiveness',
-    icon: '/assets/upgrades/luck.png'
-  },
-  stabilizer: { 
+    costMultiplier: 1.5, 
+    type: 'economy', 
+    tiers: [ 
+      { range: [1, 5], value: 5.0 },  
+      { range: [6, 15], value: 2.0 }, 
+      { range: [16, 20], value: 1.0 } 
+    ], 
+    formatValue: (val: number) => `+${val.toFixed(1)}% Total XP` 
+  }, 
+  { 
+    id: 'gridlock', 
+    name: 'Gridlock', 
+    description: '% Chance to auto-correct a slightly missed block.', 
+    baseCost: 500, 
+    costMultiplier: 2.5, 
+    type: 'gameplay', 
+    maxCap: 12.0, 
+    tiers: [ 
+      { range: [1, 5], value: 1.5 },  
+      { range: [6, 15], value: 0.4 }, 
+      { range: [16, 20], value: 0.1 } 
+    ], 
+    formatValue: (val: number) => `${val.toFixed(1)}% Chance` 
+  }, 
+  { 
+    id: 'stabilizer', 
     name: 'Stabilizer', 
+    description: 'Permanently slows down block speed.', 
     baseCost: 300, 
-    description: '-1% Block Speed',
-    icon: '/assets/upgrades/stabilizer.png'
+    costMultiplier: 2.0, 
+    type: 'gameplay', 
+    maxCap: 15.0, 
+    tiers: [ 
+      { range: [1, 5], value: 1.5 },  
+      { range: [6, 15], value: 0.5 }, 
+      { range: [16, 20], value: 0.2 } 
+    ], 
+    formatValue: (val: number) => `-${val.toFixed(1)}% Speed` 
+  }, 
+  { 
+    id: 'lucky_strike', 
+    name: 'Lucky Strike', 
+    description: '% Chance for a block to give 2x Gold & XP.', 
+    baseCost: 250, 
+    costMultiplier: 1.8, 
+    type: 'economy', 
+    maxCap: 10.0, 
+    tiers: [ 
+      { range: [1, 5], value: 1.0 },  
+      { range: [6, 10], value: 0.5 }, 
+      { range: [11, 20], value: 0.2 } 
+    ], 
+    formatValue: (val: number) => `${val.toFixed(1)}% Crit Chance` 
+  } 
+];
+
+// Compatibility mapping for old code if needed, but we will update components
+export const UPGRADES_CONFIG = {}; 
+
+export const getUpgradeValue = (id: string, level: number): number => {
+  const upgrade = UPGRADES.find(u => u.id === id);
+  if (!upgrade || level <= 0) return 0;
+
+  let totalValue = 0;
+  for (let l = 1; l <= level; l++) {
+    const tier = upgrade.tiers.find(t => l >= t.range[0] && l <= t.range[1]);
+    if (tier) {
+      totalValue += tier.value;
+    }
   }
+
+  if (upgrade.maxCap && totalValue > upgrade.maxCap) {
+    return upgrade.maxCap;
+  }
+  return totalValue;
+};
+
+export const getUpgradeCost = (id: string, level: number): number => {
+  const upgrade = UPGRADES.find(u => u.id === id);
+  if (!upgrade) return 0;
+  // Level is current level. Cost is for the NEXT level (level + 1 logic usually, but here 'level' input is current owned level)
+  // Base cost is for Level 1 (owned 0). 
+  // Formula: base * (multiplier ^ currentLevel)
+  return Math.floor(upgrade.baseCost * Math.pow(upgrade.costMultiplier, level));
 };
 
 export const LOADING_MESSAGES = [
