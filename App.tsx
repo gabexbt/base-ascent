@@ -142,14 +142,12 @@ const MainApp: React.FC = () => {
 
   const loadData = useCallback(async (silent = false) => {
     try {
-      if (frameContext.user?.fid) {
-        // Log URL for debugging
-        const currentUrl = window.location.href;
-        if (!silent) { // Only log on initial load/explicit refresh to avoid spam
-             PlayerService.log(`URL: ${currentUrl}`);
-        }
+      if (frameContext.user?.fid && !silent) {
+         const currentUrl = window.location.href;
+         PlayerService.log(`URL: ${currentUrl}`);
+      }
 
-        let fid = frameContext.user.fid;
+      let fid = frameContext.user.fid;
         let username = frameContext.user.username;
         let pfpUrl = frameContext.user.pfpUrl;
       
