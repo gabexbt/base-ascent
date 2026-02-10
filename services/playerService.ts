@@ -77,6 +77,29 @@ export const PlayerService = {
         data.pfp_url = pfpUrl;
       }
 
+      // Late Referral Attribution (Fix for existing users)
+      if (!data.referrer_fid && referrer) {
+        let finalReferrerFid: number | null = null;
+        if (typeof referrer === 'number') {
+          finalReferrerFid = referrer;
+        } else if (!isNaN(Number(referrer))) {
+          finalReferrerFid = Number(referrer);
+        } else {
+          const { data: refUser } = await supabase
+            .from('players')
+            .select('fid')
+            .eq('username', referrer)
+            .maybeSingle();
+          if (refUser) finalReferrerFid = refUser.fid;
+        }
+
+        if (finalReferrerFid && finalReferrerFid !== fid) {
+           await supabase.from('players').update({ referrer_fid: finalReferrerFid }).eq('fid', fid);
+           await this.incrementReferralCount(finalReferrerFid);
+           data.referrer_fid = finalReferrerFid;
+        }
+      }
+
       if (error) throw error;
       return this.mapToPlayer(data);
     } catch (e) {

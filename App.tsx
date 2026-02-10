@@ -5,6 +5,7 @@ import { base, baseSepolia } from 'viem/chains';
 import { formatUnits, erc20Abi } from 'viem';
 import { coinbaseWallet } from 'wagmi/connectors';
 import { pay, getPaymentStatus } from '@base-org/account';
+import sdk from '@farcaster/frame-sdk';
 import GameEngine from './components/GameEngine';
 import LoadingScreen from './components/LoadingScreen';
 import GameOver from './components/GameOver';
@@ -51,6 +52,7 @@ interface GameOverData {
 const MainApp: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>(Tab.ASCENT);
+  const [showNeynarGuide, setShowNeynarGuide] = useState(false);
   const [status, setStatus] = useState<GameStatus>(GameStatus.IDLE);
   const [player, setPlayer] = useState<Player | null>(null);
   const [playerRank, setPlayerRank] = useState<number>(0);
@@ -315,10 +317,33 @@ const MainApp: React.FC = () => {
 
   const handleTaskClick = (taskId: string, url: string) => {
     if (player?.completedTasks?.includes(taskId)) return;
+    
+    if (taskId === 'neynar-notifications') {
+       setShowNeynarGuide(true);
+       return;
+    }
+
     window.open(url, '_blank');
     // Start 10s verification timer immediately
     setTaskTimers(prev => ({ ...prev, [taskId]: { time: 10, focused: true } }));
   };
+
+  const handleNeynarConfirm = useCallback(async () => {
+    try {
+      // Attempt to add frame (enable notifications)
+      const result = await sdk.actions.addFrame();
+      
+      if (result.added) {
+         console.log("Frame added/Notifications enabled:", result.notificationDetails);
+      }
+    } catch (e) {
+      console.error("Add Frame/Notification Error:", e);
+    }
+    
+    // Always proceed to verification timer (fallback for existing users or manual setups)
+    setShowNeynarGuide(false);
+    setTaskTimers(prev => ({ ...prev, ['neynar-notifications']: { time: 10, focused: true } }));
+  }, []);
 
   const [isStarting, setIsStarting] = useState(false);
 
@@ -1121,12 +1146,13 @@ const MainApp: React.FC = () => {
                      {[
                        { id: 'f-gabe', l: 'Follow gabe on Base', u: 'https://base.app/profile/gabexbt' },
                        { id: 'f-x', l: 'Follow gabe on X', u: 'https://x.com/gabexbt' },
-                       { id: 'post-interaction', l: 'Engagement Booster', u: 'https://warpcast.com/gabexbt/0x892a0' }
+                       { id: 'post-interaction', l: 'Engagement Booster', u: 'https://warpcast.com/gabexbt/0x892a0' },
+                       { id: 'neynar-notifications', l: 'Pin App & Enable Notifications', u: '#' }
                      ].map(t => (
                         <div key={t.id} className="w-full p-4 border border-white/10 rounded-[28px] flex items-center justify-between bg-black/50">
                            <div className="text-left"><div className="text-[10px] font-black uppercase">{t.l}</div><div className="text-[8px] opacity-40">+50K XP • 10K GOLD • 5 SPINS</div></div>
-                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={player?.completedTasks?.includes(t.id) || (taskTimers[t.id]?.time > 0)} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95 disabled:opacity-50 transition-all min-w-[80px]">
-                              {player?.completedTasks?.includes(t.id) ? 'DONE' : taskTimers[t.id]?.time > 0 ? `CHECKING...` : 'CLAIM XP'}
+                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={player?.completedTasks?.includes(t.id) || (taskTimers[t.id]?.time > 0)} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95 disabled:opacity-50 transition-all min-w-[100px]">
+                              {player?.completedTasks?.includes(t.id) ? 'DONE' : taskTimers[t.id]?.time > 0 ? `VERIFYING (${taskTimers[t.id]?.time}s)` : 'COMPLETE TASK'}
                            </button>
                         </div>
                      ))}
@@ -1161,6 +1187,36 @@ const MainApp: React.FC = () => {
           <span className="text-[9px] font-black uppercase tracking-widest">Profile</span>
         </button>
       </nav>
+
+      {showNeynarGuide && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-sm bg-[#1a1a1a] border border-white/10 rounded-[32px] p-6 text-center relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
+             <h3 className="text-xl font-black italic mb-4">ENABLE NOTIFICATIONS</h3>
+             <p className="text-[10px] opacity-60 mb-6 leading-relaxed">
+               Pin the app and enable notifications to never miss a reward drop or leaderboard update.
+             </p>
+             
+             <div className="space-y-3 mb-6">
+                <a href="https://docs.base.org/mini-apps/technical-guides/neynar-notifications" target="_blank" rel="noreferrer" className="block w-full p-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold hover:bg-white/10 transition-all">
+                   Base Docs: Neynar Notifications
+                </a>
+                <a href="https://docs.neynar.com/reference/publish-frame-notifications" target="_blank" rel="noreferrer" className="block w-full p-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold hover:bg-white/10 transition-all">
+                   Neynar API Reference
+                </a>
+             </div>
+
+             <div className="flex gap-3">
+               <button onClick={() => setShowNeynarGuide(false)} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-white/5 rounded-xl">
+                 Close
+               </button>
+               <button onClick={handleNeynarConfirm} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-white text-black rounded-xl">
+                 Enable & Verify
+               </button>
+             </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

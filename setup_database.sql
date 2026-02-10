@@ -402,12 +402,22 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Complete Task
-CREATE OR REPLACE FUNCTION rpc_complete_task(p_fid BIGINT, p_task_id TEXT, p_xp_reward INT) RETURNS VOID AS $$
-DECLARE v_tasks TEXT[];
+CREATE OR REPLACE FUNCTION rpc_complete_task(p_fid BIGINT, p_task_id TEXT, p_xp_reward INT, p_gold_reward INT, p_ascents_reward INT) RETURNS VOID AS $$
+DECLARE
+    v_tasks TEXT[];
 BEGIN
     SELECT completed_tasks INTO v_tasks FROM players WHERE fid = p_fid;
-    IF p_task_id = ANY(v_tasks) THEN RETURN; END IF;
-    UPDATE players SET completed_tasks = array_append(completed_tasks, p_task_id), total_xp = total_xp + p_xp_reward WHERE fid = p_fid;
+    
+    IF p_task_id = ANY(v_tasks) THEN
+        RETURN;
+    END IF;
+
+    UPDATE players 
+    SET completed_tasks = array_append(completed_tasks, p_task_id),
+        total_xp = total_xp + p_xp_reward,
+        total_gold = total_gold + p_gold_reward,
+        ascents_remaining = ascents_remaining + p_ascents_reward
+    WHERE fid = p_fid;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
