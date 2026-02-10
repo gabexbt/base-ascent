@@ -168,6 +168,20 @@ export const PlayerService = {
     }
   },
 
+  async checkDeferredReferral(): Promise<string | null> {
+    try {
+      const { data, error } = await supabase.rpc('check_deferred_referral');
+      if (error) {
+        console.error("Check deferred error:", error);
+        return null;
+      }
+      return data as string | null;
+    } catch (e) {
+      console.error("Check deferred exception:", e);
+      return null;
+    }
+  },
+
   async redeemReferral(fid: number, referrerCode: string): Promise<{ success: boolean; message: string; referrerUsername?: string }> {
     try {
       // 1. Check if user already has a referrer

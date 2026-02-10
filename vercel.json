@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/r/:ref",
+      "destination": "/launch.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

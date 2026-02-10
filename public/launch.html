@@ -33,49 +33,90 @@
             background: #fff;
             color: #000;
             border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 12px;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: 900;
+            border-radius: 16px;
             cursor: pointer;
             text-decoration: none;
             margin-top: 20px;
             display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: transform 0.1s;
+        }
+        .btn:active {
+            transform: scale(0.95);
         }
         .message {
             opacity: 0.7;
             font-size: 14px;
             max-width: 300px;
             line-height: 1.5;
+            margin-bottom: 30px;
         }
     </style>
 </head>
 <body>
     <div class="loader"></div>
-    <h2 style="margin-bottom: 8px;">Opening Base Ascent...</h2>
-    <p class="message">If the game doesn't open automatically, click the button below.</p>
+    <h2 style="margin-bottom: 8px;">Launching Base Ascent...</h2>
+    <p class="message">Click below to open the game in Base.</p>
     
-    <a id="launch-btn" href="#" class="btn">OPEN GAME</a>
+    <a id="launch-btn" href="#" class="btn">OPEN IN BASE</a>
 
     <script>
-        // 1. Get the referral code from THIS page's URL
+        // CONFIG
+        const SUPABASE_URL = 'https://acwxyvfyshztkbsayibr.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjd3h5dmZ5c2h6dGtic2F5aWJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0Mzc4NjUsImV4cCI6MjA4NjAxMzg2NX0.FTVIg0-gTfThZJsJx6wwJyDr6g2_kFMof1pPkRHVzG0';
+
+        // 1. Get the referral code
         const params = new URLSearchParams(window.location.search);
-        const ref = params.get('ref') || params.get('referrer');
+        let ref = params.get('ref') || params.get('referrer');
+
+        // Support /r/CODE path style
+        if (!ref && window.location.pathname.startsWith('/r/')) {
+            const pathParts = window.location.pathname.split('/r/');
+            if (pathParts.length > 1) {
+                ref = pathParts[1].split('/')[0]; // Handle trailing slashes
+            }
+        }
         
-        // 2. Construct the Deep Link to the Base App
-        // This format triggers the "Open in Base?" prompt
+        // 2. Construct the Deep Link
         const baseUrl = "https://base.app/app/base-ascent.vercel.app";
         const finalUrl = ref ? `${baseUrl}?ref=${ref}` : baseUrl;
 
-        // 3. Update the button
+        // 3. Update the button immediately
         const btn = document.getElementById('launch-btn');
         btn.href = finalUrl;
 
-        // 4. Attempt Auto-Redirect
-        // A small delay helps Safari process the Universal Link request correctly
-        setTimeout(() => {
-            window.location.href = finalUrl;
-        }, 1000);
+        // 4. Log the click for Deferred Deep Linking
+        async function logClick() {
+            if (!ref) return;
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/rpc/log_referral_click`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ p_code: ref })
+                });
+                console.log('Click logged');
+            } catch (e) {
+                console.error('Log failed', e);
+            }
+        }
+
+        // 5. Execute Logic
+        (async () => {
+            if (ref) await logClick();
+            
+            // Auto-redirect with delay
+            setTimeout(() => {
+                window.location.href = finalUrl;
+            }, 1500);
+        })();
     </script>
 </body>
 </html>

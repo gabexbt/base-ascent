@@ -292,6 +292,31 @@ const MainApp: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Deferred Deep Linking Check (Fix for App Store stripping params)
+  useEffect(() => {
+    const checkDeferred = async () => {
+       // Only check if player exists and has NO referrer
+       if (player && !player.referrerFid && !player.referrerUsername) {
+          // Avoid checking multiple times if already checked
+          if (sessionStorage.getItem('deferred_checked')) return;
+          
+          sessionStorage.setItem('deferred_checked', 'true');
+          const code = await PlayerService.checkDeferredReferral();
+          
+          if (code) {
+             PlayerService.log(`Deferred Deep Link Found: ${code}`);
+             const res = await PlayerService.redeemReferral(player.fid, code);
+             if (res.success) {
+                PlayerService.log(`Deferred Referral Redeemed: ${code}`);
+                loadData(); // Refresh to show referrer
+             }
+          }
+       }
+    };
+    
+    checkDeferred();
+  }, [player?.fid]); // Only run when player ID changes (login)
+
   useEffect(() => {
     const interval = setInterval(() => {
       setTaskTimers(prev => {
@@ -346,7 +371,9 @@ const MainApp: React.FC = () => {
        return;
     }
 
-    window.open(url, '_blank');
+    // Use SDK for native navigation
+    sdk.actions.openUrl(url);
+
     // Start 10s verification timer immediately
     setTaskTimers(prev => ({ ...prev, [taskId]: { time: 10, focused: true } }));
   };
@@ -473,11 +500,33 @@ const MainApp: React.FC = () => {
     }
   };
 
+  const handleShare = () => {
+    const refId = player?.fid || player?.username;
+    const url = `https://base-ascent.vercel.app/launch.html?ref=${refId}`;
+    const text = "I'm climbing to the moon on Base Ascent! 🚀\n\nPlay now and get free upgrades:";
+    
+    // Use SDK to open native composer (Better than copy-paste)
+    const intentUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`;
+    
+    try {
+      // @ts-ignore
+      if (sdk.actions.composeCast) {
+         // @ts-ignore
+         sdk.actions.composeCast({ text, embeds: [url] });
+      } else {
+         sdk.actions.openUrl(intentUrl);
+      }
+    } catch (e) {
+      console.error("Share error:", e);
+      sdk.actions.openUrl(intentUrl);
+    }
+  };
+
   const handleCopy = () => {
     // Prefer FID for safer referrals, fallback to username
     const refId = player?.fid || player?.username;
-    // Updated to use the Launch Page for robust deep linking
-    const url = `https://base-ascent.vercel.app/launch.html?ref=${refId}`;
+    // Updated to use the clean /r/ link format
+    const url = `https://base-ascent.vercel.app/r/${refId}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -1184,44 +1233,12 @@ const MainApp: React.FC = () => {
                     </div>
                   )}
 
-                  {!player?.referrerUsername && (
-                     <div className="mb-4 flex gap-2">
-                        <input 
-                          type="text" 
-                          placeholder="Enter Referrer Code/Username"
-                          className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-[10px] text-white focus:outline-none focus:border-white/40 uppercase font-bold placeholder:text-white/20"
-                          onKeyDown={async (e) => {
-                             if (e.key === 'Enter') {
-                                const input = e.currentTarget;
-                                const code = input.value;
-                                if (!code) return;
-                                
-                                input.disabled = true;
-                                const res = await PlayerService.redeemReferral(player.fid, code);
-                                if (res.success) {
-                                   alert(res.message);
-                                   // Quick optimistic update
-                                   if (player) {
-                                      setPlayer({ ...player, referrerUsername: res.referrerUsername || code });
-                                   }
-                                   loadData(); // Full reload
-                                } else {
-                                   alert(res.message);
-                                   input.disabled = false;
-                                   input.focus();
-                                }
-                             }
-                          }}
-                        />
-                     </div>
-                  )}
-
                   <div className="flex items-center justify-between bg-black/50 border border-white/10 p-4 rounded-[28px] text-center mb-3">
                     <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{player?.referralCount || 0}</span></div>
                     <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{player?.referralXpEarned || 0} XP</span></div>
                   </div>
                   <div onClick={handleCopy} className="p-4 bg-white/5 border border-white/20 rounded-2xl text-[9px] opacity-40 text-center tracking-widest uppercase cursor-pointer hover:bg-white/10 transition-all active:scale-98">
-                    {copied ? 'COPIED!' : `base-ascent.vercel.app/launch.html?ref=${player?.fid || player?.username}`}
+                    {copied ? 'COPIED!' : `base-ascent.vercel.app/r/${player?.fid || player?.username}`}
                   </div>
                   <p className="text-[8px] opacity-30 text-center mt-2 italic px-4 uppercase font-bold">You earn 20% of all XP generated by your recruits hardware automatically.</p>
                </div>
