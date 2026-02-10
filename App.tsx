@@ -1182,6 +1182,39 @@ const MainApp: React.FC = () => {
                        Referred by @{player.referrerUsername}
                     </div>
                   )}
+
+                  {!player?.referrerUsername && (
+                     <div className="mb-4 flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="Enter Referrer Code/Username"
+                          className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-[10px] text-white focus:outline-none focus:border-white/40 uppercase font-bold placeholder:text-white/20"
+                          onKeyDown={async (e) => {
+                             if (e.key === 'Enter') {
+                                const input = e.currentTarget;
+                                const code = input.value;
+                                if (!code) return;
+                                
+                                input.disabled = true;
+                                const res = await PlayerService.redeemReferral(player.fid, code);
+                                if (res.success) {
+                                   alert(res.message);
+                                   // Quick optimistic update
+                                   if (player) {
+                                      setPlayer({ ...player, referrerUsername: res.referrerUsername || code });
+                                   }
+                                   loadData(); // Full reload
+                                } else {
+                                   alert(res.message);
+                                   input.disabled = false;
+                                   input.focus();
+                                }
+                             }
+                          }}
+                        />
+                     </div>
+                  )}
+
                   <div className="flex items-center justify-between bg-black/50 border border-white/10 p-4 rounded-[28px] text-center mb-3">
                     <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{player?.referralCount || 0}</span></div>
                     <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{player?.referralXpEarned || 0} XP</span></div>

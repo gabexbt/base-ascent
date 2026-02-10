@@ -168,6 +168,121 @@ export const PlayerService = {
     }
   },
 
+  async redeemReferral(fid: number, referrerCode: string): Promise<{ success: boolean; message: string; referrerUsername?: string }> {
+    try {
+      // 1. Check if user already has a referrer
+      const { data: user, error: userError } = await supabase
+        .from('players')
+        .select('referrer_fid')
+        .eq('fid', fid)
+        .maybeSingle();
+
+      if (userError || !user) return { success: false, message: "User not found." };
+      if (user.referrer_fid) return { success: false, message: "You already have a referrer." };
+
+      // 2. Resolve Referrer
+      let finalReferrerFid: number | null = null;
+      let referrerUsername = '';
+
+      const cleanCode = referrerCode.trim();
+      
+      // Try as FID first if it looks like a number
+      if (!isNaN(Number(cleanCode))) {
+         finalReferrerFid = Number(cleanCode);
+      } 
+      
+      // Look up by username (or FID if previous check passed, to get username)
+      if (!finalReferrerFid) {
+         const { data: refUser } = await supabase
+           .from('players')
+           .select('fid, username')
+           .eq('username', cleanCode)
+           .maybeSingle();
+         
+         if (refUser) {
+           finalReferrerFid = refUser.fid;
+           referrerUsername = refUser.username;
+         }
+      } else {
+         // Verify FID exists and get username
+         const { data: refUser } = await supabase
+           .from('players')
+           .select('username')
+           .eq('fid', finalReferrerFid)
+           .maybeSingle();
+           
+         if (refUser) {
+            referrerUsername = refUser.username;
+         } else {
+            finalReferrerFid = null; // Invalid FID
+         }
+      }
+
+      if (!finalReferrerFid) return { success: false, message: "Referral code not found." };
+      if (finalReferrerFid === fid) return { success: false, message: "Cannot refer yourself." };
+
+      // 3. Update DB
+      const { error: updateError } = await supabase
+        .from('players')
+        .update({ referrer_fid: finalReferrerFid })
+        .eq('fid', fid);
+
+      if (updateError) throw updateError;
+
+      // 4. Increment Count
+      await this.incrementReferralCount(finalReferrerFid);
+
+      return { success: true, message: "Referral redeemed!", referrerUsername };
+
+    } catch (e) {
+      console.error("Redeem Error:", e);
+      return { success: false, message: "Failed to redeem code." };
+    }
+  },
+
+  // --- IP Fingerprinting for Deferred Deep Linking ---
+  async getIpAddress(): Promise<string | null> {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      return data.ip;
+    } catch (e) {
+      console.error("IP Fetch Error:", e);
+      return null;
+    }
+  },
+
+  async trackReferralClick(code: string) {
+    const ip = await this.getIpAddress();
+    if (!ip) return;
+    
+    // Insert into referral_clicks
+    await supabase.from('referral_clicks').insert({
+      ip_address: ip,
+      referral_code: code
+    });
+  },
+
+  async checkIpReferral(): Promise<string | null> {
+    const ip = await this.getIpAddress();
+    if (!ip) return null;
+
+    // Check for clicks in the last hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    
+    const { data } = await supabase
+      .from('referral_clicks')
+      .select('referral_code')
+      .eq('ip_address', ip)
+      .gt('created_at', oneHourAgo)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return data?.referral_code || null;
+  },
+  // --------------------------------------------------
+
   async syncPlayerStats(fid: number, totalXp: number, totalGold: number, highScore: number, totalRuns?: number) {
     const { error } = await supabase.rpc('rpc_sync_stats', {
       p_fid: fid,
