@@ -84,7 +84,8 @@
         if (!ref && window.location.pathname.startsWith('/r/')) {
             const pathParts = window.location.pathname.split('/r/');
             if (pathParts.length > 1) {
-                ref = pathParts[1].split('/')[0]; // Handle trailing slashes
+                // Decode URI component to handle spaces/special chars in usernames
+                ref = decodeURIComponent(pathParts[1].split('/')[0]); 
             }
         }
         
