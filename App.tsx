@@ -800,7 +800,7 @@ const MainApp: React.FC = () => {
 
                   </>
                 ) : status === GameStatus.GAMEOVER && gameOverData ? (
-                  <div className="w-full p-5">
+                  <div className="w-full h-full min-h-0">
                     <GameOver 
                       score={gameOverData.score}
                       xpGained={gameOverData.xp}
