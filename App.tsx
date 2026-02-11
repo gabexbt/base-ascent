@@ -1196,16 +1196,16 @@ const MainApp: React.FC = () => {
                </div>
 
                {/* Your Rank (Sticky) */}
-               <div className="shrink-0 p-4 bg-black z-20 relative border-t border-white/10">
-                  <div className="p-4 border border-white/10 bg-white/5 rounded-3xl space-y-4">
-                      <div className="flex justify-between items-center px-2">
+               <div className="shrink-0 px-4 pb-2 pt-2 bg-black z-20 relative border-t border-white/10">
+                  <div className="p-3 border border-white/10 bg-white/5 rounded-2xl space-y-3">
+                      <div className="flex justify-between items-center px-1">
                          <div className="text-[10px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
                          <div className="flex items-center gap-3">
                             <span className={`text-[9px] font-bold uppercase ${syncStatus === 'SYNCED' ? 'text-green-400' : 'text-yellow-400'}`}>{syncStatus}</span>
                             <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank > 0 ? playerRank : '-'} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
                          </div>
                       </div>
-                      <button onClick={handleFlex} disabled={processingPayment} className="w-full py-4 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-2xl active:scale-95 disabled:opacity-50">
+                      <button onClick={handleFlex} disabled={processingPayment} className="w-full py-3 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-xl active:scale-95 disabled:opacity-50">
                         {paymentStatus.flex === 'loading' ? 'Processing...' : paymentStatus.flex === 'success' ? 'Synced' : paymentStatus.flex === 'error' ? 'Failed' : (
                           <>
                             <span className="uppercase tracking-wider">FLEX {rankingType === 'skill' ? 'ALTITUDE' : 'EXPERIENCE'}</span>
