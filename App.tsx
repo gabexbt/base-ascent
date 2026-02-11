@@ -51,6 +51,7 @@ interface GameOverData {
 
 const MainApp: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>(Tab.ASCENT);
   const [showNeynarGuide, setShowNeynarGuide] = useState(false);
   const [status, setStatus] = useState<GameStatus>(GameStatus.IDLE);
@@ -227,6 +228,9 @@ const MainApp: React.FC = () => {
           if (localData.totalGold > mergedPlayer.totalGold) { // Persist Gold too
              mergedPlayer.totalGold = localData.totalGold;
           }
+          if (localData.ascentsRemaining !== undefined && localData.ascentsRemaining < mergedPlayer.ascentsRemaining) {
+             mergedPlayer.ascentsRemaining = localData.ascentsRemaining;
+          }
         }
         
         // Update local storage with latest token if reset occurred
@@ -236,7 +240,8 @@ const MainApp: React.FC = () => {
              totalXp: mergedPlayer.totalXp,
              totalGold: mergedPlayer.totalGold,
              totalRuns: mergedPlayer.totalRuns,
-             resetToken: serverResetToken
+             resetToken: serverResetToken,
+             ascentsRemaining: mergedPlayer.ascentsRemaining
            }));
         }
 
@@ -269,6 +274,8 @@ const MainApp: React.FC = () => {
     } catch (e) {
       console.error("Load Error:", e);
       if (!silent) setIsLeaderboardLoading(false);
+    } finally {
+      if (!silent) setDataLoaded(true);
     }
   }, [frameContext, rankingType]);
 
@@ -299,6 +306,13 @@ const MainApp: React.FC = () => {
     const timer = setTimeout(() => setLoading(false), 2500); // Fixed 2.5s load to ensure 100% bar
     return () => clearTimeout(timer);
   }, []);
+
+  // Safety: If SDK fails to load, stop the loading screen so the connection error can show
+  useEffect(() => {
+    if (!isFarcasterLoading && !frameContext.isReady) {
+      setDataLoaded(true);
+    }
+  }, [isFarcasterLoading, frameContext.isReady]);
 
   // Deferred Deep Linking Check (Fix for App Store stripping params)
   useEffect(() => {
@@ -455,7 +469,18 @@ const MainApp: React.FC = () => {
       }
 
       // Optimistic update
-      setPlayer(prev => prev ? ({ ...prev, ascentsRemaining: prev.ascentsRemaining - 1 }) : null);
+      const updatedPlayer = { ...player, ascentsRemaining: player.ascentsRemaining - 1 };
+      setPlayer(updatedPlayer);
+
+      // Persist locally to prevent reversion if loadData triggers
+      localStorage.setItem(`player_stats_v2_${player.fid}`, JSON.stringify({
+        highScore: updatedPlayer.highScore,
+        totalXp: updatedPlayer.totalXp,
+        totalGold: updatedPlayer.totalGold,
+        totalRuns: updatedPlayer.totalRuns,
+        resetToken: player.resetToken,
+        ascentsRemaining: updatedPlayer.ascentsRemaining
+      }));
 
       playRandomTrack();
       // Force status update
@@ -594,8 +619,17 @@ const MainApp: React.FC = () => {
             upgrades: newUpgrades
         });
 
+        // Persist Gold deduction locally to prevent reversion during loadData()
+        localStorage.setItem(`player_stats_v2_${player.fid}`, JSON.stringify({
+          highScore: player.highScore,
+          totalXp: player.totalXp,
+          totalGold: player.totalGold - cost,
+          totalRuns: player.totalRuns,
+          resetToken: player.resetToken
+        }));
+
         await PlayerService.purchaseUpgrade(player.fid, type, cost);
-        await loadData();
+        await loadData(true); // silent refresh
     } catch (e) {
         console.error("Purchase Error:", e);
         await loadData(); // Revert
@@ -874,7 +908,7 @@ const MainApp: React.FC = () => {
     }
   };
 
-  if (loading || isFarcasterLoading) return <LoadingScreen />;
+  if (loading || isFarcasterLoading || !dataLoaded) return <LoadingScreen />;
 
   // Error State if Player fails to load
   if (!player) {
