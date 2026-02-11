@@ -122,7 +122,7 @@ export const UPGRADES: UpgradeConfig[] = [
       { range: [6, 10], value: 0.5 }, 
       { range: [11, 20], value: 0.2 } 
     ], 
-    formatValue: (val: number) => `${val.toFixed(1)}% Crit Chance` 
+    formatValue: (val: number) => `${val.toFixed(1)}% Chance` 
   } 
 ];
 
