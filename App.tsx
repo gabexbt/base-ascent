@@ -214,24 +214,40 @@ const MainApp: React.FC = () => {
         // If server has a token and it differs from local, strictly use server data (RESET)
         const isRemoteReset = serverResetToken && serverResetToken !== localResetToken;
 
-        if (localData && !isRemoteReset) {
-          if (localData.highScore > mergedPlayer.highScore) {
-             mergedPlayer.highScore = localData.highScore;
-             mergedPlayer.hasUploadedScore = false; 
+          if (localData && !isRemoteReset) {
+            // GOLD SYNC FIX: If local gold is higher than server gold, 
+            // but the server gold was manually reset (e.g., set to 0),
+            // we should respect the server gold. 
+            // We use a "high water mark" with a threshold: 
+            // if local gold is vastly different from server gold without a transaction, 
+            // or if we want to allow server-side resets, we check a flag or just merge carefully.
+            
+            // For now, let's allow server to "pull down" local gold if the server value is 0 
+            // (explicit reset) or if the local value hasn't changed recently.
+            
+            if (localData.highScore > mergedPlayer.highScore) {
+               mergedPlayer.highScore = localData.highScore;
+               mergedPlayer.hasUploadedScore = false; 
+            }
+            if (localData.totalXp > mergedPlayer.totalXp) {
+               mergedPlayer.totalXp = localData.totalXp;
+            }
+            if (localData.totalRuns > mergedPlayer.totalRuns) {
+               mergedPlayer.totalRuns = localData.totalRuns;
+            }
+            
+            // Only merge gold if local is higher AND server isn't significantly lower (manual reset)
+            // If server gold is 0, we assume a manual reset and IGNORE local higher gold.
+            if (localData.totalGold > mergedPlayer.totalGold && data.total_gold !== 0) { 
+               mergedPlayer.totalGold = localData.totalGold;
+            } else if (data.total_gold === 0) {
+               mergedPlayer.totalGold = 0;
+            }
+
+            if (localData.ascentsRemaining !== undefined && localData.ascentsRemaining < mergedPlayer.ascentsRemaining) {
+               mergedPlayer.ascentsRemaining = localData.ascentsRemaining;
+            }
           }
-          if (localData.totalXp > mergedPlayer.totalXp) {
-             mergedPlayer.totalXp = localData.totalXp;
-          }
-          if (localData.totalRuns > mergedPlayer.totalRuns) {
-             mergedPlayer.totalRuns = localData.totalRuns;
-          }
-          if (localData.totalGold > mergedPlayer.totalGold) { // Persist Gold too
-             mergedPlayer.totalGold = localData.totalGold;
-          }
-          if (localData.ascentsRemaining !== undefined && localData.ascentsRemaining < mergedPlayer.ascentsRemaining) {
-             mergedPlayer.ascentsRemaining = localData.ascentsRemaining;
-          }
-        }
         
         // Update local storage with latest token if reset occurred
         if (isRemoteReset || !localData) {
@@ -629,7 +645,9 @@ const MainApp: React.FC = () => {
         }));
 
         await PlayerService.purchaseUpgrade(player.fid, type, cost);
-        await loadData(true); // silent refresh
+      // Wait for a small delay to ensure DB transaction is processed before refreshing
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await loadData(true); // silent refresh
     } catch (e) {
         console.error("Purchase Error:", e);
         await loadData(); // Revert
@@ -870,25 +888,43 @@ const MainApp: React.FC = () => {
           testnet: true
        });
        const txId = payment?.id;
-       
-       await PlayerService.doubleUpRun(
-         player.fid, 
-         gameOverData.score, 
-         gameOverData.xp, 
-         gameOverData.gold, 
-         txId || 'base-pay', 
-         0.10
-       );
-       
-       clearTimeout(safetyTimeout);
-       
-       setGameOverData({
-         ...gameOverData,
-         score: gameOverData.score * 2,
-         xp: gameOverData.xp * 2,
-         gold: gameOverData.gold * 2,
-         hasDoubled: true
-       });
+      
+      const doubleScore = gameOverData.score * 2;
+      const doubleXp = gameOverData.xp * 2;
+      const doubleGold = gameOverData.gold * 2;
+
+      await PlayerService.doubleUpRun(
+        player.fid, 
+        doubleScore, 
+        doubleXp, 
+        doubleGold, 
+        txId || 'base-pay', 
+        0.10
+      );
+      
+      clearTimeout(safetyTimeout);
+      
+      setGameOverData({
+        ...gameOverData,
+        score: doubleScore,
+        xp: doubleXp,
+        gold: doubleGold,
+        hasDoubled: true
+      });
+      
+      // Update local storage immediately to reflect doubled stats
+      const newTotalGold = player.totalGold + doubleGold;
+      const newTotalXp = player.totalXp + doubleXp;
+      const newHighScore = Math.max(player.highScore, doubleScore);
+      
+      localStorage.setItem(`player_stats_v2_${player.fid}`, JSON.stringify({
+        highScore: newHighScore,
+        totalXp: newTotalXp,
+        totalGold: newTotalGold,
+        totalRuns: player.totalRuns,
+        resetToken: player.resetToken,
+        ascentsRemaining: player.ascentsRemaining
+      }));
        
        await loadData();
        setPaymentStatus(prev => ({ ...prev, double: 'success' }));
@@ -909,6 +945,46 @@ const MainApp: React.FC = () => {
   };
 
   if (loading || isFarcasterLoading || !dataLoaded) return <LoadingScreen />;
+
+  // Production check for Farcaster context
+  const isProduction = window.location.hostname === 'base-ascent.vercel.app';
+  const hasNoAccount = !frameContext.user?.fid;
+
+  if (isProduction && hasNoAccount) {
+    return (
+      <div className="h-[100dvh] bg-black text-white font-sans flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+        <ParticleBackground />
+        <div className="relative z-10 max-w-[320px] flex flex-col items-center">
+          <div className="w-24 h-24 mb-8 animate-pulse">
+            <img src={LOGO_URL} alt="Base Ascent" className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]" />
+          </div>
+          <h1 className="text-4xl font-black italic tracking-tighter mb-4 uppercase">BASE ASCENT</h1>
+          <p className="text-sm opacity-60 mb-10 leading-relaxed uppercase font-bold tracking-widest">
+            This is a Farcaster-native game. Please open this link inside the Base App or Warpcast to start your journey.
+          </p>
+          <div className="space-y-4 w-full">
+            <a 
+              href="https://base.org/names" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block w-full py-4 bg-white text-black font-black rounded-2xl uppercase tracking-tighter text-lg hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+            >
+              Get a Base Name
+            </a>
+            <a 
+              href="https://warpcast.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block w-full py-4 border-2 border-white/20 text-white font-black rounded-2xl uppercase tracking-tighter text-lg hover:bg-white/5 active:scale-95 transition-all"
+            >
+              Join Warpcast
+            </a>
+          </div>
+          <p className="mt-12 text-[10px] opacity-30 font-bold uppercase tracking-[0.2em]">Developed by @gabexbt</p>
+        </div>
+      </div>
+    );
+  }
 
   // Error State if Player fails to load
   if (!player) {
@@ -941,7 +1017,7 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-black`} style={{ top: 'calc(74px + env(safe-area-inset-top))', bottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
+      <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-black`} style={{ top: 'calc(70px + env(safe-area-inset-top))', bottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
         <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT ? 'pb-0' : 'pb-8'}`}>
           
           <ParticleBackground />
@@ -1238,16 +1314,16 @@ const MainApp: React.FC = () => {
                </div>
 
                {/* Your Rank (Sticky) */}
-               <div className="shrink-0 px-4 pb-2 pt-1 bg-black z-20 relative border-t border-white/10">
-                  <div className="p-2.5 border border-white/10 bg-white/5 rounded-2xl space-y-2">
+               <div className="shrink-0 px-4 pb-1 pt-1 bg-black z-20 relative border-t border-white/10">
+                  <div className="p-2 border border-white/10 bg-white/5 rounded-2xl space-y-1.5">
                       <div className="flex justify-between items-center px-1">
-                         <div className="text-[10px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
+                         <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
                          <div className="flex items-center gap-3">
-                            <span className={`text-[9px] font-bold uppercase ${syncStatus === 'SYNCED' ? 'text-green-400' : 'text-yellow-400'}`}>{syncStatus}</span>
-                            <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank > 0 ? playerRank : '-'} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
+                            <span className={`text-[8px] font-bold uppercase ${syncStatus === 'SYNCED' ? 'text-green-400' : 'text-yellow-400'}`}>{syncStatus}</span>
+                            <div className="text-[13px] font-black italic font-mono uppercase">#{playerRank > 0 ? playerRank : '-'} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
                          </div>
                       </div>
-                      <button onClick={handleFlex} disabled={processingPayment} className="w-full py-2.5 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-xl active:scale-95 disabled:opacity-50">
+                      <button onClick={handleFlex} disabled={processingPayment} className="w-full py-2 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-xs uppercase rounded-xl active:scale-95 disabled:opacity-50">
                         {paymentStatus.flex === 'loading' ? 'Processing...' : paymentStatus.flex === 'success' ? 'Synced' : paymentStatus.flex === 'error' ? 'Failed' : (
                           <>
                             <span className="uppercase tracking-wider">FLEX {rankingType === 'skill' ? 'ALTITUDE' : 'EXPERIENCE'}</span>
