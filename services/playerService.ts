@@ -96,6 +96,13 @@ export const PlayerService = {
         data.pfp_url = pfpUrl;
       }
 
+      // Sync Username (Fix for system-generated '!' names)
+      if (username && username !== 'unknown' && !username.startsWith('!') && data.username !== username) {
+        this.log(`Syncing username for ${fid}: ${data.username} -> ${username}`);
+        await supabase.from('players').update({ username: username }).eq('fid', fid);
+        data.username = username;
+      }
+
       // Late Referral Attribution (Fix for existing users)
       if (referrer) {
         // We check even if data.referrer_fid exists, to debug or fix potential mismatches (optional, but safer to stick to null check for now to avoid overwrites)

@@ -148,11 +148,10 @@ const MainApp: React.FC = () => {
       }
 
       let fid = frameContext.user.fid;
-        let username = frameContext.user.username;
-        let pfpUrl = frameContext.user.pfpUrl;
+      let username = frameContext.user.username;
+      let pfpUrl = frameContext.user.pfpUrl;
       
-      // Parse Referrer from URL (priority) or Frame Context
-      // Get URL params for referral
+      // CAPTURE REFERRER ASAP: Get URL params for referral
       const fullUrl = window.location.href;
       const refMatch = fullUrl.match(/[?&](ref|referrer)=([^&#]+)/);
       let rawRef = refMatch ? refMatch[2] : null;
@@ -167,24 +166,33 @@ const MainApp: React.FC = () => {
       // Clean the referrer string
       const cleanRef = rawRef ? rawRef.replace(/[^a-zA-Z0-9_-]/g, '') : null;
       
-      if (cleanRef) PlayerService.log(`Found Ref: ${cleanRef}`);
-
-      // PERSISTENCE: Check local storage if URL param is missing
-      // This handles redirects where params might be stripped but were caught earlier
-      const storedRef = localStorage.getItem('referral_code');
-      let referrer = cleanRef || storedRef || frameContext.referrerFid;
-
-      // Save to local storage if found
+      // PERSISTENCE: Save to local storage if found in URL
+      // This is crucial for first-time users who might be redirected to install an app
       if (cleanRef) {
+        PlayerService.log(`Found Ref in URL: ${cleanRef}. Persisting to localStorage.`);
         localStorage.setItem('referral_code', cleanRef);
       }
 
+      // Resolve final referrer string/fid
+      const storedRef = localStorage.getItem('referral_code');
+      let referrer = cleanRef || storedRef || frameContext.referrerFid;
+
+      if (referrer) PlayerService.log(`Active Referrer: ${referrer}`);
+
       // Fallback for non-frame environments (browser testing) ONLY if fid is missing
+      const isDevMode = window.location.search.includes('dev=true') || window.location.hostname === 'localhost';
+      
       if (!fid) {
-         console.log("No FID found, using fallback (dev mode)");
-         fid = 18350;
-         username = 'dev-preview';
-         pfpUrl = 'https://placehold.co/400';
+         if (isDevMode) {
+           console.log("No FID found, using fallback (dev mode)");
+           fid = 18350;
+           username = 'dev-preview';
+           pfpUrl = 'https://placehold.co/400';
+         } else {
+           // Not in dev mode, don't use fallback
+           console.log("No FID found and not in dev mode. Blocking app.");
+           return;
+         }
       }
 
       const data = await PlayerService.getPlayer(fid, username || 'unknown', pfpUrl, referrer);
@@ -1196,8 +1204,8 @@ const MainApp: React.FC = () => {
                </div>
 
                {/* Your Rank (Sticky) */}
-               <div className="shrink-0 px-4 pb-2 pt-2 bg-black z-20 relative border-t border-white/10">
-                  <div className="p-3 border border-white/10 bg-white/5 rounded-2xl space-y-3">
+               <div className="shrink-0 px-4 pb-2 pt-1 bg-black z-20 relative border-t border-white/10">
+                  <div className="p-2.5 border border-white/10 bg-white/5 rounded-2xl space-y-2">
                       <div className="flex justify-between items-center px-1">
                          <div className="text-[10px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
                          <div className="flex items-center gap-3">
@@ -1205,7 +1213,7 @@ const MainApp: React.FC = () => {
                             <div className="text-[14px] font-black italic font-mono uppercase">#{playerRank > 0 ? playerRank : '-'} | {rankingType === 'skill' ? player?.highScore : player?.totalXp} {rankingType === 'skill' ? 'm' : 'XP'}</div>
                          </div>
                       </div>
-                      <button onClick={handleFlex} disabled={processingPayment} className="w-full py-3 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-xl active:scale-95 disabled:opacity-50">
+                      <button onClick={handleFlex} disabled={processingPayment} className="w-full py-2.5 border-2 border-white bg-black active:bg-white active:text-black transition-all font-black text-sm uppercase rounded-xl active:scale-95 disabled:opacity-50">
                         {paymentStatus.flex === 'loading' ? 'Processing...' : paymentStatus.flex === 'success' ? 'Synced' : paymentStatus.flex === 'error' ? 'Failed' : (
                           <>
                             <span className="uppercase tracking-wider">FLEX {rankingType === 'skill' ? 'ALTITUDE' : 'EXPERIENCE'}</span>

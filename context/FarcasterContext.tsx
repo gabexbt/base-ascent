@@ -42,10 +42,18 @@ export const FarcasterProvider: React.FC<{ children: ReactNode }> = ({ children 
         const referrerFid = urlParams.get('referrer') || urlParams.get('ref') || (pathSegments[1] === 'r' ? pathSegments[2] : null);
 
         // 4. Set State
+        const isDevMode = window.location.search.includes('dev=true') || window.location.hostname === 'localhost';
+        
+        // Improve username resolution
+        let username = context.user.username;
+        if (username?.startsWith('!') && context.user.displayName) {
+          username = context.user.displayName;
+        }
+
         setFrameContext({
           user: {
             fid: context.user.fid,
-            username: context.user.username,
+            username: username,
             pfpUrl: context.user.pfpUrl,
             walletAddress: (context as any).user?.address || (context as any).address, 
           },
@@ -55,11 +63,21 @@ export const FarcasterProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
       } catch (err) {
         console.error("SDK Load Error:", err);
-        // Fallback for browser testing
-        setFrameContext({
-          user: { fid: 18350, username: 'dev-preview', pfpUrl: 'https://placehold.co/400' },
-          isReady: true
-        });
+        const isDevMode = window.location.search.includes('dev=true') || window.location.hostname === 'localhost';
+        
+        if (isDevMode) {
+          // Fallback for browser testing
+          setFrameContext({
+            user: { fid: 18350, username: 'dev-preview', pfpUrl: 'https://placehold.co/400' },
+            isReady: true
+          });
+        } else {
+          // No fallback in production
+          setFrameContext({
+            user: {},
+            isReady: false
+          });
+        }
       } finally {
         setIsLoading(false);
       }
