@@ -161,7 +161,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
                 <span className="self-start bg-white/10 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-white/20 whitespace-nowrap">
                   Lvl {currentLevel}
                 </span>
-                <p className="text-white/60 text-xs leading-snug mt-2 line-clamp-2">{config.description}</p>
+                <p className="text-white/60 text-xs leading-snug mt-2">{config.description}</p>
                 <div className="text-[10px] text-white/40 mt-1">
                   Current: <span className="text-white/80">{config.formatValue(currentValue)}</span>
                 </div>
