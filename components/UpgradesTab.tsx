@@ -101,7 +101,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
   };
 
   return (
-    <div className="flex flex-col w-full bg-black text-white p-4 pb-6">
+    <div className="flex flex-col w-full bg-black text-white p-4 pb-12">
       {/* Header */}
       <div className="flex items-center justify-between mb-6 bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm shrink-0">
         <div>
