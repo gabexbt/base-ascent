@@ -134,21 +134,35 @@ const MainApp: React.FC = () => {
   }, []);
 
   // Audio Management Effect
-   useEffect(() => {
-     if (isMuted) {
-       stopAudio();
-       stopLobbyAudio();
-       return;
-     }
+  useEffect(() => {
+    // If muted, ensure all audio is paused immediately
+    if (isMuted) {
+      if (audioRef.current) audioRef.current.pause();
+      if (lobbyAudioRef.current) lobbyAudioRef.current.pause();
+      return;
+    }
 
-     if (status === GameStatus.PLAYING) {
-       stopLobbyAudio();
-       playRandomTrack();
-     } else {
-       stopAudio();
-       playLobbyMusic();
-     }
-   }, [status, isMuted, playRandomTrack, playLobbyMusic, stopAudio, stopLobbyAudio]);
+    // If unmuted, resume the appropriate audio
+    if (status === GameStatus.PLAYING) {
+      // Pause lobby music if it's playing
+      if (lobbyAudioRef.current) lobbyAudioRef.current.pause();
+      
+      // If we have an active game track, play it. Otherwise start one.
+      if (audioRef.current) {
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch(e => console.log("Game audio resume failed:", e));
+        }
+      } else {
+        playRandomTrack();
+      }
+    } else {
+      // Pause game music if it's playing
+      if (audioRef.current) audioRef.current.pause();
+      
+      // Play lobby music
+      playLobbyMusic();
+    }
+  }, [status, isMuted, playRandomTrack, playLobbyMusic]);
  
    const { frameContext, isLoading: isFarcasterLoading } = useFarcaster();
    const { address } = useAccount();
@@ -651,13 +665,13 @@ const MainApp: React.FC = () => {
         await PlayerService.claimPassiveXp(player.fid);
         await loadData();
         
-        // Reset effect after animation
-        setTimeout(() => setShowClaimEffect(false), 2000);
+        // Success text display time
+        setTimeout(() => setShowClaimEffect(false), 1000);
       } catch (e) {
         console.error("Claim Error:", e);
       } finally {
-        // Cooldown before allowing another claim
-        setTimeout(() => setIsClaiming(false), 2000);
+        // Return to button state quickly
+        setTimeout(() => setIsClaiming(false), 1000);
       }
     }
   };
@@ -1057,14 +1071,6 @@ const MainApp: React.FC = () => {
         </div>
         <div className="text-right flex items-center gap-4">
           <div className="text-sm font-bold">${usdcBalanceFormatted} USDC</div>
-          {status !== GameStatus.PLAYING && (
-            <button 
-              onClick={() => setIsMuted(!isMuted)}
-              className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-black active:scale-90 transition-transform shadow-lg"
-            >
-              {isMuted ? <Icons.VolumeX size={16} /> : <Icons.Volume2 size={16} />}
-            </button>
-          )}
         </div>
       </header>
 
@@ -1073,6 +1079,18 @@ const MainApp: React.FC = () => {
         <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT ? 'pb-0' : 'pb-8'}`}>
           
           <ParticleBackground />
+
+          {/* Lobby Volume Toggle - Only on Ascent Page */}
+          {activeTab === Tab.ASCENT && status !== GameStatus.PLAYING && (
+            <div className="sticky top-4 self-end z-50 px-6 mb-[-32px]">
+              <button 
+                onClick={() => setIsMuted(!isMuted)}
+                className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-black active:scale-90 transition-transform shadow-lg"
+              >
+                {isMuted ? <Icons.VolumeX size={16} /> : <Icons.Volume2 size={16} />}
+              </button>
+            </div>
+          )}
 
           <div className="flex-1 flex flex-col relative w-full h-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
@@ -1253,17 +1271,22 @@ const MainApp: React.FC = () => {
                 {/* Main Miner Frame Container */}
                 <div className="w-full flex-1 flex flex-col gap-4 min-h-0">
                   
+                  {/* Airdrop Info Section */}
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] backdrop-blur-md shrink-0">
+                    <p className="text-[10px] leading-relaxed opacity-60 uppercase font-bold text-center">
+                      Unlocking your miner qualifies you for the Season 1 Airdrop. Upgrade your hardware to maximize your allocation and dominate the leaderboards.
+                    </p>
+                  </div>
+
                   {/* Top Stats Row */}
                   <div className="grid grid-cols-2 gap-3 shrink-0">
                     <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
-                      <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Current Level</div>
                       <div className="text-2xl font-black italic">LVL {player?.minerLevel || 0}</div>
                     </div>
                     <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
-                      <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Mining Rate</div>
-                      <div className="text-xl font-black italic text-green-400">{currentMiner.xpPerHour.toLocaleString()} XP/H</div>
+                      <div className="text-xl font-black italic text-green-400">{currentMiner.xpPerHour.toLocaleString()} XP / HOUR</div>
                     </div>
                   </div>
 
@@ -1303,18 +1326,10 @@ const MainApp: React.FC = () => {
 
                   {/* Earnings & Claim Section */}
                   <div className="p-6 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0">
-                    <div className="flex justify-between items-end px-2">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">ACCUMULATED EARNINGS</span>
-                        <div className={`text-4xl font-black italic tracking-tighter transition-all duration-300 ${showClaimEffect ? 'scale-110 text-green-400' : 'text-white'}`}>
-                          +{showClaimEffect ? lastClaimedAmount.toLocaleString() : passiveEarnings.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="text-right flex flex-col items-end">
-                        <span className="text-[10px] font-black text-green-400 mb-1">GEN XP</span>
-                        <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
-                          <div className="h-full bg-green-500 w-2/3 animate-pulse"></div>
-                        </div>
+                    <div className="flex flex-col items-center text-center px-2">
+                      <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">ACCUMULATED EARNINGS</span>
+                      <div className={`text-4xl font-black italic tracking-tighter transition-all duration-300 ${showClaimEffect ? 'scale-110 text-green-400' : 'text-white'}`}>
+                        +{showClaimEffect ? lastClaimedAmount.toLocaleString() : passiveEarnings.toLocaleString()}
                       </div>
                     </div>
 
@@ -1361,14 +1376,14 @@ const MainApp: React.FC = () => {
                        </div>
 
                        {/* Airdrop Status */}
-                       <div className="shrink-0 px-4 py-3 border border-white/10 bg-white/5 rounded-3xl space-y-2 text-left">
+                       <div className="shrink-0 px-4 py-3 border border-[#FFD700]/30 bg-[#FFD700]/5 rounded-3xl space-y-2 text-left shadow-[0_0_20px_rgba(255,215,0,0.1)]">
                           <div className="flex justify-between items-center mb-1">
-                             <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Airdrop Pool Status</div>
-                             <div className="text-[9px] font-black uppercase text-green-400">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}% FILLED</div>
+                             <div className="text-[9px] opacity-40 font-black uppercase tracking-widest text-[#FFD700]">Airdrop Pool Status</div>
+                             <div className="text-[9px] font-black uppercase text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.6)]">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}% FILLED</div>
                           </div>
-                          <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                          <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-[#FFD700]/20">
                              <div 
-                                className="h-full bg-gradient-to-r from-green-600 to-green-400 transition-all duration-1000 ease-out"
+                                className="h-full bg-gradient-to-r from-[#B8860B] via-[#FFD700] to-[#B8860B] transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(255,215,0,0.5)]"
                                 style={{ width: `${Math.min(100, (globalRevenue / 2000) * 100)}%` }}
                              ></div>
                           </div>
@@ -1401,13 +1416,17 @@ const MainApp: React.FC = () => {
                             </div>
                           ) : (
                             leaderboard.map((entry, idx) => (
-                              <div key={entry.fid} className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+                              <div 
+                                key={entry.fid} 
+                                className={`flex items-center justify-between p-4 rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-300 transition-all ${idx < 20 ? 'bg-white/10 border-2 border-white shadow-[0_0_20px_rgba(255,255,255,0.15)]' : 'bg-white/5 border border-white/10'}`} 
+                                style={{ animationDelay: `${idx * 50}ms` }}
+                              >
                                 <div className="flex items-center gap-4">
-                                  <span className="text-[10px] font-black opacity-30">{idx + 1}</span>
-                                  <img src={entry.pfpUrl || `https://picsum.photos/seed/${entry.fid}/32/32`} className="w-8 h-8 rounded-full opacity-60 border border-white/10" alt="" />
-                                  <div className="text-sm font-bold">@{entry.username?.replace(/\.base\.eth$/, '')}</div>
+                                  <span className={`text-[10px] font-black ${idx < 20 ? 'text-white' : 'opacity-30'}`}>{idx + 1}</span>
+                                  <img src={entry.pfpUrl || `https://picsum.photos/seed/${entry.fid}/32/32`} className={`w-8 h-8 rounded-full border border-white/10 ${idx < 20 ? 'opacity-100 scale-110' : 'opacity-60'}`} alt="" />
+                                  <div className={`text-sm font-bold ${idx < 20 ? 'text-white' : ''}`}>@{entry.username?.replace(/\.base\.eth$/, '')}</div>
                                 </div>
-                                <div className="text-lg font-black italic">{rankingType === 'skill' ? entry.highScore : entry.totalXp.toLocaleString()}</div>
+                                <div className={`text-lg font-black italic ${idx < 20 ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]' : ''}`}>{rankingType === 'skill' ? entry.highScore : entry.totalXp.toLocaleString()}</div>
                               </div>
                             ))
                           )}
@@ -1475,7 +1494,7 @@ const MainApp: React.FC = () => {
                   <div onClick={handleCopy} className="p-4 bg-white/5 border border-white/20 rounded-2xl text-[9px] opacity-40 text-center tracking-widest uppercase cursor-pointer hover:bg-white/10 transition-all active:scale-98">
                     {copied ? 'COPIED!' : `base-ascent.vercel.app/r/${player?.username || player?.fid}`}
                   </div>
-                  <p className="text-[8px] opacity-30 text-center mt-2 italic px-4 uppercase font-bold">You earn 20% of all XP generated by your recruits hardware automatically.</p>
+                  <p className="text-[8px] opacity-30 text-center mt-2 italic px-4 uppercase font-bold">You earn 20% of all XP generated by your recruit's hardware automatically.</p>
                </div>
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
                   <h3 className="text-2xl font-black italic opacity-40 text-center mb-5 tracking-widest">TASKS</h3>
