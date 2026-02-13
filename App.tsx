@@ -113,7 +113,7 @@ const MainApp: React.FC = () => {
     if (lobbyAudioRef.current && !lobbyAudioRef.current.paused) return;
 
     if (!lobbyAudioRef.current) {
-      const audio = new Audio('/audio/lobby.mp3');
+      const audio = new Audio('/audio/lobby_music.mp3');
       audio.volume = 0.12;
       audio.loop = true;
       lobbyAudioRef.current = audio;
@@ -124,14 +124,16 @@ const MainApp: React.FC = () => {
         console.log("Lobby audio play failed:", e);
         // Fallback for browsers that block autoplay: try again on first interaction
         const playOnInteraction = () => {
-          if (lobbyAudioRef.current && !isMuted) {
+          if (lobbyAudioRef.current && !isMuted && lobbyAudioRef.current.paused) {
             lobbyAudioRef.current.play().catch(e => console.log("Lobby retry failed:", e));
           }
           window.removeEventListener('mousedown', playOnInteraction);
           window.removeEventListener('touchstart', playOnInteraction);
+          window.removeEventListener('click', playOnInteraction);
         };
         window.addEventListener('mousedown', playOnInteraction);
         window.addEventListener('touchstart', playOnInteraction);
+        window.addEventListener('click', playOnInteraction);
       });
     }
   }, [isMuted]);
@@ -186,13 +188,13 @@ const MainApp: React.FC = () => {
    const { isPending } = useCasterContract();
 
    useEffect(() => {
-     // Preload audio tracks
-     const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3', '/audio/lobby.mp3'];
-     tracks.forEach(src => {
-       const audio = new Audio(src);
-       audio.preload = 'auto';
-     });
-   }, []);
+    // Preload audio tracks
+    const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3', '/audio/lobby_music.mp3'];
+    tracks.forEach(src => {
+      const audio = new Audio(src);
+      audio.preload = 'auto';
+    });
+  }, []);
 
   const { data: usdcBalance } = useBalance({
     address: address,
@@ -1098,8 +1100,8 @@ const MainApp: React.FC = () => {
           
           <ParticleBackground />
 
-          {/* Lobby Volume Toggle - Only on Ascent Page */}
-          {activeTab === Tab.ASCENT && status !== GameStatus.PLAYING && (
+          {/* Lobby Volume Toggle - Only on Ascent Front Page (IDLE state) */}
+          {activeTab === Tab.ASCENT && status === GameStatus.IDLE && activeTab !== Tab.RANKINGS && activeTab !== Tab.UPGRADES && activeTab !== Tab.HARDWARE && activeTab !== Tab.PROFILE && (
             <div className="sticky top-4 self-end z-50 px-6 mb-[-32px]">
               <button 
                 onClick={() => setIsMuted(!isMuted)}
@@ -1277,8 +1279,8 @@ const MainApp: React.FC = () => {
               />
             ) : activeTab === Tab.HARDWARE ? (
               <div className="flex-1 flex flex-col items-center pb-12 p-4 w-full h-full">
-                <div className="w-full flex justify-between items-center mb-6">
-                  <h2 className="text-3xl font-black italic tracking-tighter uppercase">Auto Miner</h2>
+                <div className="w-full flex justify-between items-end mb-2">
+                  <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Auto Miner</h2>
                   <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
                     <div className={`w-2 h-2 rounded-full ${player?.minerLevel > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                     <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
@@ -1288,7 +1290,7 @@ const MainApp: React.FC = () => {
                 </div>
 
                 {/* Main Miner Frame Container */}
-                <div className="w-full flex-1 flex flex-col gap-4 min-h-0">
+                <div className="w-full flex-1 flex flex-col gap-2 min-h-0">
                   
                   {/* Airdrop Info Section */}
                   <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] backdrop-blur-md shrink-0">
@@ -1298,12 +1300,12 @@ const MainApp: React.FC = () => {
                   </div>
 
                   {/* Top Stats Row */}
-                  <div className="grid grid-cols-2 gap-3 shrink-0">
-                    <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
+                  <div className="grid grid-cols-2 gap-2 shrink-0">
+                    <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md">
                       <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Current Level</div>
                       <div className="text-xl font-black italic">LEVEL {player?.minerLevel || 0}</div>
                     </div>
-                    <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
+                    <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md">
                       <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Mining Rate</div>
                       <div className="text-lg font-black italic text-green-400">{currentMiner.xpPerHour.toLocaleString()} XP / HOUR</div>
                     </div>
@@ -1383,7 +1385,7 @@ const MainApp: React.FC = () => {
             <div className="flex flex-col w-full h-full relative">
                {/* Scrollable List Wrapper */}
                <div className="flex-1 relative min-h-0">
-                   <div className="h-full overflow-y-auto pb-6 custom-scrollbar px-4 pt-6 space-y-4">
+                   <div className="h-full overflow-y-auto pb-6 custom-scrollbar px-4 pt-4 space-y-3">
                        
                        {/* Header & Controls */}
                        <div className="flex justify-between items-center w-full shrink-0">
@@ -1394,24 +1396,24 @@ const MainApp: React.FC = () => {
                           </div>
                        </div>
 
-                       {/* Airdrop Status */}
-                       <div className="shrink-0 px-4 py-3 border border-[#FFD700] bg-[#FFD700]/10 rounded-3xl space-y-2 text-left shadow-[0_0_25px_rgba(255,215,0,0.3)]">
-                          <div className="flex justify-between items-center mb-1">
-                             <div className="text-[9px] opacity-60 font-black uppercase tracking-widest text-[#FFD700]">Airdrop Pool Status</div>
-                             <div className="text-[9px] font-black uppercase text-[#FFD700] drop-shadow-[0_0_12px_rgba(255,215,0,0.8)]">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}% FILLED</div>
-                          </div>
-                          <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-[#FFD700]/40">
-                             <div 
-                                className="h-full bg-gradient-to-r from-[#FFD700] via-[#FFFACD] to-[#FFD700] transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(255,215,0,0.8)]"
-                                style={{ width: `${Math.min(100, (globalRevenue / 2000) * 100)}%` }}
-                             ></div>
-                          </div>
-                       </div>
+                        {/* Airdrop Status */}
+                        <div className="shrink-0 px-4 py-2 border border-[#FFD700]/20 bg-[#FFD700]/5 rounded-3xl space-y-1 text-left">
+                           <div className="flex justify-between items-center">
+                              <div className="text-[9px] font-black uppercase tracking-widest text-[#FFD700]">Airdrop Pool Status</div>
+                              <div className="text-[9px] font-black uppercase text-[#FFD700]">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}% FILLED</div>
+                           </div>
+                           <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-[#FFD700]/10">
+                              <div 
+                                 className="h-full bg-gradient-to-r from-[#B8860B] via-[#FFD700] to-[#B8860B] transition-all duration-1000 ease-out"
+                                 style={{ width: `${Math.min(100, (globalRevenue / 2000) * 100)}%` }}
+                              ></div>
+                           </div>
+                        </div>
 
                        {/* Rules */}
-                       <div className="shrink-0 px-4 py-3 border border-white/10 bg-white/5 rounded-3xl space-y-2 text-left">
+                       <div className="shrink-0 px-4 py-2.5 border border-white/10 bg-white/5 rounded-3xl space-y-1.5 text-left">
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-white"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
                             <h3 className="text-[10px] font-black uppercase tracking-widest opacity-80">LEADERBOARD RULES</h3>
                           </div>
                           <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
@@ -1490,9 +1492,9 @@ const MainApp: React.FC = () => {
                   <h3 className="text-2xl font-black italic uppercase opacity-40 mb-5 tracking-widest">STATS</h3>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-6 w-full text-center">
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Altitude Record</span><span className="text-xl font-black italic block">{player?.highScore || 0} Meters</span></div>
-                     <div className="relative group overflow-hidden rounded-2xl p-2 bg-white/5 border border-white/5 hover:border-white/20 transition-all">
-                        <span className="text-[9px] font-black opacity-30 uppercase relative z-10">Miner Level</span>
-                        <span className="text-xl font-black italic block relative z-10">LVL {player?.minerLevel || 0}</span>
+                     <div>
+                        <span className="text-[9px] font-black opacity-30 uppercase">Miner Level</span>
+                        <span className="text-xl font-black italic block">LVL {player?.minerLevel || 0}</span>
                      </div>
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Total XP</span><span className="text-xl font-black italic block">{player?.totalXp.toLocaleString()}</span></div>
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Total Games</span><span className="text-xl font-black italic block">{player?.totalRuns}</span></div>
