@@ -70,7 +70,6 @@ const MainApp: React.FC = () => {
   const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
   const [globalRevenue, setGlobalRevenue] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
-  const [isMusicMuted, setIsMusicMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lobbyAudioRef = useRef<HTMLAudioElement | null>(null);
   const gameRef = useRef<{ endGame: () => void }>(null);
@@ -91,7 +90,7 @@ const MainApp: React.FC = () => {
 
 
   const playRandomTrack = useCallback(() => {
-    if (isMusicMuted || isMuted) return;
+    if (isMuted) return;
     const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
     const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
     
@@ -104,10 +103,10 @@ const MainApp: React.FC = () => {
     audio.loop = true;
     audio.play().catch(e => console.log("Game audio play failed:", e));
     audioRef.current = audio;
-  }, [isMusicMuted, isMuted]);
+  }, [isMuted]);
 
   const playLobbyMusic = useCallback(() => {
-    if (isMusicMuted || isMuted) return;
+    if (isMuted) return;
     if (lobbyAudioRef.current && !lobbyAudioRef.current.paused) return;
 
     if (!lobbyAudioRef.current) {
@@ -118,7 +117,7 @@ const MainApp: React.FC = () => {
     }
     
     lobbyAudioRef.current.play().catch(e => console.log("Lobby audio play failed:", e));
-  }, [isMusicMuted, isMuted]);
+  }, [isMuted]);
 
   const stopAudio = useCallback(() => {
     if (audioRef.current) {
@@ -136,6 +135,12 @@ const MainApp: React.FC = () => {
 
   // Audio Management Effect
    useEffect(() => {
+     if (isMuted) {
+       stopAudio();
+       stopLobbyAudio();
+       return;
+     }
+
      if (status === GameStatus.PLAYING) {
        stopLobbyAudio();
        playRandomTrack();
@@ -143,7 +148,7 @@ const MainApp: React.FC = () => {
        stopAudio();
        playLobbyMusic();
      }
-   }, [status, isMusicMuted, isMuted, playRandomTrack, playLobbyMusic, stopAudio, stopLobbyAudio]);
+   }, [status, isMuted, playRandomTrack, playLobbyMusic, stopAudio, stopLobbyAudio]);
  
    const { frameContext, isLoading: isFarcasterLoading } = useFarcaster();
    const { address } = useAccount();
@@ -1054,10 +1059,10 @@ const MainApp: React.FC = () => {
           <div className="text-sm font-bold">${usdcBalanceFormatted} USDC</div>
           {status !== GameStatus.PLAYING && (
             <button 
-              onClick={() => setIsMusicMuted(!isMusicMuted)}
+              onClick={() => setIsMuted(!isMuted)}
               className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-black active:scale-90 transition-transform shadow-lg"
             >
-              {isMusicMuted ? <Icons.VolumeX size={16} /> : <Icons.Volume2 size={16} />}
+              {isMuted ? <Icons.VolumeX size={16} /> : <Icons.Volume2 size={16} />}
             </button>
           )}
         </div>
@@ -1217,14 +1222,6 @@ const MainApp: React.FC = () => {
 
                       <div className="grid grid-cols-2 gap-4 w-full max-w-[280px]">
                         <div className="p-3 bg-white/5 border border-white/10 rounded-[1.5rem] flex flex-col items-center backdrop-blur-md relative overflow-hidden group">
-                          {/* Mini Miner Image Background */}
-                          <div className="absolute -right-2 -bottom-2 w-12 h-12 opacity-10 group-hover:opacity-20 transition-opacity rotate-12">
-                             <img 
-                               src={player?.minerLevel === 0 ? "/assets/miner/locked_miner.png" : `/assets/miner/miner_lvl_${player?.minerLevel}.png`}
-                               className="w-full h-full object-contain"
-                               alt=""
-                             />
-                          </div>
                           <div className="text-[8px] opacity-30 uppercase font-black relative z-10">Miner Level</div>
                           <div className="text-lg font-black italic relative z-10">LVL {player?.minerLevel || 0}</div>
                         </div>
@@ -1244,92 +1241,105 @@ const MainApp: React.FC = () => {
                 isProcessing={processingPayment} 
               />
             ) : activeTab === Tab.HARDWARE ? (
-              <div className="flex-1 flex flex-col gap-6 items-center pb-10 p-5 w-full">
-                <h2 className="text-4xl font-black italic tracking-tighter uppercase text-center w-full">Hardware</h2>
-              <div className="p-5 border border-white/10 bg-white/5 rounded-3xl space-y-2 w-full text-center shrink-0">
-                <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">AUTO MINER</h3>
-                <p className="text-[10px] leading-relaxed opacity-40 uppercase font-bold">Upgrade your miner to farm more XP to reach the leaderboard and qualify for the airdrop.</p>
-              </div>
-              <div className="p-8 border border-white/10 bg-white/5 rounded-[40px] w-full flex-1 flex flex-col items-center justify-center gap-6 shrink-0 relative overflow-hidden">
-                {/* Active Miner Image Section */}
-                <div className="relative group">
-                  {/* Glow Effect */}
-                  <div className={`absolute inset-0 bg-white/10 blur-3xl rounded-full transition-all duration-1000 ${player?.minerLevel === 0 ? 'opacity-0' : 'opacity-100 animate-pulse'}`}></div>
-                  
-                  <div className={`w-32 h-32 relative z-10 flex items-center justify-center ${player?.minerLevel === 0 ? 'opacity-30 grayscale' : 'drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]'}`}>
-                    <img 
-                      src={player?.minerLevel === 0 ? "/assets/miner/locked_miner.png" : `/assets/miner/miner_lvl_${player?.minerLevel}.png`}
-                      alt={`Miner Level ${player?.minerLevel}`}
-                      className={`w-full h-full object-contain transition-transform duration-500 ${player?.minerLevel > 0 ? 'group-hover:scale-110' : ''}`}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
-                      }}
-                    />
-                    <div className="fallback-icon hidden absolute">
-                      <Icons.Hardware />
-                    </div>
+              <div className="flex-1 flex flex-col items-center pb-10 p-4 w-full h-full">
+                <div className="w-full flex justify-between items-center mb-6">
+                  <h2 className="text-3xl font-black italic tracking-tighter uppercase">Miner</h2>
+                  <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60">ACTIVE</span>
                   </div>
                 </div>
 
-                {player?.minerLevel === 0 ? (
-                  <div className="flex flex-col items-center gap-6 w-full text-center">
-                    <div className="space-y-2">
-                      <div className="text-xl font-black italic uppercase">MINER STATUS: LOCKED</div>
-                      <p className="text-[10px] opacity-40 font-bold uppercase px-6 leading-relaxed">Unlock to start earning XP passively.</p>
+                {/* Main Miner Frame Container */}
+                <div className="w-full flex-1 flex flex-col gap-4 min-h-0">
+                  
+                  {/* Top Stats Row */}
+                  <div className="grid grid-cols-2 gap-3 shrink-0">
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Current Level</div>
+                      <div className="text-2xl font-black italic">LVL {player?.minerLevel || 0}</div>
                     </div>
-                    <button onClick={() => handleUpgradeMiner(1)} disabled={processingPayment} className="w-full py-6 bg-white text-black font-black text-xl uppercase rounded-3xl active:scale-95 transition-all disabled:opacity-50 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                      {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'Success' : paymentStatus.miner === 'error' ? 'Failed' : 'Unlock Miner ($0.99)'}
-                    </button>
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
+                      <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Mining Rate</div>
+                      <div className="text-xl font-black italic text-green-400">{currentMiner.xpPerHour.toLocaleString()} XP/H</div>
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-4 w-full">
-                      <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center justify-center backdrop-blur-md">
-                        <div className="text-[9px] opacity-40 font-black uppercase tracking-wider mb-1">Status</div>
-                        <div className="text-2xl font-black italic">LVL {player?.minerLevel}</div>
-                      </div>
-                      <div className="p-4 bg-white/5 border border-white/10 rounded-3xl flex flex-col items-center justify-center backdrop-blur-md">
-                        <div className="text-[9px] opacity-40 font-black uppercase tracking-wider mb-1">Rate</div>
-                        <div className="text-xl font-black italic text-center">{currentMiner.xpPerHour.toLocaleString()} XP/HR</div>
-                      </div>
-                    </div>
+
+                  {/* Central Miner Frame - Horizontal Layout */}
+                  <div className="flex-1 min-h-[200px] border-2 border-white/20 bg-black/40 rounded-[2.5rem] p-6 flex items-center justify-center relative overflow-hidden shadow-[inset_0_0_50px_rgba(255,255,255,0.05)]">
+                    {/* Frame Accents */}
+                    <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-white/30 rounded-tl-xl"></div>
+                    <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-white/30 rounded-tr-xl"></div>
+                    <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-white/30 rounded-bl-xl"></div>
+                    <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-white/30 rounded-br-xl"></div>
                     
-                    <div className="w-full p-8 bg-black/40 border border-white/10 rounded-[32px] flex flex-col justify-center gap-2 items-center text-center shrink-0 backdrop-blur-md relative overflow-hidden group/claim">
-                      {/* Background claim glow */}
-                      <div className={`absolute inset-0 bg-green-500/5 opacity-0 group-hover/claim:opacity-100 transition-opacity duration-500 pointer-events-none ${showClaimEffect ? 'opacity-20' : ''}`}></div>
-                      
-                      <div className="text-xs opacity-40 font-black uppercase tracking-widest relative z-10">Unclaimed Earnings</div>
-                      <div className={`text-4xl font-black italic text-center tracking-tighter transition-all duration-300 relative z-10 ${showClaimEffect ? 'scale-110 text-green-400' : 'text-white'}`}>
-                        +{showClaimEffect ? lastClaimedAmount : passiveEarnings}
+                    {/* Scanning Line Effect */}
+                    <div className="absolute inset-x-0 h-[1px] bg-white/10 top-1/2 -translate-y-1/2 animate-scan pointer-events-none"></div>
+
+                    {/* Miner Image */}
+                    <div className="relative group">
+                      <div className={`absolute inset-0 bg-white/10 blur-3xl rounded-full transition-all duration-1000 ${player?.minerLevel === 0 ? 'opacity-0' : 'opacity-100 animate-pulse'}`}></div>
+                      <div className={`w-48 h-48 relative z-10 flex items-center justify-center ${player?.minerLevel === 0 ? 'opacity-30 grayscale' : 'drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]'}`}>
+                        <img 
+                          src={player?.minerLevel === 0 ? "/assets/miner/locked_miner.png" : `/assets/miner/miner_lvl_${player?.minerLevel}.png`}
+                          alt={`Miner Level ${player?.minerLevel}`}
+                          className={`w-full h-full object-contain transition-transform duration-700 ${player?.minerLevel > 0 ? 'group-hover:scale-110' : ''}`}
+                        />
                       </div>
-                      <div className="text-xs font-bold uppercase opacity-30 relative z-10">XP Generated</div>
-                      <button 
-                        onClick={handleClaim} 
-                        disabled={passiveEarnings === 0 || isClaiming} 
-                        className={`mt-4 w-full py-4 font-black text-lg rounded-2xl active:scale-95 disabled:opacity-20 transition-all uppercase relative z-10 ${showClaimEffect ? 'bg-green-400 text-black shadow-[0_0_30px_rgba(74,222,128,0.3)]' : 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'}`}
-                      >
-                        {isClaiming ? 'Claiming...' : showClaimEffect ? 'Success!' : 'Claim to Wallet'}
-                      </button>
                     </div>
 
-                    <div className="w-full">
-                      {nextMiner ? (
-                        <button onClick={() => handleUpgradeMiner(player.minerLevel + 1)} disabled={processingPayment} className="w-full py-5 border-2 border-white font-black text-lg hover:bg-white hover:text-black transition-all rounded-3xl disabled:opacity-50 uppercase shadow-[0_0_20px_rgba(255,255,255,0.05)]">
-                          {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'Success' : paymentStatus.miner === 'error' ? 'Failed' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
+                    {player?.minerLevel === 0 && (
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center p-8 text-center z-20">
+                        <div className="text-xl font-black italic uppercase mb-2">SYSTEM LOCKED</div>
+                        <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed mb-6">Unlock hardware to begin automated XP extraction.</p>
+                        <button onClick={() => handleUpgradeMiner(1)} disabled={processingPayment} className="px-8 py-4 bg-white text-black font-black text-sm uppercase rounded-2xl active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                          {paymentStatus.miner === 'loading' ? 'INITIALIZING...' : 'UNLOCK SYSTEM ($0.99)'}
                         </button>
-                      ) : (
-                        <div className="py-5 border-2 border-dashed border-white/20 text-center opacity-30 font-black rounded-3xl uppercase">Max Level Reached</div>
-                      )}
-                    </div>
-                    {paymentStatus.miner === 'error' && paymentError && (
-                      <div className="text-[9px] font-bold uppercase text-red-400 px-2">{paymentError}</div>
+                      </div>
                     )}
-                  </>
-                )}
+                  </div>
+
+                  {/* Earnings & Claim Section */}
+                  <div className="p-6 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0">
+                    <div className="flex justify-between items-end px-2">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">ACCUMULATED EARNINGS</span>
+                        <div className={`text-4xl font-black italic tracking-tighter transition-all duration-300 ${showClaimEffect ? 'scale-110 text-green-400' : 'text-white'}`}>
+                          +{showClaimEffect ? lastClaimedAmount.toLocaleString() : passiveEarnings.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end">
+                        <span className="text-[10px] font-black text-green-400 mb-1">GEN XP</span>
+                        <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-green-500 w-2/3 animate-pulse"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={handleClaim} 
+                      disabled={passiveEarnings === 0 || isClaiming || player?.minerLevel === 0} 
+                      className={`w-full py-5 font-black text-xl rounded-[1.5rem] active:scale-95 disabled:opacity-20 transition-all uppercase relative overflow-hidden group/btn ${showClaimEffect ? 'bg-green-500 text-black shadow-[0_0_40px_rgba(34,197,94,0.4)]' : 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'}`}
+                    >
+                      <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 italic"></div>
+                      {isClaiming ? 'CLAIMING...' : showClaimEffect ? 'SUCCESS!' : 'CLAIM XP'}
+                    </button>
+
+                    {player?.minerLevel > 0 && nextMiner && (
+                      <button 
+                        onClick={() => handleUpgradeMiner(player.minerLevel + 1)} 
+                        disabled={processingPayment} 
+                        className="w-full py-3 border border-white/20 text-white/40 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/5 transition-all"
+                      >
+                        {paymentStatus.miner === 'loading' ? 'UPGRADING...' : `UPGRADE TO LVL ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ) : activeTab === Tab.RANKINGS ? (
+            ) : activeTab === Tab.RANKINGS ? (
             <div className="flex flex-col w-full h-full relative">
                {/* Scrollable List Wrapper */}
                <div className="flex-1 relative min-h-0">
@@ -1437,14 +1447,6 @@ const MainApp: React.FC = () => {
                   <div className="grid grid-cols-2 gap-x-2 gap-y-6 w-full text-center">
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Altitude Record</span><span className="text-xl font-black italic block">{player?.highScore || 0} Meters</span></div>
                      <div className="relative group overflow-hidden rounded-2xl p-2 bg-white/5 border border-white/5 hover:border-white/20 transition-all">
-                        {/* Mini Miner Background for Profile */}
-                        <div className="absolute right-0 bottom-0 w-10 h-10 opacity-10 rotate-6 group-hover:scale-110 transition-transform">
-                          <img 
-                            src={player?.minerLevel === 0 ? "/assets/miner/locked_miner.png" : `/assets/miner/miner_lvl_${player?.minerLevel}.png`}
-                            className="w-full h-full object-contain"
-                            alt=""
-                          />
-                        </div>
                         <span className="text-[9px] font-black opacity-30 uppercase relative z-10">Miner Level</span>
                         <span className="text-xl font-black italic block relative z-10">LVL {player?.minerLevel || 0}</span>
                      </div>
