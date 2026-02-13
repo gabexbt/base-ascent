@@ -31,6 +31,7 @@ const MainApp: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>(Tab.ASCENT);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showNeynarGuide, setShowNeynarGuide] = useState(false);
   const [status, setStatus] = useState<GameStatus>(GameStatus.IDLE);
   const [player, setPlayer] = useState<Player | null>(null);
@@ -77,7 +78,7 @@ const MainApp: React.FC = () => {
     const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
     
     const audio = new Audio(randomTrack);
-    audio.volume = 0.15;
+    audio.volume = 0.075;
     audio.loop = true;
     
     if (!isMuted) {
@@ -91,7 +92,7 @@ const MainApp: React.FC = () => {
 
     if (!lobbyAudioRef.current) {
       const audio = new Audio('/audio/lobby_music.mp3');
-      audio.volume = 0.12;
+      audio.volume = 0.06;
       audio.loop = true;
       lobbyAudioRef.current = audio;
     }
@@ -1210,16 +1211,16 @@ const MainApp: React.FC = () => {
                   </div>
                 ) : status === GameStatus.IDLE ? (
                   <div className="flex-1 flex flex-col items-center text-center w-full px-5 py-4 h-full justify-between overflow-hidden">
-                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0">
-                      <div className="w-full h-auto max-h-[25vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
-                         <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.5]" alt="ASCENT" />
+                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-10">
+                      <div className="w-full h-auto max-h-[28vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
+                         <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.7]" alt="ASCENT" />
                       </div>
-                      <p className="text-[10px] opacity-40 uppercase tracking-[0.4em] font-black mt-4">ASCEND TO NEW HEIGHTS</p>
+                      <p className="text-[10px] opacity-40 uppercase tracking-[0.4em] font-black mt-8">ASCEND TO NEW HEIGHTS</p>
                     </div>
-                    <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-4">
+                    <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-6 mt-auto">
                        
                       {/* Ascents Counter */}
-                      <div className="flex flex-col items-center gap-1">
+                      <div className="flex flex-col items-center gap-1 mb-2">
                         <span className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Ascents Available</span>
                         <span className={`text-4xl font-black ${player?.ascentsRemaining === 0 ? 'text-red-500' : 'text-white'} drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-colors duration-300`}>
                           {player?.ascentsRemaining ?? 0}
@@ -1254,12 +1255,12 @@ const MainApp: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-4 w-full max-w-[280px]">
-                        <div className="p-3 bg-white/5 border border-white/10 rounded-[1.5rem] flex flex-col items-center backdrop-blur-md relative overflow-hidden group">
+                      <div className="grid grid-cols-2 gap-4 w-full max-w-[280px] h-20">
+                        <div className="bg-white/5 border border-white/10 rounded-[1.2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
                           <div className="text-[8px] opacity-30 uppercase font-black relative z-10">Miner Level</div>
                           <div className="text-lg font-black italic relative z-10">LVL {player?.minerLevel || 0}</div>
                         </div>
-                        <div className="p-3 bg-white/5 border border-white/10 rounded-[1.5rem] flex flex-col items-center backdrop-blur-md">
+                        <div className="bg-white/5 border border-white/10 rounded-[1.2rem] flex flex-col items-center justify-center backdrop-blur-md">
                           <div className="text-[8px] opacity-30 uppercase font-black">High Score</div>
                           <div className="text-lg font-black italic">{player?.highScore || 0} m</div>
                         </div>
@@ -1398,7 +1399,7 @@ const MainApp: React.FC = () => {
                            {/* Airdrop Status */}
                            <div className="px-4 py-3 border border-[#FFD700]/20 bg-[#FFD700]/5 rounded-3xl space-y-2 flex flex-col justify-center">
                               <div className="flex justify-between items-center">
-                                 <div className="text-[8px] font-black uppercase tracking-widest text-[#FFD700]">Pool Status</div>
+                                 <div className="text-[8px] font-black uppercase tracking-widest text-[#FFD700]">Airdrop Status</div>
                                  <div className="text-[8px] font-black uppercase text-[#FFD700]">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}%</div>
                               </div>
                               <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-[#FFD700]/10">
@@ -1415,8 +1416,8 @@ const MainApp: React.FC = () => {
                                  <div className="text-[8px] font-black uppercase tracking-widest opacity-40">Total Players</div>
                                  <div className="text-xl font-black italic tabular-nums leading-none mt-1">{totalPlayers.toLocaleString()}</div>
                               </div>
-                              <div className="p-2 bg-white/5 rounded-xl border border-white/5">
-                                 <Icons.Users size={16} className="opacity-40" />
+                              <div className="w-8 h-8 shrink-0">
+                                 <img src="/assets/icons/users.png" className="w-full h-full object-contain opacity-60" alt="Users" />
                               </div>
                            </div>
                         </div>
@@ -1547,27 +1548,54 @@ const MainApp: React.FC = () => {
                   </div>
                </div>
 
-               {/* Mobile Debug Console - Remove or set DEBUG=false before public launch */}
-               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] mt-4">
+               {/* FAQ Section */}
+               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] mt-2 mb-4">
                   <div className="flex items-center justify-between mb-4 px-2">
-                    <h3 className="text-[10px] font-black uppercase opacity-30 tracking-widest">DEBUG CONSOLE</h3>
-                    <button 
-                      onClick={() => setDebugRefresh(prev => prev + 1)}
-                      className="text-[9px] font-bold bg-white/10 px-2 py-1 rounded-lg active:scale-95"
-                    >
-                      REFRESH
-                    </button>
+                    <h3 className="text-[10px] font-black uppercase opacity-30 tracking-widest">Base Ascent FAQ</h3>
                   </div>
-                  <div className="bg-black/50 p-4 rounded-xl font-mono text-[9px] text-green-400 h-32 overflow-y-auto space-y-1 border border-white/5">
-                    {PlayerService.logs.length === 0 ? (
-                      <div className="opacity-30 italic text-center py-4">No logs yet...</div>
-                    ) : (
-                      PlayerService.logs.map((log, i) => (
-                        <div key={i} className="break-all border-b border-white/5 pb-1 last:border-0">{log}</div>
-                      ))
-                    )}
+                  
+                  <div className="space-y-2">
+                    {[
+                      {
+                        q: "How do I play Base Ascent?",
+                        a: "Reach the highest altitude possible by perfectly stacking your blocks with precise timing. The altitude leaderboard ranks you strictly based on your highest single run score. The higher your score the higher you can climb the leaderboards."
+                      },
+                      {
+                        q: "What do I get from unlocking the Miner?",
+                        a: "Unlocking the Miner qualifies you for the Season 1 Airdrop and allows you to earn XP passively. The higher the level of your Miner the higher the allocation you might get on the airdrop."
+                      },
+                      {
+                        q: "How do I qualify for rewards?",
+                        a: "You qualify for rewards by placing in the top 20 of either the Altitude or Experience leaderboards. Both leaderboards reward the top 20 players with USDC from the pool."
+                      },
+                      {
+                        q: "How do referrals work?",
+                        a: "You automatically earn 20% of all XP generated by your recruits hardware. Your profile dashboard updates automatically with your total referrals and bonus XP whenever your recruits claim their earnings."
+                      }
+                    ].map((faq, i) => (
+                      <div key={i} className="border border-white/5 rounded-2xl overflow-hidden bg-black/20">
+                        <button 
+                          onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                          className="w-full px-4 py-3 flex items-center justify-between text-left active:bg-white/5 transition-colors"
+                        >
+                          <span className="text-[11px] font-bold text-white/80">{faq.q}</span>
+                          <svg 
+                            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" 
+                            className={`transition-transform duration-300 opacity-30 ${openFaq === i ? 'rotate-180' : ''}`}
+                          >
+                            <path d="m6 9 6 6 6-6"/>
+                          </svg>
+                        </button>
+                        {openFaq === i && (
+                          <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-200">
+                            <p className="text-[10px] leading-relaxed text-white/50 font-medium">
+                              {faq.a}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="text-[8px] opacity-30 text-center mt-2">Screenshots of this help debug referral issues.</div>
                </div>
             </div>
           )}
