@@ -90,23 +90,26 @@ const MainApp: React.FC = () => {
 
 
   const playRandomTrack = useCallback(() => {
-    if (isMuted) return;
-    const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
-    const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
-    
+    // Stop any existing game audio first to prevent overlap
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current = null;
     }
+
+    const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
+    const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
     
     const audio = new Audio(randomTrack);
     audio.volume = 0.15;
     audio.loop = true;
-    audio.play().catch(e => console.log("Game audio play failed:", e));
+    
+    if (!isMuted) {
+      audio.play().catch(e => console.log("Game audio play failed:", e));
+    }
     audioRef.current = audio;
   }, [isMuted]);
 
   const playLobbyMusic = useCallback(() => {
-    if (isMuted) return;
     if (lobbyAudioRef.current && !lobbyAudioRef.current.paused) return;
 
     if (!lobbyAudioRef.current) {
@@ -116,7 +119,21 @@ const MainApp: React.FC = () => {
       lobbyAudioRef.current = audio;
     }
     
-    lobbyAudioRef.current.play().catch(e => console.log("Lobby audio play failed:", e));
+    if (!isMuted) {
+      lobbyAudioRef.current.play().catch(e => {
+        console.log("Lobby audio play failed:", e);
+        // Fallback for browsers that block autoplay: try again on first interaction
+        const playOnInteraction = () => {
+          if (lobbyAudioRef.current && !isMuted) {
+            lobbyAudioRef.current.play().catch(e => console.log("Lobby retry failed:", e));
+          }
+          window.removeEventListener('mousedown', playOnInteraction);
+          window.removeEventListener('touchstart', playOnInteraction);
+        };
+        window.addEventListener('mousedown', playOnInteraction);
+        window.addEventListener('touchstart', playOnInteraction);
+      });
+    }
   }, [isMuted]);
 
   const stopAudio = useCallback(() => {
@@ -133,7 +150,6 @@ const MainApp: React.FC = () => {
     }
   }, []);
 
-  // Audio Management Effect
   useEffect(() => {
     // If muted, ensure all audio is paused immediately
     if (isMuted) {
@@ -145,16 +161,17 @@ const MainApp: React.FC = () => {
     // If unmuted, resume the appropriate audio
     if (status === GameStatus.PLAYING) {
       // Pause lobby music if it's playing
-      if (lobbyAudioRef.current) lobbyAudioRef.current.pause();
+      if (lobbyAudioRef.current) {
+        lobbyAudioRef.current.pause();
+      }
       
-      // If we have an active game track, play it. Otherwise start one.
+      // If we have an active game track, play it.
       if (audioRef.current) {
         if (audioRef.current.paused) {
           audioRef.current.play().catch(e => console.log("Game audio resume failed:", e));
         }
-      } else {
-        playRandomTrack();
       }
+      // Note: we don't call playRandomTrack() here to avoid starting music before user clicks start
     } else {
       // Pause game music if it's playing
       if (audioRef.current) audioRef.current.pause();
@@ -162,7 +179,7 @@ const MainApp: React.FC = () => {
       // Play lobby music
       playLobbyMusic();
     }
-  }, [status, isMuted, playRandomTrack, playLobbyMusic]);
+  }, [status, isMuted, playLobbyMusic]);
  
    const { frameContext, isLoading: isFarcasterLoading } = useFarcaster();
    const { address } = useAccount();
@@ -885,6 +902,7 @@ const MainApp: React.FC = () => {
     setStatus(GameStatus.IDLE);
     setGameOverData(null);
     setActiveTab(Tab.ASCENT);
+    playLobbyMusic();
   };
 
   const currentMiner = MINER_LEVELS[player?.minerLevel || 0] || MINER_LEVELS[0];
@@ -1097,7 +1115,7 @@ const MainApp: React.FC = () => {
               <div className="flex flex-col items-center w-full h-full pb-4 px-4">
                 {status === GameStatus.PLAYING ? (
                   <>
-                    <div className="w-full max-w-[340px] flex-1 min-h-0 bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-2 mb-2 select-none touch-none">
+                    <div className="w-full max-w-[340px] flex-1 min-h-0 bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-2 mb-4 select-none touch-none">
                       <GameEngine 
                         ref={gameRef}
                         isActive={true} 
@@ -1107,10 +1125,17 @@ const MainApp: React.FC = () => {
                         xpRef={sessionXpRef}
                         goldRef={sessionGoldRef}
                       />
+                      {/* In-game Mute Toggle - Inside the grid */}
+                      <button 
+                        onClick={() => setIsMuted(!isMuted)}
+                        className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white flex items-center justify-center text-black active:scale-90 transition-all z-20 shadow-lg border border-black/10"
+                      >
+                        {isMuted ? <Icons.VolumeX size={18} /> : <Icons.Volume2 size={18} />}
+                      </button>
                     </div>
                     
                     {/* Session Stats - Unobtrusive */}
-                    <div className="w-full max-w-[340px] flex gap-3 z-10 shrink-0 relative">
+                    <div className="w-full max-w-[340px] flex gap-3 z-10 shrink-0 relative pb-[calc(1rem+env(safe-area-inset-bottom))]">
                        <div className="flex-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center">
                           <div className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">XP Earned</div>
                           <div ref={sessionXpRef} className="text-xl font-black italic text-green-400 leading-none">+0 XP</div>
@@ -1119,14 +1144,6 @@ const MainApp: React.FC = () => {
                           <div className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Gold Earned</div>
                           <div ref={sessionGoldRef} className="text-xl font-black italic text-yellow-400 leading-none">+0 GOLD</div>
                        </div>
-                       
-                       {/* In-game Mute Toggle */}
-                       <button 
-                        onClick={() => setIsMuted(!isMuted)}
-                        className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-black/60 border border-white/20 backdrop-blur-md flex items-center justify-center text-white active:scale-90 transition-all z-20"
-                       >
-                        {isMuted ? <Icons.VolumeX size={18} /> : <Icons.Volume2 size={18} />}
-                       </button>
                     </div>
 
                   </>
@@ -1259,12 +1276,14 @@ const MainApp: React.FC = () => {
                 isProcessing={processingPayment} 
               />
             ) : activeTab === Tab.HARDWARE ? (
-              <div className="flex-1 flex flex-col items-center pb-10 p-4 w-full h-full">
+              <div className="flex-1 flex flex-col items-center pb-12 p-4 w-full h-full">
                 <div className="w-full flex justify-between items-center mb-6">
-                  <h2 className="text-3xl font-black italic tracking-tighter uppercase">Miner</h2>
+                  <h2 className="text-3xl font-black italic tracking-tighter uppercase">Auto Miner</h2>
                   <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60">ACTIVE</span>
+                    <div className={`w-2 h-2 rounded-full ${player?.minerLevel > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
+                      {player?.minerLevel > 0 ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
                   </div>
                 </div>
 
@@ -1273,20 +1292,20 @@ const MainApp: React.FC = () => {
                   
                   {/* Airdrop Info Section */}
                   <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] backdrop-blur-md shrink-0">
-                    <p className="text-[10px] leading-relaxed opacity-60 uppercase font-bold text-center">
+                    <p className="text-[10px] leading-relaxed opacity-60 uppercase font-bold text-left">
                       Unlocking your miner qualifies you for the Season 1 Airdrop. Upgrade your hardware to maximize your allocation and dominate the leaderboards.
                     </p>
                   </div>
 
                   {/* Top Stats Row */}
                   <div className="grid grid-cols-2 gap-3 shrink-0">
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
+                    <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
                       <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Current Level</div>
-                      <div className="text-2xl font-black italic">LVL {player?.minerLevel || 0}</div>
+                      <div className="text-xl font-black italic">LEVEL {player?.minerLevel || 0}</div>
                     </div>
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
+                    <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
                       <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Mining Rate</div>
-                      <div className="text-xl font-black italic text-green-400">{currentMiner.xpPerHour.toLocaleString()} XP / HOUR</div>
+                      <div className="text-lg font-black italic text-green-400">{currentMiner.xpPerHour.toLocaleString()} XP / HOUR</div>
                     </div>
                   </div>
 
@@ -1376,14 +1395,14 @@ const MainApp: React.FC = () => {
                        </div>
 
                        {/* Airdrop Status */}
-                       <div className="shrink-0 px-4 py-3 border border-[#FFD700]/30 bg-[#FFD700]/5 rounded-3xl space-y-2 text-left shadow-[0_0_20px_rgba(255,215,0,0.1)]">
+                       <div className="shrink-0 px-4 py-3 border border-[#FFD700] bg-[#FFD700]/10 rounded-3xl space-y-2 text-left shadow-[0_0_25px_rgba(255,215,0,0.3)]">
                           <div className="flex justify-between items-center mb-1">
-                             <div className="text-[9px] opacity-40 font-black uppercase tracking-widest text-[#FFD700]">Airdrop Pool Status</div>
-                             <div className="text-[9px] font-black uppercase text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.6)]">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}% FILLED</div>
+                             <div className="text-[9px] opacity-60 font-black uppercase tracking-widest text-[#FFD700]">Airdrop Pool Status</div>
+                             <div className="text-[9px] font-black uppercase text-[#FFD700] drop-shadow-[0_0_12px_rgba(255,215,0,0.8)]">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}% FILLED</div>
                           </div>
-                          <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-[#FFD700]/20">
+                          <div className="w-full h-3 bg-black/40 rounded-full overflow-hidden border border-[#FFD700]/40">
                              <div 
-                                className="h-full bg-gradient-to-r from-[#B8860B] via-[#FFD700] to-[#B8860B] transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(255,215,0,0.5)]"
+                                className="h-full bg-gradient-to-r from-[#FFD700] via-[#FFFACD] to-[#FFD700] transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(255,215,0,0.8)]"
                                 style={{ width: `${Math.min(100, (globalRevenue / 2000) * 100)}%` }}
                              ></div>
                           </div>
