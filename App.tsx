@@ -1327,14 +1327,20 @@ const MainApp: React.FC = () => {
                       {isClaiming ? 'CLAIMING...' : showClaimEffect ? 'SUCCESS!' : 'CLAIM XP'}
                     </button>
 
-                    {player?.minerLevel > 0 && nextMiner && (
-                      <button 
-                        onClick={() => handleUpgradeMiner(player.minerLevel + 1)} 
-                        disabled={processingPayment} 
-                        className="w-full py-3 border border-white/20 text-white/40 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-white/5 transition-all"
-                      >
-                        {paymentStatus.miner === 'loading' ? 'UPGRADING...' : `UPGRADE TO LVL ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
-                      </button>
+                    {player?.minerLevel > 0 && (
+                      <div className="w-full pt-2">
+                        {nextMiner ? (
+                          <button 
+                            onClick={() => handleUpgradeMiner(player.minerLevel + 1)} 
+                            disabled={processingPayment} 
+                            className="w-full py-5 border-2 border-white font-black text-lg hover:bg-white hover:text-black transition-all rounded-3xl disabled:opacity-50 uppercase shadow-[0_0_20px_rgba(255,255,255,0.05)]"
+                          >
+                            {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'Success' : paymentStatus.miner === 'error' ? 'Failed' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
+                          </button>
+                        ) : (
+                          <div className="py-5 border-2 border-dashed border-white/20 text-center opacity-30 font-black rounded-3xl uppercase">Max Level Reached</div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
