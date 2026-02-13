@@ -105,8 +105,8 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
       {/* Header */}
       <div className="flex items-center justify-between mb-6 bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm shrink-0">
         <div>
-          <h2 className="text-xl font-bold text-white uppercase tracking-wider">Armory</h2>
-          <p className="text-xs text-white/40">Upgrade your hardware</p>
+          <h2 className="text-3xl font-black italic uppercase tracking-tighter">Armory</h2>
+          <p className="text-xs text-white/40 font-bold uppercase tracking-widest">UPGRADE YOUR HARDWARE</p>
         </div>
         <div className="text-right">
           <div className="text-3xl font-black text-yellow-400 tracking-tighter flex items-center justify-end gap-3">
@@ -173,7 +173,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
                 disabled={!canAfford || isPurchasing || isProcessing || isSuccess}
                 className={`flex-shrink-0 w-24 flex flex-col items-center justify-center py-2 rounded-lg font-bold transition-all active:scale-95 ${
                   isSuccess
-                    ? 'bg-green-500 text-black'
+                    ? 'bg-yellow-400 text-black shadow-[0_0_20px_rgba(250,204,21,0.5)]'
                     : canAfford 
                       ? 'bg-white hover:bg-gray-200 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
                       : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'

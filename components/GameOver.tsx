@@ -19,16 +19,16 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
   const canPlay = ascentsRemaining > 0;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-between py-8 px-6 text-center overflow-y-auto custom-scrollbar">
-      <div className="flex-1 flex flex-col justify-center gap-6 w-full min-h-min mb-4">
-        <div className="space-y-1">
+    <div className="w-full h-full flex flex-col items-center justify-center py-6 px-6 text-center overflow-y-auto custom-scrollbar">
+      <div className="flex flex-col justify-center gap-6 w-full max-w-[320px] mb-6">
+        <div className="space-y-2">
           <div className="text-[10px] opacity-40 uppercase font-black tracking-[0.4em]">{isHighScore ? 'NEW HIGH SCORE!' : 'ASCENT COMPLETE'}</div>
           <div className={`text-5xl sm:text-6xl font-black italic tracking-tighter uppercase drop-shadow-[0_0_20px_rgba(255,215,0,0.6)] leading-tight ${isHighScore ? 'text-[#FFD700]' : 'text-white'}`}>
             {isHighScore ? 'LEGENDARY' : 'GAME OVER'}
           </div>
         </div>
 
-        <div className="w-full max-w-[320px] mx-auto space-y-2">
+        <div className="w-full space-y-2">
           <div className="p-5 bg-white/5 border border-white/10 rounded-[24px] space-y-3 shadow-lg">
             <div className="flex justify-between items-end">
               <span className="text-[10px] opacity-50 uppercase font-black tracking-widest mb-1 text-left">Altitude</span>
@@ -37,18 +37,18 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
             <div className="h-[1px] bg-white/10 w-full"></div>
             <div className="flex justify-between items-end">
               <span className="text-[10px] opacity-50 uppercase font-black tracking-widest mb-1 text-left">XP Gained</span>
-              <span className="text-3xl font-black italic text-green-400">+{xpGained}</span>
+              <span className="text-3xl font-black italic text-green-400">+{xpGained.toLocaleString()}</span>
             </div>
             <div className="h-[1px] bg-white/10 w-full"></div>
             <div className="flex justify-between items-end">
               <span className="text-[10px] opacity-50 uppercase font-black tracking-widest mb-1 text-left">Gold Earned</span>
-              <span className="text-3xl font-black italic text-yellow-400">+{goldGained}</span>
+              <span className="text-3xl font-black italic text-yellow-400">+{goldGained.toLocaleString()}</span>
             </div>
           </div>
         </div>
         
         {isHighScore && onDoubleUp && !hasDoubled && (
-          <div className="w-full max-w-[320px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
             <button
               onClick={onDoubleUp}
               disabled={isProcessing || doubleUpStatus === 'success'}
@@ -71,7 +71,7 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
         )}
       </div>
 
-      <div className="w-full max-w-[320px] mx-auto space-y-4 mb-2 shrink-0">
+      <div className="w-full max-w-[320px] space-y-4 mb-4 shrink-0">
         {canPlay ? (
           <button
             onClick={onPlayAgain}

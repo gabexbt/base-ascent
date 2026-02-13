@@ -78,7 +78,7 @@ const MainApp: React.FC = () => {
     const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
     
     const audio = new Audio(randomTrack);
-    audio.volume = 0.075;
+    audio.volume = 0.0375; // Reduced by 50% (from 0.075)
     audio.loop = true;
     
     if (!isMuted) {
@@ -92,7 +92,7 @@ const MainApp: React.FC = () => {
 
     if (!lobbyAudioRef.current) {
       const audio = new Audio('/audio/lobby_music.mp3');
-      audio.volume = 0.06;
+      audio.volume = 0.03; // Reduced by 50% (from 0.06)
       audio.loop = true;
       lobbyAudioRef.current = audio;
     }
@@ -1135,12 +1135,12 @@ const MainApp: React.FC = () => {
                     </div>
                     
                     {/* Session Stats - Unobtrusive */}
-                    <div className="w-full max-w-[340px] flex gap-3 z-10 shrink-0 relative pb-[calc(1rem+env(safe-area-inset-bottom))]">
-                       <div className="flex-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center">
+                    <div className="w-full max-w-[340px] flex gap-3 z-10 shrink-0 relative pb-2 mb-2">
+                       <div className="flex-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center">
                           <div className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">XP Earned</div>
                           <div ref={sessionXpRef} className="text-xl font-black italic text-green-400 leading-none">+0 XP</div>
                        </div>
-                       <div className="flex-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center">
+                       <div className="flex-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl py-2 px-3 flex flex-col items-center justify-center">
                           <div className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Gold Earned</div>
                           <div ref={sessionGoldRef} className="text-xl font-black italic text-yellow-400 leading-none">+0 GOLD</div>
                        </div>
@@ -1211,11 +1211,10 @@ const MainApp: React.FC = () => {
                   </div>
                 ) : status === GameStatus.IDLE ? (
                   <div className="flex-1 flex flex-col items-center text-center w-full px-5 py-4 h-full justify-between overflow-hidden">
-                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-10">
+                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-16">
                       <div className="w-full h-auto max-h-[28vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
                          <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.7]" alt="ASCENT" />
                       </div>
-                      <p className="text-[10px] opacity-40 uppercase tracking-[0.4em] font-black mt-8">ASCEND TO NEW HEIGHTS</p>
                     </div>
                     <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-6 mt-auto">
                        
@@ -1262,7 +1261,7 @@ const MainApp: React.FC = () => {
                         </div>
                         <div className="bg-white/5 border border-white/10 rounded-[1.2rem] flex flex-col items-center justify-center backdrop-blur-md">
                           <div className="text-[8px] opacity-30 uppercase font-black">High Score</div>
-                          <div className="text-lg font-black italic">{player?.highScore || 0} m</div>
+                          <div className="text-lg font-black italic">{(player?.highScore || 0).toLocaleString()} m</div>
                         </div>
                       </div>
                     </div>
@@ -1288,7 +1287,7 @@ const MainApp: React.FC = () => {
                 </div>
 
                 {/* Main Miner Frame Container */}
-                <div className="w-full flex-1 flex flex-col gap-2 min-h-0">
+                <div className="w-full flex-1 flex flex-col gap-2 min-h-0 pb-12">
                   
                   {/* Airdrop Info Section */}
                   <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] backdrop-blur-md shrink-0">
@@ -1305,7 +1304,7 @@ const MainApp: React.FC = () => {
                     </div>
                     <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md">
                       <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Mining Rate</div>
-                      <div className="text-lg font-black italic text-green-400">{currentMiner.xpPerHour.toLocaleString()} XP / HOUR</div>
+                      <div className="text-lg font-black italic text-white text-center w-full">{currentMiner.xpPerHour.toLocaleString()} XP PER HOUR</div>
                     </div>
                   </div>
 
@@ -1362,7 +1361,7 @@ const MainApp: React.FC = () => {
                     </button>
 
                     {player?.minerLevel > 0 && (
-                      <div className="w-full pt-2">
+                      <div className="w-full pt-2 mb-2">
                         {nextMiner ? (
                           <button 
                             onClick={() => handleUpgradeMiner(player.minerLevel + 1)} 
@@ -1521,8 +1520,8 @@ const MainApp: React.FC = () => {
                   )}
 
                   <div className="flex items-center justify-between bg-black/50 border border-white/10 p-4 rounded-[28px] text-center mb-3">
-                    <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{player?.referralCount || 0}</span></div>
-                    <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{player?.referralXpEarned || 0} XP</span></div>
+                    <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{(player?.referralCount || 0).toLocaleString()}</span></div>
+                    <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{(player?.referralXpEarned || 0).toLocaleString()} XP</span></div>
                   </div>
                   <div onClick={handleCopy} className="p-4 bg-white/5 border border-white/20 rounded-2xl text-[9px] opacity-40 text-center tracking-widest uppercase cursor-pointer hover:bg-white/10 transition-all active:scale-98">
                     {copied ? 'COPIED!' : `base-ascent.vercel.app/r/${player?.username || player?.fid}`}
@@ -1549,10 +1548,8 @@ const MainApp: React.FC = () => {
                </div>
 
                {/* FAQ Section */}
-               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] mt-2 mb-4">
-                  <div className="flex items-center justify-between mb-4 px-2">
-                    <h3 className="text-[10px] font-black uppercase opacity-30 tracking-widest">Base Ascent FAQ</h3>
-                  </div>
+                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] mt-2 mb-4">
+                    <h3 className="text-2xl font-black italic opacity-40 text-center mb-5 tracking-widest uppercase">FAQ</h3>
                   
                   <div className="space-y-2">
                     {[
