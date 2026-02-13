@@ -175,6 +175,20 @@ export const PlayerService = {
     }
   },
 
+  async getTotalPlayerCount(): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      return count || 0;
+    } catch (e) {
+      console.error("Error fetching player count:", e);
+      return 0;
+    }
+  },
+
   async checkDeferredReferral(): Promise<string | null> {
     try {
       const { data, error } = await supabase.rpc('check_deferred_referral');
@@ -528,6 +542,20 @@ export const PlayerService = {
       .maybeSingle();
     if (error || !data) return 0;
     return Number(data.total_revenue);
+  },
+
+  async getTotalPlayerCount(): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('players')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      return count || 0;
+    } catch (e) {
+      console.error("Error fetching player count:", e);
+      return 0;
+    }
   },
 
   mapToPlayer(db: any): Player {

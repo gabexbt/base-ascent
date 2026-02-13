@@ -16,32 +16,8 @@ import { GameStatus, Player, LeaderboardEntry, Tab, UpgradeType } from './types'
 import { LOGO_URL, MINER_LEVELS, USDC_BASE_ADDRESS, getUpgradeCost } from './constants';
 import { IS_TESTNET, RECIPIENT_WALLET } from './network';
 import { PlayerService } from './services/playerService';
-
-const ParticleBackground = () => {
-  const particles = useMemo(() => Array.from({ length: 30 }).map((_, i) => ({
-    id: i, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
-    duration: 4 + Math.random() * 6, delay: Math.random() * 5,
-  })), []);
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
-      {particles.map((p) => (
-        <div key={p.id} className="absolute w-[2px] h-[2px] bg-white rounded-full animate-pulse"
-          style={{ left: p.left, top: p.top, animationDuration: `${p.duration}s`, animationDelay: `${p.delay}s` }}
-        />
-      ))}
-    </div>
-  );
-};
-
-const Icons = {
-  Ascent: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 15-7-7-7 7"/><path d="m19 9-7-7-7 7"/></svg>,
-  Upgrades: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>,
-  Hardware: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>,
-  Ranking: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-  Profile: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  Volume2: ({ size = 24 }: { size?: number }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
-  VolumeX: ({ size = 24 }: { size?: number }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-};
+import { Icons } from './components/Icons';
+import { ParticleBackground } from './components/ParticleBackground';
 
 interface GameOverData {
   score: number;
@@ -69,6 +45,7 @@ const MainApp: React.FC = () => {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
   const [globalRevenue, setGlobalRevenue] = useState(0);
+  const [totalPlayers, setTotalPlayers] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lobbyAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -274,8 +251,12 @@ const MainApp: React.FC = () => {
       }
 
       const data = await PlayerService.getPlayer(fid, username || 'unknown', pfpUrl, referrer);
-      const revenue = await PlayerService.getGlobalRevenue();
+      const [revenue, count] = await Promise.all([
+        PlayerService.getGlobalRevenue(),
+        PlayerService.getTotalPlayerCount()
+      ]);
       setGlobalRevenue(revenue);
+      setTotalPlayers(count);
       
       // Load local high score / xp if available (persistence fix)
       const localStore = localStorage.getItem(`player_stats_v2_${fid}`);
@@ -475,16 +456,32 @@ const MainApp: React.FC = () => {
     return () => clearInterval(interval);
   }, [player, loadData]);
 
-  // Game interruption on visibility change
+  // Game interruption and audio control on visibility change
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && status === GameStatus.PLAYING) {
-           gameRef.current?.endGame();
+      if (document.hidden) {
+        if (status === GameStatus.PLAYING) {
+          gameRef.current?.endGame();
+        }
+        // Pause all audio when hidden
+        if (audioRef.current) audioRef.current.pause();
+        if (lobbyAudioRef.current) lobbyAudioRef.current.pause();
+      } else {
+        // Resume appropriate audio when visible
+        if (!isMuted) {
+          if (status === GameStatus.PLAYING) {
+            if (audioRef.current && audioRef.current.paused) {
+              audioRef.current.play().catch(e => console.log("Game audio resume failed:", e));
+            }
+          } else {
+            playLobbyMusic();
+          }
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [status]);
+  }, [status, isMuted, playLobbyMusic]);
 
   const handleTaskClick = (taskId: string, url: string) => {
     if (player?.completedTasks?.includes(taskId)) return;
@@ -1396,17 +1393,31 @@ const MainApp: React.FC = () => {
                           </div>
                        </div>
 
-                        {/* Airdrop Status */}
-                        <div className="shrink-0 px-4 py-2 border border-[#FFD700]/20 bg-[#FFD700]/5 rounded-3xl space-y-1 text-left">
-                           <div className="flex justify-between items-center">
-                              <div className="text-[9px] font-black uppercase tracking-widest text-[#FFD700]">Airdrop Pool Status</div>
-                              <div className="text-[9px] font-black uppercase text-[#FFD700]">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}% FILLED</div>
+                        {/* Stats Row: Airdrop & Total Players */}
+                        <div className="grid grid-cols-2 gap-3 shrink-0">
+                           {/* Airdrop Status */}
+                           <div className="px-4 py-3 border border-[#FFD700]/20 bg-[#FFD700]/5 rounded-3xl space-y-2 flex flex-col justify-center">
+                              <div className="flex justify-between items-center">
+                                 <div className="text-[8px] font-black uppercase tracking-widest text-[#FFD700]">Pool Status</div>
+                                 <div className="text-[8px] font-black uppercase text-[#FFD700]">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}%</div>
+                              </div>
+                              <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-[#FFD700]/10">
+                                 <div 
+                                    className="h-full bg-gradient-to-r from-[#B8860B] via-[#FFD700] to-[#B8860B] transition-all duration-1000 ease-out"
+                                    style={{ width: `${Math.min(100, (globalRevenue / 2000) * 100)}%` }}
+                                 ></div>
+                              </div>
                            </div>
-                           <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-[#FFD700]/10">
-                              <div 
-                                 className="h-full bg-gradient-to-r from-[#B8860B] via-[#FFD700] to-[#B8860B] transition-all duration-1000 ease-out"
-                                 style={{ width: `${Math.min(100, (globalRevenue / 2000) * 100)}%` }}
-                              ></div>
+
+                           {/* Total Players */}
+                           <div className="px-4 py-3 border border-white/10 bg-white/5 rounded-3xl flex items-center justify-between gap-3">
+                              <div className="flex flex-col">
+                                 <div className="text-[8px] font-black uppercase tracking-widest opacity-40">Total Players</div>
+                                 <div className="text-xl font-black italic tabular-nums leading-none mt-1">{totalPlayers.toLocaleString()}</div>
+                              </div>
+                              <div className="p-2 bg-white/5 rounded-xl border border-white/5">
+                                 <Icons.Users size={16} className="opacity-40" />
+                              </div>
                            </div>
                         </div>
 
