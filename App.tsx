@@ -199,7 +199,7 @@ const MainApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
+    const handlePointer = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target) return;
       const button = target.closest('button') as HTMLButtonElement | null;
@@ -207,9 +207,9 @@ const MainApp: React.FC = () => {
       playClickSound();
     };
 
-    document.addEventListener('click', handleClick);
+    document.addEventListener('pointerdown', handlePointer);
     return () => {
-      document.removeEventListener('click', handleClick);
+      document.removeEventListener('pointerdown', handlePointer);
     };
   }, [playClickSound]);
 
@@ -484,7 +484,10 @@ const MainApp: React.FC = () => {
                 // Sync first to ensure DB has latest stats before adding rewards
                 PlayerService.syncPlayerStats(player.fid, player.totalXp, player.totalGold, player.highScore, player.totalRuns)
                   .then(() => PlayerService.completeTask(player.fid, taskId, 50000, 10000, 5))
-                  .then(() => loadData());
+                  .then(() => {
+                    playSuccessSound();
+                    return loadData();
+                  });
               }
               delete next[taskId];
             }
@@ -531,10 +534,10 @@ const MainApp: React.FC = () => {
        return;
     }
 
-    // Use SDK for native navigation
+    playClickSound();
+
     sdk.actions.openUrl(url);
 
-    // Start 10s verification timer immediately
     setTaskTimers(prev => ({ ...prev, [taskId]: { time: 10, focused: true } }));
   };
 
@@ -716,20 +719,21 @@ const MainApp: React.FC = () => {
     if (player && !isClaiming) {
       setLastClaimedAmount(passiveEarnings);
       setIsClaiming(true);
-      setShowClaimEffect(true);
+      setShowClaimEffect(false);
       
       try {
         await PlayerService.claimPassiveXp(player.fid);
         await loadData();
         playSuccessSound();
-        
-        // Success text display time
-        setTimeout(() => setShowClaimEffect(false), 1000);
+        setIsClaiming(false);
+        setShowClaimEffect(true);
+        setTimeout(() => setShowClaimEffect(false), 800);
       } catch (e) {
         console.error("Claim Error:", e);
       } finally {
-        // Return to button state quickly
-        setTimeout(() => setIsClaiming(false), 1000);
+        if (isClaiming) {
+          setTimeout(() => setIsClaiming(false), 800);
+        }
       }
     }
   };
@@ -1143,18 +1147,6 @@ const MainApp: React.FC = () => {
           
           <ParticleBackground />
 
-          {/* Lobby Volume Toggle - Only on Ascent Front Page (IDLE state) */}
-          {activeTab === Tab.ASCENT && status === GameStatus.IDLE && activeTab !== Tab.RANKINGS && activeTab !== Tab.UPGRADES && activeTab !== Tab.HARDWARE && activeTab !== Tab.PROFILE && (
-            <div className="sticky top-4 self-end z-50 px-6 mb-[-32px]">
-              <button 
-                onClick={() => setIsMuted(!isMuted)}
-                className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-black active:scale-90 transition-transform shadow-lg"
-              >
-                {isMuted ? <Icons.VolumeX size={16} /> : <Icons.Volume2 size={16} />}
-              </button>
-            </div>
-          )}
-
           <div className="flex-1 flex flex-col relative w-full h-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
               <div className="flex flex-col items-center w-full h-full pb-4 px-4">
@@ -1170,13 +1162,6 @@ const MainApp: React.FC = () => {
                         xpRef={sessionXpRef}
                         goldRef={sessionGoldRef}
                       />
-                      {/* In-game Mute Toggle - Inside the grid */}
-                      <button 
-                        onClick={() => setIsMuted(!isMuted)}
-                        className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white flex items-center justify-center text-black active:scale-90 transition-all z-20 shadow-lg border border-black/10"
-                      >
-                        {isMuted ? <Icons.VolumeX size={18} /> : <Icons.Volume2 size={18} />}
-                      </button>
                     </div>
                     
                     {/* Session Stats - Unobtrusive */}
@@ -1256,7 +1241,26 @@ const MainApp: React.FC = () => {
                   </div>
                 ) : status === GameStatus.IDLE ? (
                   <div className="flex-1 flex flex-col items-center text-center w-full px-5 py-4 h-full justify-between overflow-hidden">
-                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-10">
+                    {/* Global Gold / XP Bar */}
+                    <div className="w-full flex justify-center mt-2 mb-4">
+                      <div className="inline-flex items-center gap-4 bg-white text-black px-4 py-2 rounded-full shadow-[0_0_24px_rgba(255,255,255,0.25)] border border-white/70">
+                        <div className="flex items-center gap-1">
+                          <img src="/assets/icons/gold.png" alt="Gold" className="w-5 h-5 object-contain" />
+                          <span className="text-[11px] font-black tracking-tight">
+                            {(player?.totalGold || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="w-[1px] h-4 bg-black/10" />
+                        <div className="flex items-center gap-1">
+                          <img src="/assets/icons/xp.png" alt="XP" className="w-5 h-5 object-contain" />
+                          <span className="text-[11px] font-black tracking-tight">
+                            {(player?.totalXp || 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-6">
                       <div className="w-full h-auto max-h-[24vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
                          <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.4]" alt="ASCENT" />
                       </div>
@@ -1320,7 +1324,7 @@ const MainApp: React.FC = () => {
                 isProcessing={processingPayment} 
               />
             ) : activeTab === Tab.HARDWARE ? (
-              <div className="flex-1 flex flex-col items-center pb-12 p-4 w-full h-full">
+              <div className="flex-1 flex flex-col items-center pb-[calc(5rem+env(safe-area-inset-bottom))] p-4 w-full h-full">
                 <div className="w-full flex justify-between items-start mb-4">
                   <div className="flex flex-col gap-1">
                     <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Auto Miner</h2>
@@ -1405,7 +1409,7 @@ const MainApp: React.FC = () => {
                       className={`w-full py-5 font-black text-xl rounded-[1.5rem] active:scale-95 disabled:opacity-20 transition-all uppercase relative overflow-hidden group/btn ${showClaimEffect ? 'bg-green-500 text-black shadow-[0_0_40px_rgba(34,197,94,0.4)]' : 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'}`}
                     >
                       <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 italic"></div>
-                      {isClaiming ? 'CLAIMING...' : showClaimEffect ? 'SUCCESS!' : 'CLAIM XP'}
+                      {showClaimEffect ? 'SUCCESS!' : isClaiming ? 'CLAIMING...' : 'CLAIM XP'}
                     </button>
 
                     {player?.minerLevel > 0 && (
@@ -1547,6 +1551,7 @@ const MainApp: React.FC = () => {
           ) : (
             <div className="flex-1 flex flex-col gap-3 pr-1 pb-10 mt-6 items-center w-full">
                <h2 className="text-3xl font-black italic uppercase">PROFILE</h2>
+
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] flex flex-col items-center">
                   <h3 className="text-2xl font-black italic uppercase opacity-40 mb-5 tracking-widest">STATS</h3>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-6 w-full text-center">
@@ -1558,6 +1563,19 @@ const MainApp: React.FC = () => {
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Total XP</span><span className="text-xl font-black italic block">{player?.totalXp.toLocaleString()}</span></div>
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Total Games</span><span className="text-xl font-black italic block">{player?.totalRuns}</span></div>
                   </div>
+               </div>
+
+               <div className="w-full p-4 border border-white/10 bg-white/5 rounded-[40px] flex items-center justify-between">
+                 <div>
+                   <div className="text-[9px] font-black uppercase opacity-40 tracking-[0.2em] mb-1">Audio</div>
+                   <div className="text-[11px] font-bold opacity-70">Music & Sound Effects</div>
+                 </div>
+                 <button
+                   onClick={() => setIsMuted(!isMuted)}
+                   className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-black active:scale-95 transition-all shadow-[0_0_18px_rgba(255,255,255,0.4)] border border-black/10"
+                 >
+                   {isMuted ? <Icons.VolumeX size={18} /> : <Icons.Volume2 size={18} />}
+                 </button>
                </div>
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
                   <h3 className="text-xs font-black uppercase opacity-30 text-center mb-4 tracking-[0.2em]">INVITE RECRUITS</h3>
