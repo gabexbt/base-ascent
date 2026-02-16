@@ -47,7 +47,9 @@ const MainApp: React.FC = () => {
   const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
   const [globalRevenue, setGlobalRevenue] = useState(0);
   const [totalPlayers, setTotalPlayers] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isLobbyMusicOn, setIsLobbyMusicOn] = useState(true);
+  const [isGameMusicOn, setIsGameMusicOn] = useState(true);
+  const [isSfxOn, setIsSfxOn] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lobbyAudioRef = useRef<HTMLAudioElement | null>(null);
   const buttonAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -78,18 +80,17 @@ const MainApp: React.FC = () => {
     const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3'];
     const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
     
+    if (!isGameMusicOn) return;
+
     const audio = new Audio(randomTrack);
     audio.volume = 0.01875;
     audio.loop = true;
-    
-    if (!isMuted) {
-      audio.play().catch(e => console.log("Game audio play failed:", e));
-    }
     audioRef.current = audio;
-  }, [isMuted]);
+    audio.play().catch(e => console.log("Game audio play failed:", e));
+  }, [isGameMusicOn]);
 
   const playClickSound = useCallback(() => {
-    if (isMuted) return;
+    if (!isSfxOn) return;
     if (!buttonAudioRef.current) {
       const audio = new Audio('/audio/button_click.mp3');
       audio.volume = 0.25;
@@ -98,10 +99,10 @@ const MainApp: React.FC = () => {
     const audio = buttonAudioRef.current;
     audio.currentTime = 0;
     audio.play().catch(() => {});
-  }, [isMuted]);
+  }, [isSfxOn]);
 
   const playSuccessSound = useCallback(() => {
-    if (isMuted) return;
+    if (!isSfxOn) return;
     if (!successAudioRef.current) {
       const audio = new Audio('/audio/success.mp3');
       audio.volume = 0.35;
@@ -110,36 +111,35 @@ const MainApp: React.FC = () => {
     const audio = successAudioRef.current;
     audio.currentTime = 0;
     audio.play().catch(() => {});
-  }, [isMuted]);
+  }, [isSfxOn]);
 
   const playLobbyMusic = useCallback(() => {
+    if (!isLobbyMusicOn) return;
+
     if (lobbyAudioRef.current && !lobbyAudioRef.current.paused) return;
 
     if (!lobbyAudioRef.current) {
       const audio = new Audio('/audio/lobby_music.mp3');
-      audio.volume = 0.03; // Reduced by 50% (from 0.06)
+      audio.volume = 0.03;
       audio.loop = true;
       lobbyAudioRef.current = audio;
     }
     
-    if (!isMuted) {
-      lobbyAudioRef.current.play().catch(e => {
-        console.log("Lobby audio play failed:", e);
-        // Fallback for browsers that block autoplay: try again on first interaction
-        const playOnInteraction = () => {
-          if (lobbyAudioRef.current && !isMuted && lobbyAudioRef.current.paused) {
-            lobbyAudioRef.current.play().catch(e => console.log("Lobby retry failed:", e));
-          }
-          window.removeEventListener('mousedown', playOnInteraction);
-          window.removeEventListener('touchstart', playOnInteraction);
-          window.removeEventListener('click', playOnInteraction);
-        };
-        window.addEventListener('mousedown', playOnInteraction);
-        window.addEventListener('touchstart', playOnInteraction);
-        window.addEventListener('click', playOnInteraction);
-      });
-    }
-  }, [isMuted]);
+    lobbyAudioRef.current.play().catch(e => {
+      console.log("Lobby audio play failed:", e);
+      const playOnInteraction = () => {
+        if (lobbyAudioRef.current && isLobbyMusicOn && lobbyAudioRef.current.paused) {
+          lobbyAudioRef.current.play().catch(err => console.log("Lobby retry failed:", err));
+        }
+        window.removeEventListener('mousedown', playOnInteraction);
+        window.removeEventListener('touchstart', playOnInteraction);
+        window.removeEventListener('click', playOnInteraction);
+      };
+      window.addEventListener('mousedown', playOnInteraction);
+      window.addEventListener('touchstart', playOnInteraction);
+      window.addEventListener('click', playOnInteraction);
+    });
+  }, [isLobbyMusicOn]);
 
   const stopAudio = useCallback(() => {
     if (audioRef.current) {
@@ -156,35 +156,28 @@ const MainApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // If muted, ensure all audio is paused immediately
-    if (isMuted) {
-      if (audioRef.current) audioRef.current.pause();
-      if (lobbyAudioRef.current) lobbyAudioRef.current.pause();
-      return;
-    }
-
-    // If unmuted, resume the appropriate audio
     if (status === GameStatus.PLAYING) {
-      // Pause lobby music if it's playing
       if (lobbyAudioRef.current) {
         lobbyAudioRef.current.pause();
       }
-      
-      // If we have an active game track, play it.
       if (audioRef.current) {
-        if (audioRef.current.paused) {
-          audioRef.current.play().catch(e => console.log("Game audio resume failed:", e));
+        if (isGameMusicOn) {
+          if (audioRef.current.paused) {
+            audioRef.current.play().catch(e => console.log("Game audio resume failed:", e));
+          }
+        } else {
+          audioRef.current.pause();
         }
       }
-      // Note: we don't call playRandomTrack() here to avoid starting music before user clicks start
     } else {
-      // Pause game music if it's playing
       if (audioRef.current) audioRef.current.pause();
-      
-      // Play lobby music
-      playLobbyMusic();
+      if (isLobbyMusicOn) {
+        playLobbyMusic();
+      } else if (lobbyAudioRef.current) {
+        lobbyAudioRef.current.pause();
+      }
     }
-  }, [status, isMuted, playLobbyMusic]);
+  }, [status, isGameMusicOn, isLobbyMusicOn, playLobbyMusic]);
  
    const { frameContext, isLoading: isFarcasterLoading } = useFarcaster();
    const { address } = useAccount();
@@ -511,20 +504,18 @@ const MainApp: React.FC = () => {
         if (lobbyAudioRef.current) lobbyAudioRef.current.pause();
       } else {
         // Resume appropriate audio when visible
-        if (!isMuted) {
-          if (status === GameStatus.PLAYING) {
-            if (audioRef.current && audioRef.current.paused) {
-              audioRef.current.play().catch(e => console.log("Game audio resume failed:", e));
-            }
-          } else {
-            playLobbyMusic();
+        if (status === GameStatus.PLAYING) {
+          if (isGameMusicOn && audioRef.current && audioRef.current.paused) {
+            audioRef.current.play().catch(e => console.log("Game audio resume failed:", e));
           }
+        } else if (isLobbyMusicOn) {
+          playLobbyMusic();
         }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [status, isMuted, playLobbyMusic]);
+  }, [status, isGameMusicOn, isLobbyMusicOn, playLobbyMusic]);
 
   const handleTaskClick = (taskId: string, url: string) => {
     if (player?.completedTasks?.includes(taskId)) return;
@@ -1161,6 +1152,7 @@ const MainApp: React.FC = () => {
                         upgrades={player.upgrades}
                         xpRef={sessionXpRef}
                         goldRef={sessionGoldRef}
+                        sfxEnabled={isSfxOn}
                       />
                     </div>
                     
@@ -1325,7 +1317,7 @@ const MainApp: React.FC = () => {
               />
             ) : activeTab === Tab.HARDWARE ? (
               <div className="flex-1 flex flex-col items-center pb-[calc(5rem+env(safe-area-inset-bottom))] p-4 w-full h-full">
-                <div className="w-full flex justify-between items-start mb-4">
+                <div className="w-full flex justify-between items-start mb-2">
                   <div className="flex flex-col gap-1">
                     <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Auto Miner</h2>
                     <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/40">PASSIVE XP EXTRACTION</p>
@@ -1344,7 +1336,7 @@ const MainApp: React.FC = () => {
                   {/* Airdrop Info Section */}
                   <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] backdrop-blur-md shrink-0">
                     <p className="text-[10px] leading-relaxed opacity-60 uppercase font-bold text-left">
-                      Unlocking your miner qualifies you for the Season 1 Airdrop. Upgrade your hardware to maximize your allocation and dominate the leaderboards.
+                      Unlock the miner to generate XP automatically and secure your Season 1 Airdrop eligibility. Higher miner levels increase your hourly output and maximize your final airdrop allocation.
                     </p>
                   </div>
 
@@ -1461,10 +1453,10 @@ const MainApp: React.FC = () => {
                               </div>
                            </div>
 
-                           {/* Total Players */}
+                           {/* Active Players */}
                            <div className="px-4 py-3 border border-white/10 bg-white/5 rounded-3xl flex items-center justify-between gap-3">
                               <div className="flex flex-col">
-                                 <div className="text-[8px] font-black uppercase tracking-widest opacity-40">Total Players</div>
+                                 <div className="text-[8px] font-black uppercase tracking-widest opacity-40">Active Players</div>
                                  <div className="text-xl font-black italic tabular-nums leading-none mt-1">{totalPlayers.toLocaleString()}</div>
                               </div>
                               <div className="w-8 h-8 shrink-0">
@@ -1481,8 +1473,8 @@ const MainApp: React.FC = () => {
                           </div>
                           <p className="text-[9px] leading-relaxed opacity-40 uppercase font-bold">
                             {rankingType === 'skill' 
-                              ? "This leaderboard is strictly for those who want to prove their skill. It ranks players based on their highest single-run score. Focus on precision and survival to climb the rankings. The Top 20 players will be rewarded when the Airdrop Rewards Pool is full."
-                              : "This leaderboard rewards dedication and consistent play. It tracks your Total XP, which is a combination of your gameplay, active referrals, and earnings from your AutoMiner. Every action you take in the game builds this score over time. The Top 20 players will be rewarded when the Airdrop Rewards Pool is full."
+                          ? "Prove your skill by reaching the highest altitude. Your rank is strictly based on your highest single-run score. Focus on precision and timing to climb. The top 20 players will share the rewards once the pool is full."
+                          : "This ranks your grind through consistent play. Your score is a combination of active gameplay, total referrals, and passive miner earnings. Every action builds your rank. The top 20 players earn rewards once the pool is full."
                             }
                           </p>
                        </div>
@@ -1550,10 +1542,8 @@ const MainApp: React.FC = () => {
             </div>
           ) : (
             <div className="flex-1 flex flex-col gap-3 pr-1 pb-10 mt-6 items-center w-full">
-               <h2 className="text-3xl font-black italic uppercase">PROFILE</h2>
-
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] flex flex-col items-center">
-                  <h3 className="text-2xl font-black italic uppercase opacity-40 mb-5 tracking-widest">STATS</h3>
+                  <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-5 tracking-widest">STATS</h3>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-6 w-full text-center">
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Altitude Record</span><span className="text-xl font-black italic block">{player?.highScore || 0} Meters</span></div>
                      <div>
@@ -1565,18 +1555,26 @@ const MainApp: React.FC = () => {
                   </div>
                </div>
 
-               <div className="w-full p-4 border border-white/10 bg-white/5 rounded-[40px] flex items-center justify-between">
-                 <div>
-                   <div className="text-[9px] font-black uppercase opacity-40 tracking-[0.2em] mb-1">Audio</div>
-                   <div className="text-[11px] font-bold opacity-70">Music & Sound Effects</div>
+               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
+                 <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-4 tracking-widest text-center">RECRUITS</h3>
+                 {player?.referrerUsername && (
+                   <div className="text-[9px] text-center font-bold text-green-400 mb-4 uppercase tracking-wider animate-in fade-in slide-in-from-top-2">
+                      Referred by @{player.referrerUsername}
+                   </div>
+                 )}
+
+                 <div className="flex items-center justify-between bg-black/50 border border-white/10 p-4 rounded-[28px] text-center mb-3">
+                   <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{(player?.referralCount || 0).toLocaleString()}</span></div>
+                   <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{(player?.referralXpEarned || 0).toLocaleString()} XP</span></div>
                  </div>
-                 <button
-                   onClick={() => setIsMuted(!isMuted)}
-                   className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-black active:scale-95 transition-all shadow-[0_0_18px_rgba(255,255,255,0.4)] border border-black/10"
-                 >
-                   {isMuted ? <Icons.VolumeX size={18} /> : <Icons.Volume2 size={18} />}
-                 </button>
+                 <div onClick={handleCopy} className="p-4 bg-white/5 border border-white/20 rounded-2xl text-[9px] opacity-40 text-center tracking-widest uppercase cursor-pointer hover:bg-white/10 transition-all active:scale-98">
+                   {copied ? 'COPIED!' : `base-ascent.vercel.app/r/${player?.username || player?.fid}`}
+                 </div>
+                 <p className="text-[8px] opacity-30 text-center mt-2 italic px-4 uppercase font-bold">You earn 20% of all XP generated by your recruit's hardware automatically.</p>
                </div>
+
+               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
+                  <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-5 tracking-widest text-center">TASKS</h3>
                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
                   <h3 className="text-xs font-black uppercase opacity-30 text-center mb-4 tracking-[0.2em]">INVITE RECRUITS</h3>
                   {player?.referrerUsername && (
@@ -1594,8 +1592,6 @@ const MainApp: React.FC = () => {
                   </div>
                   <p className="text-[8px] opacity-30 text-center mt-2 italic px-4 uppercase font-bold">You earn 20% of all XP generated by your recruit's hardware automatically.</p>
                </div>
-               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
-                  <h3 className="text-2xl font-black italic opacity-40 text-center mb-5 tracking-widest">TASKS</h3>
                   <div className="space-y-3">
                      {[
                        { id: 'f-gabe', l: 'Follow gabe on Base', u: 'https://base.app/profile/gabexbt' },
@@ -1614,8 +1610,8 @@ const MainApp: React.FC = () => {
                </div>
 
                {/* FAQ Section */}
-                <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] mt-2 mb-4">
-                    <h3 className="text-2xl font-black italic opacity-40 text-center mb-5 tracking-widest uppercase">FAQ</h3>
+               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] mt-2">
+                   <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] text-center mb-5 tracking-widest">FAQ</h3>
                   
                   <div className="space-y-2">
                     {[
@@ -1659,6 +1655,37 @@ const MainApp: React.FC = () => {
                       </div>
                     ))}
                   </div>
+               </div>
+
+               {/* Audio Settings */}
+               <div className="w-full mt-2 p-6 border border-white/10 bg-black/60 rounded-[40px] flex flex-col gap-3">
+                 <div className="flex items-center justify-between">
+                   <div className="text-[11px] font-bold text-white/80">Lobby Music</div>
+                   <button
+                     onClick={() => setIsLobbyMusicOn(!isLobbyMusicOn)}
+                     className={`w-12 h-7 rounded-full flex items-center px-1 transition-all border ${isLobbyMusicOn ? 'bg-white text-black border-white shadow-[0_0_18px_rgba(255,255,255,0.6)]' : 'bg-zinc-900 text-white/40 border-white/20'}`}
+                   >
+                     <div className={`w-5 h-5 rounded-full bg-black transition-transform ${isLobbyMusicOn ? 'translate-x-5' : ''}`} />
+                   </button>
+                 </div>
+                 <div className="flex items-center justify-between">
+                   <div className="text-[11px] font-bold text-white/80">In-Game Music</div>
+                   <button
+                     onClick={() => setIsGameMusicOn(!isGameMusicOn)}
+                     className={`w-12 h-7 rounded-full flex items-center px-1 transition-all border ${isGameMusicOn ? 'bg-white text-black border-white shadow-[0_0_18px_rgba(255,255,255,0.6)]' : 'bg-zinc-900 text-white/40 border-white/20'}`}
+                   >
+                     <div className={`w-5 h-5 rounded-full bg-black transition-transform ${isGameMusicOn ? 'translate-x-5' : ''}`} />
+                   </button>
+                 </div>
+                 <div className="flex items-center justify-between">
+                   <div className="text-[11px] font-bold text-white/80">Sound Effects</div>
+                   <button
+                     onClick={() => setIsSfxOn(!isSfxOn)}
+                     className={`w-12 h-7 rounded-full flex items-center px-1 transition-all border ${isSfxOn ? 'bg-white text-black border-white shadow-[0_0_18px_rgba(255,255,255,0.6)]' : 'bg-zinc-900 text-white/40 border-white/20'}`}
+                   >
+                     <div className={`w-5 h-5 rounded-full bg-black transition-transform ${isSfxOn ? 'translate-x-5' : ''}`} />
+                   </button>
+                 </div>
                </div>
             </div>
           )}

@@ -33,9 +33,10 @@ interface GameEngineProps {
   upgrades: Upgrades;
   xpRef?: React.RefObject<HTMLDivElement>;
   goldRef?: React.RefObject<HTMLDivElement>;
+  sfxEnabled: boolean;
 }
 
-const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({ onGameOver, isActive, multiplier, upgrades, xpRef, goldRef }, ref) => {
+const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({ onGameOver, isActive, multiplier, upgrades, xpRef, goldRef, sfxEnabled }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   
@@ -83,6 +84,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   }));
 
   const playSound = useCallback((type: 'hit' | 'perfect' | 'fail' | 'gameover') => {
+    if (!sfxEnabled) return;
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -124,7 +126,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
         osc.start(now); osc.stop(now + 0.9);
       }
     } catch (e) {}
-  }, []);
+  }, [sfxEnabled]);
 
   const spawnBlock = useCallback((width: number, y: number, currentScore: number) => {
     // Width Logic (Keep existing)
