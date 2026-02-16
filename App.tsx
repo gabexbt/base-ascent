@@ -54,6 +54,7 @@ const MainApp: React.FC = () => {
   const lobbyAudioRef = useRef<HTMLAudioElement | null>(null);
   const buttonAudioRef = useRef<HTMLAudioElement | null>(null);
   const successAudioRef = useRef<HTMLAudioElement | null>(null);
+  const uiAudioContextRef = useRef<AudioContext | null>(null);
   const gameRef = useRef<{ endGame: () => void }>(null);
   const sessionXpRef = useRef<HTMLDivElement>(null);
   const sessionGoldRef = useRef<HTMLDivElement>(null);
@@ -89,29 +90,71 @@ const MainApp: React.FC = () => {
     audio.play().catch(e => console.log("Game audio play failed:", e));
   }, [isGameMusicOn]);
 
+  const playUiBeep = useCallback(() => {
+    try {
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!uiAudioContextRef.current) {
+        uiAudioContextRef.current = new AudioCtx();
+      }
+      const ctx = uiAudioContextRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(1600, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.08);
+    } catch {}
+  }, []);
+
   const playClickSound = useCallback(() => {
     if (!isSfxOn) return;
-    if (!buttonAudioRef.current) {
-      const audio = new Audio('/audio/button_click.mp3');
-      audio.volume = 0.25;
-      buttonAudioRef.current = audio;
+    try {
+      if (!buttonAudioRef.current) {
+        const audio = new Audio('/audio/button_click.mp3');
+        audio.volume = 0.25;
+        buttonAudioRef.current = audio;
+      }
+      const audio = buttonAudioRef.current;
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.catch(() => {
+          playUiBeep();
+        });
+      }
+    } catch {
+      playUiBeep();
     }
-    const audio = buttonAudioRef.current;
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
-  }, [isSfxOn]);
+  }, [isSfxOn, playUiBeep]);
 
   const playSuccessSound = useCallback(() => {
     if (!isSfxOn) return;
-    if (!successAudioRef.current) {
-      const audio = new Audio('/audio/success.mp3');
-      audio.volume = 0.35;
-      successAudioRef.current = audio;
+    try {
+      if (!successAudioRef.current) {
+        const audio = new Audio('/audio/success.mp3');
+        audio.volume = 0.35;
+        successAudioRef.current = audio;
+      }
+      const audio = successAudioRef.current;
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.catch(() => {
+          playUiBeep();
+        });
+      }
+    } catch {
+      playUiBeep();
     }
-    const audio = successAudioRef.current;
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
-  }, [isSfxOn]);
+  }, [isSfxOn, playUiBeep]);
 
   const playLobbyMusic = useCallback(() => {
     if (!isLobbyMusicOn) return;
@@ -184,8 +227,15 @@ const MainApp: React.FC = () => {
    const { isPending } = useCasterContract();
 
   useEffect(() => {
-    const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3', '/audio/lobby_music.mp3'];
-    tracks.forEach(src => {
+    const sources = [
+      '/audio/track1.mp3',
+      '/audio/track2.mp3',
+      '/audio/track3.mp3',
+      '/audio/lobby_music.mp3',
+      '/audio/button_click.mp3',
+      '/audio/success.mp3'
+    ];
+    sources.forEach(src => {
       const audio = new Audio(src);
       audio.preload = 'auto';
     });
@@ -577,6 +627,8 @@ const MainApp: React.FC = () => {
   const handleStartGame = async () => {
     if (isStarting) return;
     
+    playClickSound();
+
     // Check Ascents
     if (!player || (player.ascentsRemaining || 0) <= 0) {
       // Should not happen if button is correct, but safety check
@@ -620,6 +672,7 @@ const MainApp: React.FC = () => {
 
   const handleRechargeAscents = async () => {
     if (!player) return;
+    playClickSound();
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, recharge: 'loading' }));
@@ -731,6 +784,7 @@ const MainApp: React.FC = () => {
 
   const handlePurchaseUpgrade = async (type: UpgradeType) => {
     if (!player) return;
+    playClickSound();
     const currentLevel = player.upgrades?.[type] || 0;
     const cost = getUpgradeCost(type, currentLevel);
     
@@ -778,6 +832,7 @@ const MainApp: React.FC = () => {
       return;
     }
     
+    playClickSound();
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, miner: 'loading' }));
@@ -848,6 +903,7 @@ const MainApp: React.FC = () => {
     const type = rankingType === 'skill' ? 'altitude' : 'xp';
     const hasUsedFree = type === 'altitude' ? player.hasUsedAltitudeFlex : player.hasUsedXpFlex;
     
+    playClickSound();
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, flex: 'loading' }));
@@ -1069,7 +1125,7 @@ const MainApp: React.FC = () => {
   if (isProduction && hasNoAccount) {
     return (
       <div className="h-[100dvh] bg-black text-white font-sans flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-        <ParticleBackground />
+        <ParticleBackground dim={0.2} />
         <div className="relative z-10 max-w-[320px] flex flex-col items-center">
           <div className="w-24 h-24 mb-8 animate-pulse">
             <img src={LOGO_URL} alt="Base Ascent" className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]" />
@@ -1136,7 +1192,7 @@ const MainApp: React.FC = () => {
       <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-black`} style={{ top: 'calc(70px + env(safe-area-inset-top))', bottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
         <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT ? 'pb-0' : 'pb-8'}`}>
           
-          <ParticleBackground />
+          <ParticleBackground dim={activeTab === Tab.ASCENT ? 0 : 0.2} />
 
           <div className="flex-1 flex flex-col relative w-full h-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
@@ -1429,13 +1485,13 @@ const MainApp: React.FC = () => {
                    <div className="h-full overflow-y-auto pb-6 custom-scrollbar px-4 pt-4 space-y-3">
                        
                        {/* Header & Controls */}
-                       <div className="flex justify-between items-center w-full shrink-0">
-                          <h2 className="text-3xl font-black italic uppercase tracking-tighter">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
-                          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
-                              <button onClick={() => handleRankingChange('skill')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
-                              <button onClick={() => handleRankingChange('grind')} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
-                          </div>
-                       </div>
+          <div className="flex justify-between items-center w-full shrink-0">
+             <h2 className="text-3xl font-black italic uppercase tracking-tighter">{rankingType === 'skill' ? 'Altitude' : 'Experience'}</h2>
+             <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
+                 <button onClick={() => { playClickSound(); handleRankingChange('skill'); }} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'skill' ? 'bg-white text-black' : 'opacity-40'}`}>Altitude</button>
+                 <button onClick={() => { playClickSound(); handleRankingChange('grind'); }} className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg ${rankingType === 'grind' ? 'bg-white text-black' : 'opacity-40'}`}>Experience</button>
+             </div>
+          </div>
 
                         {/* Stats Row: Airdrop & Total Players */}
                         <div className="grid grid-cols-2 gap-3 shrink-0">
@@ -1634,7 +1690,10 @@ const MainApp: React.FC = () => {
                     ].map((faq, i) => (
                       <div key={i} className="border border-white/5 rounded-2xl overflow-hidden bg-black/20">
                         <button 
-                          onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                          onClick={() => {
+                            playClickSound();
+                            setOpenFaq(openFaq === i ? null : i);
+                          }}
                           className="w-full px-4 py-3 flex items-center justify-between text-left active:bg-white/5 transition-colors"
                         >
                           <span className="text-[11px] font-bold text-white/80">{faq.q}</span>
@@ -1662,7 +1721,7 @@ const MainApp: React.FC = () => {
                  <div className="flex items-center justify-between">
                    <div className="text-[11px] font-bold text-white/80">Lobby Music</div>
                    <button
-                     onClick={() => setIsLobbyMusicOn(!isLobbyMusicOn)}
+                     onClick={() => { playClickSound(); setIsLobbyMusicOn(!isLobbyMusicOn); }}
                      className={`w-12 h-7 rounded-full flex items-center px-1 transition-all border ${isLobbyMusicOn ? 'bg-white text-black border-white shadow-[0_0_18px_rgba(255,255,255,0.6)]' : 'bg-zinc-900 text-white/40 border-white/20'}`}
                    >
                      <div className={`w-5 h-5 rounded-full bg-black transition-transform ${isLobbyMusicOn ? 'translate-x-5' : ''}`} />
@@ -1671,7 +1730,7 @@ const MainApp: React.FC = () => {
                  <div className="flex items-center justify-between">
                    <div className="text-[11px] font-bold text-white/80">In-Game Music</div>
                    <button
-                     onClick={() => setIsGameMusicOn(!isGameMusicOn)}
+                     onClick={() => { playClickSound(); setIsGameMusicOn(!isGameMusicOn); }}
                      className={`w-12 h-7 rounded-full flex items-center px-1 transition-all border ${isGameMusicOn ? 'bg-white text-black border-white shadow-[0_0_18px_rgba(255,255,255,0.6)]' : 'bg-zinc-900 text-white/40 border-white/20'}`}
                    >
                      <div className={`w-5 h-5 rounded-full bg-black transition-transform ${isGameMusicOn ? 'translate-x-5' : ''}`} />
@@ -1680,7 +1739,7 @@ const MainApp: React.FC = () => {
                  <div className="flex items-center justify-between">
                    <div className="text-[11px] font-bold text-white/80">Sound Effects</div>
                    <button
-                     onClick={() => setIsSfxOn(!isSfxOn)}
+                     onClick={() => { playClickSound(); setIsSfxOn(!isSfxOn); }}
                      className={`w-12 h-7 rounded-full flex items-center px-1 transition-all border ${isSfxOn ? 'bg-white text-black border-white shadow-[0_0_18px_rgba(255,255,255,0.6)]' : 'bg-zinc-900 text-white/40 border-white/20'}`}
                    >
                      <div className={`w-5 h-5 rounded-full bg-black transition-transform ${isSfxOn ? 'translate-x-5' : ''}`} />
@@ -1695,23 +1754,23 @@ const MainApp: React.FC = () => {
 
       {/* Bottom Navigation - Fixed */}
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] flex justify-around items-center px-6 py-4 bg-black/95 backdrop-blur-md border-t border-white/10 shrink-0 z-50 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
-        <button onClick={() => setActiveTab(Tab.ASCENT)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.ASCENT ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
+        <button onClick={() => { playClickSound(); setActiveTab(Tab.ASCENT); }} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.ASCENT ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Ascent />
           <span className="text-[9px] font-black uppercase tracking-widest">Ascent</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.UPGRADES)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.UPGRADES ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
+        <button onClick={() => { playClickSound(); setActiveTab(Tab.UPGRADES); }} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.UPGRADES ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Upgrades />
           <span className="text-[9px] font-black uppercase tracking-widest">Armory</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.HARDWARE)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.HARDWARE ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
+        <button onClick={() => { playClickSound(); setActiveTab(Tab.HARDWARE); }} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.HARDWARE ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Hardware />
           <span className="text-[9px] font-black uppercase tracking-widest">Miner</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.RANKINGS)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.RANKINGS ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
+        <button onClick={() => { playClickSound(); setActiveTab(Tab.RANKINGS); }} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.RANKINGS ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Ranking />
           <span className="text-[9px] font-black uppercase tracking-widest">Ranks</span>
         </button>
-        <button onClick={() => setActiveTab(Tab.PROFILE)} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.PROFILE ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
+        <button onClick={() => { playClickSound(); setActiveTab(Tab.PROFILE); }} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.PROFILE ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Profile />
           <span className="text-[9px] font-black uppercase tracking-widest">Profile</span>
         </button>

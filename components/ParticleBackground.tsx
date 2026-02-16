@@ -1,17 +1,24 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 
-export const ParticleBackground: React.FC = () => {
-  const particles = useMemo(() => Array.from({ length: 30 }).map((_, i) => ({
-    id: i, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
-    duration: 4 + Math.random() * 6, delay: Math.random() * 5,
-  })), []);
+type ParticleBackgroundProps = {
+  dim?: number;
+};
+
+export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({ dim = 0.2 }) => {
+  const opacity = Math.min(Math.max(dim, 0), 1);
+
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
-      {particles.map((p) => (
-        <div key={p.id} className="absolute w-[2px] h-[2px] bg-white rounded-full animate-pulse"
-          style={{ left: p.left, top: p.top, animationDuration: `${p.duration}s`, animationDelay: `${p.delay}s` }}
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div
+        className="w-full h-full bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/assets/background.png')" }}
+      />
+      {opacity > 0 && (
+        <div
+          className="absolute inset-0 bg-black"
+          style={{ opacity }}
         />
-      ))}
+      )}
     </div>
   );
 };

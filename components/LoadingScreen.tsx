@@ -4,32 +4,14 @@ import { LOADING_MESSAGES, LOGO_URL } from '../constants';
 const LOAD_ICON_URL = LOGO_URL;
 
 const ParticleBackground = () => {
-  const particles = useMemo(() => {
-    return Array.from({ length: 40 }).map((_, i) => ({
-      id: i,
-      left: `${Math.random() * 100}%`,
-      top: `${Math.random() * 100}%`,
-      duration: 3 + Math.random() * 4,
-      delay: Math.random() * 5,
-      opacity: 0.05 + Math.random() * 0.15,
-    }));
-  }, []);
-
+  const _memo = useMemo(() => ({}), []);
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {particles.map((p) => (
-        <div
-          key={p.id}
-          className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
-          style={{
-            left: p.left,
-            top: p.top,
-            opacity: p.opacity,
-            animationDuration: `${p.duration}s`,
-            animationDelay: `${p.delay}s`,
-          }}
-        />
-      ))}
+      <div
+        className="w-full h-full bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/assets/background.png')" }}
+      />
+      <div className="absolute inset-0 bg-black/40" />
     </div>
   );
 };
