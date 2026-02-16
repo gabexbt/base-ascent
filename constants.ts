@@ -82,7 +82,7 @@ export const UPGRADES: UpgradeConfig[] = [
   { 
     id: 'gridlock', 
     name: 'Gridlock', 
-    description: '% Chance to auto-correct a slightly missed block.', 
+    description: '% chance to auto-correct a slightly missed block.', 
     baseCost: 500, 
     costMultiplier: 2.5, 
     type: 'gameplay', 
@@ -112,7 +112,7 @@ export const UPGRADES: UpgradeConfig[] = [
   { 
     id: 'lucky_strike', 
     name: 'Lucky Strike', 
-    description: '% Chance for a block to give 2x Gold & XP.', 
+    description: '% chance for a block to give 2x Gold & XP.', 
     baseCost: 250, 
     costMultiplier: 1.8, 
     type: 'economy', 

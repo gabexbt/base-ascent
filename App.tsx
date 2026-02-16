@@ -50,6 +50,8 @@ const MainApp: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lobbyAudioRef = useRef<HTMLAudioElement | null>(null);
+  const buttonAudioRef = useRef<HTMLAudioElement | null>(null);
+  const successAudioRef = useRef<HTMLAudioElement | null>(null);
   const gameRef = useRef<{ endGame: () => void }>(null);
   const sessionXpRef = useRef<HTMLDivElement>(null);
   const sessionGoldRef = useRef<HTMLDivElement>(null);
@@ -68,7 +70,6 @@ const MainApp: React.FC = () => {
 
 
   const playRandomTrack = useCallback(() => {
-    // Stop any existing game audio first to prevent overlap
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -78,13 +79,37 @@ const MainApp: React.FC = () => {
     const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
     
     const audio = new Audio(randomTrack);
-    audio.volume = 0.0375; // Reduced by 50% (from 0.075)
+    audio.volume = 0.01875;
     audio.loop = true;
     
     if (!isMuted) {
       audio.play().catch(e => console.log("Game audio play failed:", e));
     }
     audioRef.current = audio;
+  }, [isMuted]);
+
+  const playClickSound = useCallback(() => {
+    if (isMuted) return;
+    if (!buttonAudioRef.current) {
+      const audio = new Audio('/audio/button_click.mp3');
+      audio.volume = 0.25;
+      buttonAudioRef.current = audio;
+    }
+    const audio = buttonAudioRef.current;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  }, [isMuted]);
+
+  const playSuccessSound = useCallback(() => {
+    if (isMuted) return;
+    if (!successAudioRef.current) {
+      const audio = new Audio('/audio/success.mp3');
+      audio.volume = 0.35;
+      successAudioRef.current = audio;
+    }
+    const audio = successAudioRef.current;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
   }, [isMuted]);
 
   const playLobbyMusic = useCallback(() => {
@@ -165,14 +190,28 @@ const MainApp: React.FC = () => {
    const { address } = useAccount();
    const { isPending } = useCasterContract();
 
-   useEffect(() => {
-    // Preload audio tracks
+  useEffect(() => {
     const tracks = ['/audio/track1.mp3', '/audio/track2.mp3', '/audio/track3.mp3', '/audio/lobby_music.mp3'];
     tracks.forEach(src => {
       const audio = new Audio(src);
       audio.preload = 'auto';
     });
   }, []);
+
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const button = target.closest('button') as HTMLButtonElement | null;
+      if (!button || button.disabled) return;
+      playClickSound();
+    };
+
+    document.addEventListener('click', handleClick);
+    return () => {
+      document.removeEventListener('click', handleClick);
+    };
+  }, [playClickSound]);
 
   const { data: usdcBalance } = useBalance({
     address: address,
@@ -617,6 +656,7 @@ const MainApp: React.FC = () => {
 
       clearTimeout(safetyTimeout);
       setPaymentStatus(prev => ({ ...prev, recharge: 'success' }));
+      playSuccessSound();
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, recharge: 'idle' })), 1200);
     } catch (e: any) {
       console.error("Recharge Error:", e);
@@ -681,6 +721,7 @@ const MainApp: React.FC = () => {
       try {
         await PlayerService.claimPassiveXp(player.fid);
         await loadData();
+        playSuccessSound();
         
         // Success text display time
         setTimeout(() => setShowClaimEffect(false), 1000);
@@ -723,6 +764,7 @@ const MainApp: React.FC = () => {
       // Wait for a small delay to ensure DB transaction is processed before refreshing
       await new Promise(resolve => setTimeout(resolve, 300));
       await loadData(true); // silent refresh
+      playSuccessSound();
     } catch (e) {
         console.error("Purchase Error:", e);
         await loadData(); // Revert
@@ -790,6 +832,7 @@ const MainApp: React.FC = () => {
       
       clearTimeout(safetyTimeout);
       setPaymentStatus(prev => ({ ...prev, miner: 'success' }));
+      playSuccessSound();
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
     } catch (e: any) {
       console.error("Miner Upgrade Error:", e);
@@ -848,6 +891,7 @@ const MainApp: React.FC = () => {
       }
       await loadData();
       setPaymentStatus(prev => ({ ...prev, flex: 'success' }));
+      playSuccessSound();
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, flex: 'idle' })), 1200);
     } catch (e: any) {
       console.error("Flex/Payment Error:", e);
@@ -1004,6 +1048,7 @@ const MainApp: React.FC = () => {
        
        await loadData();
        setPaymentStatus(prev => ({ ...prev, double: 'success' }));
+       playSuccessSound();
        setShowDoubleSuccess(true);
        
     } catch (e: any) {
@@ -1211,9 +1256,9 @@ const MainApp: React.FC = () => {
                   </div>
                 ) : status === GameStatus.IDLE ? (
                   <div className="flex-1 flex flex-col items-center text-center w-full px-5 py-4 h-full justify-between overflow-hidden">
-                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-16">
-                      <div className="w-full h-auto max-h-[28vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
-                         <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.7]" alt="ASCENT" />
+                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-10">
+                      <div className="w-full h-auto max-h-[24vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
+                         <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.4]" alt="ASCENT" />
                       </div>
                     </div>
                     <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-6 mt-auto">
@@ -1276,8 +1321,11 @@ const MainApp: React.FC = () => {
               />
             ) : activeTab === Tab.HARDWARE ? (
               <div className="flex-1 flex flex-col items-center pb-12 p-4 w-full h-full">
-                <div className="w-full flex justify-between items-end mb-2">
-                  <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Auto Miner</h2>
+                <div className="w-full flex justify-between items-start mb-4">
+                  <div className="flex flex-col gap-1">
+                    <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Auto Miner</h2>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/40">PASSIVE XP EXTRACTION</p>
+                  </div>
                   <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
                     <div className={`w-2 h-2 rounded-full ${player?.minerLevel > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                     <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
@@ -1287,7 +1335,7 @@ const MainApp: React.FC = () => {
                 </div>
 
                 {/* Main Miner Frame Container */}
-                <div className="w-full flex-1 flex flex-col gap-2 min-h-0 pb-12">
+                <div className="w-full flex-1 flex flex-col gap-2 min-h-0 pb-16">
                   
                   {/* Airdrop Info Section */}
                   <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] backdrop-blur-md shrink-0">
@@ -1343,7 +1391,7 @@ const MainApp: React.FC = () => {
                   </div>
 
                   {/* Earnings & Claim Section */}
-                  <div className="p-6 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0">
+                  <div className="p-6 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-4">
                     <div className="flex flex-col items-center text-center px-2">
                       <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">ACCUMULATED EARNINGS</span>
                       <div className={`text-4xl font-black italic tracking-tighter transition-all duration-300 ${showClaimEffect ? 'scale-110 text-green-400' : 'text-white'}`}>

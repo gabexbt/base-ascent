@@ -104,9 +104,9 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
     <div className="flex flex-col w-full bg-black text-white p-4 pb-12">
       {/* Header */}
       <div className="flex items-center justify-between mb-6 bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm shrink-0">
-        <div>
+        <div className="flex flex-col gap-1">
           <h2 className="text-3xl font-black italic uppercase tracking-tighter">Armory</h2>
-          <p className="text-xs text-white/40 font-bold uppercase tracking-widest">UPGRADE YOUR HARDWARE</p>
+          <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.25em]">UPGRADE YOUR HARDWARE</p>
         </div>
         <div className="text-right">
           <div className="text-3xl font-black text-yellow-400 tracking-tighter flex items-center justify-end gap-3">
