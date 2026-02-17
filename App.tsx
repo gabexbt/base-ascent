@@ -54,8 +54,7 @@ const MainApp: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lobbyAudioRef = useRef<HTMLAudioElement | null>(null);
   const buttonAudioRef = useRef<HTMLAudioElement | null>(null);
-  const successBufferRef = useRef<AudioBuffer | null>(null);
-  const uiAudioContextRef = useRef<AudioContext | null>(null);
+  const successBufferRef = useRef<HTMLAudioElement | null>(null);
   const gameRef = useRef<{ endGame: () => void }>(null);
   const sessionXpRef = useRef<HTMLDivElement>(null);
   const sessionGoldRef = useRef<HTMLDivElement>(null);
@@ -170,40 +169,21 @@ const MainApp: React.FC = () => {
   const playSuccessSound = useCallback(() => {
     if (!isSfxOn) return;
     try {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      if (!uiAudioContextRef.current) {
-        uiAudioContextRef.current = new AudioCtx();
+      if (!successBufferRef.current) {
+        const base = new Audio('/audio/success.mp3');
+        base.volume = 0.28;
+        base.preload = 'auto';
+        successBufferRef.current = base;
       }
-      const ctx = uiAudioContextRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-
-      const playBuffer = (buffer: AudioBuffer) => {
-        const source = ctx.createBufferSource();
-        const gain = ctx.createGain();
-        source.buffer = buffer;
-        gain.gain.value = 0.55;
-        source.connect(gain);
-        gain.connect(ctx.destination);
-        source.start(0);
-      };
-
-      if (successBufferRef.current) {
-        playBuffer(successBufferRef.current);
-      } else {
-        fetch('/audio/success.mp3')
-          .then(res => res.arrayBuffer())
-          .then(data => ctx.decodeAudioData(data))
-          .then(buffer => {
-            successBufferRef.current = buffer;
-            playBuffer(buffer);
-          })
-          .catch(() => {});
+      const base = successBufferRef.current;
+      const audio = base.cloneNode(true) as HTMLAudioElement;
+      audio.volume = base.volume;
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.catch(() => {});
       }
     } catch {
-      // swallow
+      // ignore
     }
   }, [isSfxOn]);
 
@@ -1501,29 +1481,18 @@ const MainApp: React.FC = () => {
                     <div className={`absolute inset-0 pointer-events-none transition-opacity duration-700 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.4),transparent_65%)] ${isMinerUnlocking ? 'opacity-100' : 'opacity-0'}`}></div>
 
                     {player?.minerLevel === 0 ? (
-                      <div className="relative z-10 flex flex-col items-center justify-between w-full h-full">
-                        <div className="flex-1 flex flex-col items-center justify-center">
-                          <div className="w-40 h-40 mb-3 flex items-center justify-center">
-                            <img
-                              src="/assets/miner/locked_miner.png"
-                              alt="Locked Miner"
-                              className="w-full h-full object-contain grayscale opacity-80"
-                            />
-                          </div>
-                          <div className="text-xl font-black italic uppercase mb-1">MINER LOCKED</div>
-                          <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed px-4">
-                            Unlock your miner to start extracting XP automatically and build passive XP.
-                          </p>
+                      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
+                        <div className="w-40 h-40 mb-3 flex items-center justify-center">
+                          <img
+                            src="/assets/miner/locked_miner.png"
+                            alt="Locked Miner"
+                            className="w-full h-full object-contain grayscale opacity-80"
+                          />
                         </div>
-                        <div className="w-full mt-4">
-                          <button
-                            onClick={() => handleUpgradeMiner(1)}
-                            disabled={processingPayment}
-                            className="w-full py-4 bg-white text-black font-black text-sm uppercase rounded-2xl active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.4)]"
-                          >
-                            {paymentStatus.miner === 'loading' ? 'INITIALIZING...' : 'Unlock Miner ($0.99 USDC)'}
-                          </button>
-                        </div>
+                        <div className="text-xl font-black italic uppercase mb-1">MINER LOCKED</div>
+                        <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed px-4">
+                          Unlock your miner to start extracting XP automatically and build passive XP.
+                        </p>
                       </div>
                     ) : (
                       <div className="relative group">
@@ -1539,6 +1508,28 @@ const MainApp: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {player?.minerLevel === 0 && (
+                    <div className="p-5 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-6 mt-2">
+                      <div className="flex flex-col items-center text-center px-2">
+                        <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">Unlock Miner</span>
+                        <p className="text-[10px] leading-relaxed opacity-60 font-bold uppercase">
+                          Pay once to activate your Auto Miner, qualify for the airdrop, and start earning XP passively every hour.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleUpgradeMiner(1)}
+                        disabled={processingPayment}
+                        className="w-full py-5 font-black text-lg rounded-[1.5rem] active:scale-95 disabled:opacity-50 transition-all uppercase bg-white text-black shadow-[0_0_24px_rgba(255,255,255,0.25)]"
+                      >
+                        {paymentStatus.miner === 'loading'
+                          ? 'Processing...'
+                          : paymentStatus.miner === 'success'
+                            ? 'Unlocked'
+                            : 'Unlock Miner ($0.99 USDC)'}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Earnings & Claim Section - only after unlock */}
                   {player?.minerLevel > 0 && (
