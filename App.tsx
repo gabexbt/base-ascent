@@ -841,6 +841,8 @@ const MainApp: React.FC = () => {
     setLastClaimedAmount(claimedAmount);
     setIsClaiming(true);
     setShowClaimEffect(false);
+    setPassiveFreezeXp(claimedAmount);
+    setIsPassiveFrozen(true);
     const freezeEnd = Date.now() + 3000;
     setClaimFreezeUntil(freezeEnd);
     
@@ -850,6 +852,8 @@ const MainApp: React.FC = () => {
       setIsClaiming(false);
       setShowClaimEffect(true);
       setTimeout(() => {
+        setPassiveFreezeXp(0);
+        setIsPassiveFrozen(false);
         setShowClaimEffect(false);
         setClaimFreezeUntil(null);
       }, 3000);
