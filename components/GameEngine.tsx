@@ -36,7 +36,7 @@ interface GameEngineProps {
   sfxEnabled: boolean;
 }
 
-const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({ onGameOver, isActive, multiplier, upgrades, xpRef, goldRef, sfxEnabled }, ref) => {
+const GameEngine = React.forwardRef<{ endGame: () => void; unlockAudio: () => void }, GameEngineProps>(({ onGameOver, isActive, multiplier, upgrades, xpRef, goldRef, sfxEnabled }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   
@@ -65,7 +65,7 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
   // State only for UI triggers
   const [displayScore, setDisplayScore] = useState(0);
   
-  // Expose endGame to parent
+  // Expose controls to parent
   React.useImperativeHandle(ref, () => ({
     endGame: () => {
       if (!isActive) return;
@@ -80,14 +80,29 @@ const GameEngine = React.forwardRef<{ endGame: () => void }, GameEngineProps>(({
       const totalGold = Math.floor((baseGold + bonusGoldRef.current) * midasMult * multiplier);
 
       onGameOver(finalAltitude, totalXP, totalGold);
+    },
+    unlockAudio: () => {
+      try {
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!audioContextRef.current) {
+          audioContextRef.current = new AudioCtx();
+        }
+        const ctx = audioContextRef.current;
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+      } catch {}
     }
   }));
 
   const playSound = useCallback((type: 'hit' | 'perfect' | 'fail' | 'gameover') => {
     if (!sfxEnabled) return;
     try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        audioContextRef.current = new AudioCtx();
       }
       const ctx = audioContextRef.current;
       if (ctx.state === 'suspended') ctx.resume();

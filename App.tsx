@@ -54,8 +54,9 @@ const MainApp: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lobbyAudioRef = useRef<HTMLAudioElement | null>(null);
   const buttonAudioRef = useRef<HTMLAudioElement | null>(null);
-  const successBufferRef = useRef<HTMLAudioElement | null>(null);
-  const gameRef = useRef<{ endGame: () => void }>(null);
+  const uiAudioContextRef = useRef<AudioContext | null>(null);
+  const successBufferRef = useRef<AudioBuffer | null>(null);
+  const gameRef = useRef<{ endGame: () => void; unlockAudio: () => void }>(null);
   const sessionXpRef = useRef<HTMLDivElement>(null);
   const sessionGoldRef = useRef<HTMLDivElement>(null);
   const [isMinerLevelAnimating, setIsMinerLevelAnimating] = useState(false);
@@ -169,21 +170,40 @@ const MainApp: React.FC = () => {
   const playSuccessSound = useCallback(() => {
     if (!isSfxOn) return;
     try {
-      if (!successBufferRef.current) {
-        const base = new Audio('/audio/success.mp3');
-        base.volume = 0.28;
-        base.preload = 'auto';
-        successBufferRef.current = base;
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!uiAudioContextRef.current) {
+        uiAudioContextRef.current = new AudioCtx();
       }
-      const base = successBufferRef.current;
-      const audio = base.cloneNode(true) as HTMLAudioElement;
-      audio.volume = base.volume;
-      const playPromise = audio.play();
-      if (playPromise && typeof playPromise.then === 'function') {
-        playPromise.catch(() => {});
+      const ctx = uiAudioContextRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      const playBuffer = (buffer: AudioBuffer) => {
+        const source = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        source.buffer = buffer;
+        gain.gain.value = 0.55;
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        source.start(0);
+      };
+
+      if (successBufferRef.current) {
+        playBuffer(successBufferRef.current);
+      } else {
+        fetch('/audio/success.mp3')
+          .then(res => res.arrayBuffer())
+          .then(data => ctx.decodeAudioData(data))
+          .then(buffer => {
+            successBufferRef.current = buffer;
+            playBuffer(buffer);
+          })
+          .catch(() => {});
       }
     } catch {
-      // ignore
+      // swallow
     }
   }, [isSfxOn]);
 
@@ -292,6 +312,20 @@ const MainApp: React.FC = () => {
     const unlockAudio = () => {
       try {
         playClickSound();
+
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          if (!uiAudioContextRef.current) {
+            uiAudioContextRef.current = new AudioCtx();
+          }
+          if (uiAudioContextRef.current.state === 'suspended') {
+            uiAudioContextRef.current.resume();
+          }
+        }
+
+        if (gameRef.current && typeof gameRef.current.unlockAudio === 'function') {
+          gameRef.current.unlockAudio();
+        }
       } catch {}
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('mousedown', unlockAudio);
@@ -1521,18 +1555,20 @@ const MainApp: React.FC = () => {
                     <div className={`absolute inset-0 pointer-events-none transition-opacity duration-700 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.4),transparent_65%)] ${isMinerUnlocking ? 'opacity-100' : 'opacity-0'}`}></div>
 
                   {player?.minerLevel === 0 ? (
-                      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full px-4">
-                        <div className="w-40 h-40 mb-3 flex items-center justify-center">
+                      <div className="relative z-10 w-full h-full flex items-center justify-center">
+                        <div className="w-40 h-40 flex items-center justify-center">
                           <img
                             src="/assets/miner/locked_miner.png"
                             alt="Locked Miner"
                             className="w-full h-full object-contain grayscale opacity-80"
                           />
                         </div>
-                        <div className="text-xl font-black italic uppercase mb-1 text-center">MINER LOCKED</div>
-                        <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed text-center max-w-[260px]">
-                          Unlock your miner to start extracting XP automatically and build passive XP.
-                        </p>
+                        <div className="absolute inset-x-0 bottom-10 flex flex-col items-center text-center px-4">
+                          <div className="text-xl font-black italic uppercase mb-1">MINER LOCKED</div>
+                          <p className="text-[10px] opacity-70 font-bold uppercase tracking-[0.25em]">
+                            UNLOCK YOUR MINER TO START EXTRACTING
+                          </p>
+                        </div>
                       </div>
                     ) : (
                       <div className="relative group">
@@ -1769,7 +1805,7 @@ const MainApp: React.FC = () => {
                         <div key={t.id} className="w-full p-4 border border-white/10 rounded-[28px] flex items-center justify-between bg-black/50">
                            <div className="text-left"><div className="text-[10px] font-black uppercase">{t.l}</div><div className="text-[8px] opacity-40">+50K XP • 10K GOLD • 5 SPINS</div></div>
                            <button onClick={() => handleTaskClick(t.id, t.u)} disabled={player?.completedTasks?.includes(t.id) || (taskTimers[t.id]?.time > 0)} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95 disabled:opacity-50 transition-all min-w-[100px]">
-                              {player?.completedTasks?.includes(t.id) ? 'DONE' : taskTimers[t.id]?.time > 0 ? `VERIFYING (${taskTimers[t.id]?.time}s)` : 'COMPLETE TASK'}
+                              {player?.completedTasks?.includes(t.id) ? 'COMPLETED' : taskTimers[t.id]?.time > 0 ? `VERIFYING (${taskTimers[t.id]?.time}s)` : 'COMPLETE TASK'}
                            </button>
                         </div>
                      ))}
