@@ -1312,7 +1312,7 @@ const MainApp: React.FC = () => {
                     <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-6 mt-auto">
                        
                       {/* Ascents Counter */}
-                      <div className="flex flex-col items-center gap-1 mb-2">
+                      <div className="flex flex-col items-center gap-1 mb-2 mt-4">
                         <span className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Ascents Available</span>
                         <span className={`text-4xl font-black ${player?.ascentsRemaining === 0 ? 'text-red-500' : 'text-white'} drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-colors duration-300`}>
                           {player?.ascentsRemaining ?? 0}
@@ -1441,7 +1441,7 @@ const MainApp: React.FC = () => {
                   </div>
 
                   {/* Earnings & Claim Section */}
-                  <div className="p-6 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-4">
+                  <div className="p-6 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-6">
                     <div className="flex flex-col items-center text-center px-2">
                       <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">ACCUMULATED EARNINGS</span>
                       <div className={`text-4xl font-black italic tracking-tighter transition-all duration-300 ${showClaimEffect ? 'scale-110 text-green-400' : 'text-white'}`}>
@@ -1474,6 +1474,8 @@ const MainApp: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  <div className="h-8 shrink-0" />
                 </div>
               </div>
             ) : activeTab === Tab.RANKINGS ? (
@@ -1568,7 +1570,7 @@ const MainApp: React.FC = () => {
 
                        {/* Your Rank (Sticky) */}
                <div className="shrink-0 px-4 pb-1 pt-1 bg-black z-20 relative border-t border-white/10">
-                  <div className="p-2 border border-white/10 bg-black/90 rounded-2xl space-y-1.5">
+                  <div className="p-2 border border-white/10 bg-black rounded-2xl space-y-1.5">
                       <div className="flex justify-between items-center px-1">
                          <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
                          <div className="flex items-center gap-3">
