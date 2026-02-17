@@ -1834,7 +1834,7 @@ const MainApp: React.FC = () => {
                      {[
                        { id: 'f-gabe', l: 'Follow gabe on Base', u: 'https://base.app/profile/gabexbt' },
                        { id: 'f-x', l: 'Follow gabe on X', u: 'https://x.com/gabexbt' },
-                       { id: 'post-interaction', l: 'Engagement Booster', u: 'https://warpcast.com/gabexbt/0x892a0' },
+                      { id: 'post-interaction', l: 'Like the Post on X', u: 'https://x.com/gabexbt/status/2023783762656719303?s=20' },
                        { id: 'neynar-notifications', l: 'Pin App & Enable Notifications', u: '#' }
                      ].map(t => (
                         <div key={t.id} className="w-full p-4 border border-white/10 rounded-[28px] flex items-center justify-between bg-black/50">
