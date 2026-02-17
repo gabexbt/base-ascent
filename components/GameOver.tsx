@@ -86,7 +86,7 @@ const GameOver: React.FC<GameOverProps> = ({
               <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500"></div>
               <div className="flex flex-col items-center leading-none gap-1">
                 <span className="text-2xl tracking-tighter">
-                  {doubleUpStatus === 'loading' ? 'PROCESSING...' : doubleUpStatus === 'success' ? 'SUCCESS' : doubleUpStatus === 'error' ? 'FAILED' : 'DOUBLE IT ALL'}
+                  {doubleUpStatus === 'loading' ? 'PROCESSING...' : doubleUpStatus === 'success' ? 'SUCCESS!' : doubleUpStatus === 'error' ? 'FAILED' : 'DOUBLE IT ALL'}
                 </span>
                 <span className="text-[10px] bg-black/20 px-3 py-1 rounded-full font-bold tracking-widest text-black/80">
                   {doubleUpStatus === 'loading' ? 'CONFIRM IN WALLET' : doubleUpStatus === 'success' ? 'DOUBLED' : doubleUpStatus === 'error' ? 'TRY AGAIN' : '$0.10 USDC'}

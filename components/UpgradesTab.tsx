@@ -105,11 +105,10 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
       {/* Header */}
       <div className="flex flex-col gap-3 mb-4 shrink-0">
         <div className="flex items-center justify-between bg-black/80 p-4 rounded-2xl border border-white/10 backdrop-blur-md">
-          <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
             <h2 className="text-3xl font-black italic uppercase tracking-tighter">Armory</h2>
-            <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.25em]">UPGRADE YOUR HARDWARE</p>
           </div>
-          <div className="text-right">
+          <div className="text-right flex items-center">
             <div className="text-3xl font-black text-yellow-400 tracking-tighter flex items-center justify-end gap-3">
               {player.totalGold.toLocaleString()}
               <span className="text-sm text-yellow-600 font-bold">GOLD</span>

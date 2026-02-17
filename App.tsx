@@ -260,7 +260,7 @@ const MainApp: React.FC = () => {
    const { isPending } = useCasterContract();
 
   useEffect(() => {
-    const sources = [
+    const audioSources = [
       '/audio/track1.mp3',
       '/audio/track2.mp3',
       '/audio/track3.mp3',
@@ -268,9 +268,23 @@ const MainApp: React.FC = () => {
       '/audio/button_click.mp3',
       '/audio/success.mp3'
     ];
-    sources.forEach(src => {
+    audioSources.forEach(src => {
       const audio = new Audio(src);
       audio.preload = 'auto';
+    });
+
+    const minerImages = [
+      '/assets/miner/miner_lvl_0.png',
+      '/assets/miner/miner_lvl_1.png',
+      '/assets/miner/miner_lvl_2.png',
+      '/assets/miner/miner_lvl_3.png',
+      '/assets/miner/miner_lvl_4.png',
+      '/assets/miner/miner_lvl_5.png',
+      '/assets/miner/locked_miner.png'
+    ];
+    minerImages.forEach(src => {
+      const img = new Image();
+      img.src = src;
     });
   }, []);
 
@@ -1167,6 +1181,36 @@ const MainApp: React.FC = () => {
     }
   };
 
+  const handleDownloadBaseApp = () => {
+    try {
+      const ua = navigator.userAgent || (navigator as any).vendor || (window as any).opera;
+      let url = 'https://www.coinbase.com/wallet/downloads';
+      if (/android/i.test(ua)) {
+        url = 'https://play.google.com/store/apps/details?id=org.toshi';
+      } else if (/iPad|iPhone|iPod/.test(ua)) {
+        url = 'https://apps.apple.com/us/app/base-formerly-coinbase-wallet/id1278383455';
+      }
+      window.location.href = url;
+    } catch {
+      window.location.href = 'https://www.coinbase.com/wallet/downloads';
+    }
+  };
+
+  const handleDownloadFarcasterApp = () => {
+    try {
+      const ua = navigator.userAgent || (navigator as any).vendor || (window as any).opera;
+      let url = 'https://farcaster.xyz/';
+      if (/android/i.test(ua)) {
+        url = 'https://play.google.com/store/apps/details?id=com.farcaster.mobile';
+      } else if (/iPad|iPhone|iPod/.test(ua)) {
+        url = 'https://apps.apple.com/us/app/farcaster/id1600555445';
+      }
+      window.location.href = url;
+    } catch {
+      window.location.href = 'https://farcaster.xyz/';
+    }
+  };
+
   if (loading || isFarcasterLoading || !dataLoaded) return <LoadingScreen />;
 
   // Production check for Farcaster context
@@ -1183,25 +1227,21 @@ const MainApp: React.FC = () => {
           </div>
           <h1 className="text-4xl font-black italic tracking-tighter mb-4 uppercase">BASE ASCENT</h1>
           <p className="text-sm opacity-60 mb-10 leading-relaxed uppercase font-bold tracking-widest">
-            This is a Farcaster-native game. Please open this link inside the Base App or Warpcast to start your journey.
+            This is a farcaster / base native mini-app. Please open this link inside the Base or Farcaster App to start your journey.
           </p>
           <div className="space-y-4 w-full">
-            <a 
-              href="https://base.org/names" 
-              target="_blank" 
-              rel="noopener noreferrer"
+            <button
+              onClick={handleDownloadBaseApp}
               className="block w-full py-4 bg-white text-black font-black rounded-2xl uppercase tracking-tighter text-lg hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
             >
-              Get a Base Name
-            </a>
-            <a 
-              href="https://warpcast.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
+              Download Base
+            </button>
+            <button
+              onClick={handleDownloadFarcasterApp}
               className="block w-full py-4 border-2 border-white/20 text-white font-black rounded-2xl uppercase tracking-tighter text-lg hover:bg-white/5 active:scale-95 transition-all"
             >
-              Join Warpcast
-            </a>
+              Download Farcaster
+            </button>
           </div>
           <p className="mt-12 text-[10px] opacity-30 font-bold uppercase tracking-[0.2em]">Developed by @gabexbt</p>
         </div>
@@ -1317,7 +1357,7 @@ const MainApp: React.FC = () => {
                                <div className="grid grid-cols-2 gap-4">
                                   <div className="bg-white/10 border border-white/10 rounded-2xl p-3 backdrop-blur-md">
                                     <div className="text-[9px] opacity-60 uppercase font-bold tracking-widest mb-1">XP Earned</div>
-                                    <div className="text-2xl font-black italic text-purple-400">+{gameOverData.xp}</div>
+                                    <div className="text-2xl font-black italic text-green-400">+{gameOverData.xp}</div>
                                   </div>
                                   <div className="bg-white/10 border border-white/10 rounded-2xl p-3 backdrop-blur-md">
                                     <div className="text-[9px] opacity-60 uppercase font-bold tracking-widest mb-1">Gold Earned</div>
@@ -1480,8 +1520,8 @@ const MainApp: React.FC = () => {
 
                     <div className={`absolute inset-0 pointer-events-none transition-opacity duration-700 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.4),transparent_65%)] ${isMinerUnlocking ? 'opacity-100' : 'opacity-0'}`}></div>
 
-                    {player?.minerLevel === 0 ? (
-                      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
+                  {player?.minerLevel === 0 ? (
+                      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full px-4">
                         <div className="w-40 h-40 mb-3 flex items-center justify-center">
                           <img
                             src="/assets/miner/locked_miner.png"
@@ -1489,8 +1529,8 @@ const MainApp: React.FC = () => {
                             className="w-full h-full object-contain grayscale opacity-80"
                           />
                         </div>
-                        <div className="text-xl font-black italic uppercase mb-1">MINER LOCKED</div>
-                        <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed px-4">
+                        <div className="text-xl font-black italic uppercase mb-1 text-center">MINER LOCKED</div>
+                        <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed text-center max-w-[260px]">
                           Unlock your miner to start extracting XP automatically and build passive XP.
                         </p>
                       </div>
@@ -1510,10 +1550,10 @@ const MainApp: React.FC = () => {
                   </div>
 
                   {player?.minerLevel === 0 && (
-                    <div className="p-5 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-6 mt-2">
+                    <div className="p-5 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-6 mt-3">
                       <div className="flex flex-col items-center text-center px-2">
                         <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">Unlock Miner</span>
-                        <p className="text-[10px] leading-relaxed opacity-60 font-bold uppercase">
+                        <p className="text-[10px] leading-relaxed opacity-60 font-bold uppercase max-w-[280px]">
                           Pay once to activate your Auto Miner, qualify for the airdrop, and start earning XP passively every hour.
                         </p>
                       </div>
@@ -1525,7 +1565,7 @@ const MainApp: React.FC = () => {
                         {paymentStatus.miner === 'loading'
                           ? 'Processing...'
                           : paymentStatus.miner === 'success'
-                            ? 'Unlocked'
+                            ? 'UNLOCKED!'
                             : 'Unlock Miner ($0.99 USDC)'}
                       </button>
                     </div>
@@ -1562,7 +1602,7 @@ const MainApp: React.FC = () => {
                                 : 'border-white text-white hover:bg-white hover:text-black')
                             }
                           >
-                            {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'Success' : paymentStatus.miner === 'error' ? 'Failed' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
+                            {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'SUCCESS!' : paymentStatus.miner === 'error' ? 'FAILED' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
                           </button>
                         ) : (
                           <div className="py-5 border-2 border-dashed border-white/30 text-center opacity-40 font-black rounded-3xl uppercase">Max Level Reached</div>
