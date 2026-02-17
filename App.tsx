@@ -249,6 +249,7 @@ const MainApp: React.FC = () => {
     const unlockAudio = () => {
       try {
         playClickSound();
+        playUiBeep();
       } catch {}
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('mousedown', unlockAudio);
