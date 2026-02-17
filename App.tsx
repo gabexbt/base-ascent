@@ -147,6 +147,21 @@ const MainApp: React.FC = () => {
   }, [isGameMusicOn]);
 
   const playClickSound = useCallback(() => {
+    try {
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        if (!uiAudioContextRef.current || uiAudioContextRef.current.state === 'closed') {
+          uiAudioContextRef.current = new AudioCtx();
+        }
+        if (uiAudioContextRef.current.state === 'suspended') {
+          uiAudioContextRef.current.resume();
+        }
+        if (gameRef.current && typeof gameRef.current.unlockAudio === 'function') {
+          gameRef.current.unlockAudio();
+        }
+      }
+    } catch {}
+
     if (!isSfxOn) return;
     try {
       if (!buttonAudioRef.current) {
@@ -312,20 +327,6 @@ const MainApp: React.FC = () => {
     const unlockAudio = () => {
       try {
         playClickSound();
-
-        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtx) {
-          if (!uiAudioContextRef.current) {
-            uiAudioContextRef.current = new AudioCtx();
-          }
-          if (uiAudioContextRef.current.state === 'suspended') {
-            uiAudioContextRef.current.resume();
-          }
-        }
-
-        if (gameRef.current && typeof gameRef.current.unlockAudio === 'function') {
-          gameRef.current.unlockAudio();
-        }
       } catch {}
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('mousedown', unlockAudio);
@@ -720,6 +721,11 @@ const MainApp: React.FC = () => {
     setIsStarting(true);
     
     try {
+      // Ensure game audio context is unlocked on explicit start
+      if (gameRef.current && typeof gameRef.current.unlockAudio === 'function') {
+        gameRef.current.unlockAudio();
+      }
+
       // Deduct Ascent on Backend
       const success = await PlayerService.startGameAttempt(player.fid);
       if (!success) {
@@ -1590,7 +1596,7 @@ const MainApp: React.FC = () => {
                       <div className="flex flex-col items-center text-center px-2">
                         <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">Unlock Miner</span>
                         <p className="text-[10px] leading-relaxed opacity-60 font-bold uppercase max-w-[280px]">
-                          Pay once to activate your Auto Miner, qualify for the airdrop, and start earning XP passively every hour.
+                          ACTIVATE YOUR AUTO MINER TO START EARNING XP PASSIVELY AND QUALIFY FOR THE AIRDROP.
                         </p>
                       </div>
                       <button
