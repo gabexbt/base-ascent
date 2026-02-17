@@ -53,7 +53,7 @@ const MainApp: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lobbyAudioRef = useRef<HTMLAudioElement | null>(null);
   const buttonAudioRef = useRef<HTMLAudioElement | null>(null);
-  const successAudioRef = useRef<HTMLAudioElement | null>(null);
+  const successBufferRef = useRef<AudioBuffer | null>(null);
   const uiAudioContextRef = useRef<AudioContext | null>(null);
   const gameRef = useRef<{ endGame: () => void }>(null);
   const sessionXpRef = useRef<HTMLDivElement>(null);
@@ -140,18 +140,37 @@ const MainApp: React.FC = () => {
   const playSuccessSound = useCallback(() => {
     if (!isSfxOn) return;
     try {
-      if (!successAudioRef.current) {
-        const base = new Audio('/audio/success.mp3');
-        base.volume = 0.45;
-        base.preload = 'auto';
-        successAudioRef.current = base;
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!uiAudioContextRef.current) {
+        uiAudioContextRef.current = new AudioCtx();
       }
-      const base = successAudioRef.current;
-      const audio = base.cloneNode(true) as HTMLAudioElement;
-      audio.volume = base.volume;
-      const playPromise = audio.play();
-      if (playPromise && typeof playPromise.then === 'function') {
-        playPromise.catch(() => {});
+      const ctx = uiAudioContextRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      const playBuffer = (buffer: AudioBuffer) => {
+        const source = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        source.buffer = buffer;
+        gain.gain.value = 0.55;
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        source.start(0);
+      };
+
+      if (successBufferRef.current) {
+        playBuffer(successBufferRef.current);
+      } else {
+        fetch('/audio/success.mp3')
+          .then(res => res.arrayBuffer())
+          .then(data => ctx.decodeAudioData(data))
+          .then(buffer => {
+            successBufferRef.current = buffer;
+            playBuffer(buffer);
+          })
+          .catch(() => {});
       }
     } catch {
       // swallow
@@ -879,6 +898,7 @@ const MainApp: React.FC = () => {
         testnet: true
       });
       const txId = payment?.id;
+      playSuccessSound();
 
       // Optimistic Update
       setPlayer({
@@ -891,10 +911,9 @@ const MainApp: React.FC = () => {
       await PlayerService.upgradeMiner(player.fid, level);
       await PlayerService.recordTransaction(player.fid, cost.toString(), 'miner_purchase', txId || 'base-pay', { miner_level: level });
       await loadData();
-      
+
       clearTimeout(safetyTimeout);
       setPaymentStatus(prev => ({ ...prev, miner: 'success' }));
-      playSuccessSound();
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
     } catch (e: any) {
       console.error("Miner Upgrade Error:", e);
