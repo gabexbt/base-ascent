@@ -106,14 +106,18 @@ const GameOver: React.FC<GameOverProps> = ({
             onClick={onPlayAgain}
             className={
               `w-full py-5 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] relative overflow-hidden group ` +
-              (refillJustSucceeded
+              (rechargeStatus === 'success' || refillJustSucceeded
                 ? 'bg-[#FFD700] text-black border-[#FFD700] shadow-[0_0_40px_rgba(255,215,0,0.9)] scale-[1.02]'
                 : 'bg-white text-black border-white shadow-[0_0_26px_rgba(255,255,255,0.5)] hover:shadow-[0_0_36px_rgba(255,255,255,0.8)]')
             }
           >
             <div className="absolute inset-0 bg-white/30 translate-x-[-120%] group-hover:translate-x-[120%] transition-transform duration-600" />
             <span className="relative z-10">
-              {refillJustSucceeded ? 'SUCCESS!' : `Play Again (${ascentsRemaining})`}
+              {rechargeStatus === 'loading'
+                ? 'Processing...'
+                : rechargeStatus === 'success' || refillJustSucceeded
+                  ? 'SUCCESS!'
+                  : `Play Again (${ascentsRemaining})`}
             </span>
           </button>
         ) : (
