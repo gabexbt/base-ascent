@@ -50,6 +50,7 @@ const MainApp: React.FC = () => {
   const [isLobbyMusicOn, setIsLobbyMusicOn] = useState(true);
   const [isGameMusicOn, setIsGameMusicOn] = useState(true);
   const [isSfxOn, setIsSfxOn] = useState(true);
+  const [audioSettingsLoaded, setAudioSettingsLoaded] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lobbyAudioRef = useRef<HTMLAudioElement | null>(null);
   const buttonAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -72,6 +73,7 @@ const MainApp: React.FC = () => {
         if (typeof parsed.sfx === 'boolean') setIsSfxOn(parsed.sfx);
       }
     } catch {}
+    setAudioSettingsLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -248,6 +250,7 @@ const MainApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!audioSettingsLoaded) return;
     if (status === GameStatus.PLAYING) {
       if (lobbyAudioRef.current) {
         lobbyAudioRef.current.pause();
@@ -267,9 +270,10 @@ const MainApp: React.FC = () => {
         playLobbyMusic();
       } else if (lobbyAudioRef.current) {
         lobbyAudioRef.current.pause();
+        lobbyAudioRef.current.currentTime = 0;
       }
     }
-  }, [status, isGameMusicOn, isLobbyMusicOn, playLobbyMusic]);
+  }, [status, isGameMusicOn, isLobbyMusicOn, playLobbyMusic, audioSettingsLoaded]);
  
    const { frameContext, isLoading: isFarcasterLoading } = useFarcaster();
    const { address } = useAccount();
