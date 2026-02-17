@@ -1203,7 +1203,7 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-transparent`} style={{ top: 'calc(70px + env(safe-area-inset-top))', bottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
+      <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-transparent`} style={{ top: 'calc(70px + env(safe-area-inset-top))', bottom: 'calc(84px + env(safe-area-inset-bottom))' }}>
         <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${
           activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS ? 'pb-0' : 'pb-8'
         }`}>
@@ -1586,7 +1586,7 @@ const MainApp: React.FC = () => {
                </div>
 
                       {/* Your Rank (Sticky) */}
-               <div className="shrink-0 px-4 py-0 bg-black z-20 relative border-t border-white/10">
+               <div className="shrink-0 px-4 py-1 bg-black z-20 relative border-t border-white/10">
                   <div className="p-2 border border-white/10 bg-black rounded-2xl space-y-1.5">
                       <div className="flex justify-between items-center px-1">
                          <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
