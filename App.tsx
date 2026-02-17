@@ -468,9 +468,8 @@ const MainApp: React.FC = () => {
                mergedPlayer.totalGold = 0;
             }
 
-            if (localData.ascentsRemaining !== undefined && localData.ascentsRemaining > mergedPlayer.ascentsRemaining) {
-               mergedPlayer.ascentsRemaining = localData.ascentsRemaining;
-            }
+            // Ascents should always trust the server as source of truth to avoid
+            // phantom remaining plays. We do not let localStorage override DB here.
           }
         
         // Update local storage with latest token if reset occurred
@@ -862,9 +861,9 @@ const MainApp: React.FC = () => {
     try {
       await PlayerService.claimPassiveXp(player.fid);
       await loadData();
-      playSuccessSound();
-
+      
       setIsClaiming(false);
+      playSuccessSound();
       setTimeout(() => {
         setShowClaimEffect(false);
         setClaimFreezeUntil(null);
@@ -1629,7 +1628,7 @@ const MainApp: React.FC = () => {
                         className={`w-full py-5 font-black text-xl rounded-[1.5rem] active:scale-95 disabled:opacity-20 transition-all uppercase relative overflow-hidden group/btn ${showClaimEffect ? 'bg-green-500 text-black shadow-[0_0_40px_rgba(34,197,94,0.4)]' : 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'}`}
                       >
                         <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 italic"></div>
-                        {showClaimEffect ? 'SUCCESS!' : isClaiming ? 'CLAIMING...' : 'CLAIM XP'}
+                        {isClaiming ? 'PROCESSING...' : showClaimEffect ? 'CLAIM SUCCESS!' : 'CLAIM XP'}
                       </button>
 
                       <div className="w-full pt-2 mb-2">
@@ -1644,7 +1643,13 @@ const MainApp: React.FC = () => {
                                 : 'border-white text-white hover:bg-white hover:text-black')
                             }
                           >
-                            {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'SUCCESS!' : paymentStatus.miner === 'error' ? 'FAILED' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
+                            {paymentStatus.miner === 'loading' 
+                              ? 'Processing...' 
+                              : paymentStatus.miner === 'success' 
+                                ? 'UPGRADE SUCCESSFUL!' 
+                                : paymentStatus.miner === 'error' 
+                                  ? 'FAILED' 
+                                  : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
                           </button>
                         ) : (
                           <div className="py-5 border-2 border-dashed border-white/30 text-center opacity-40 font-black rounded-3xl uppercase">Max Level Reached</div>
