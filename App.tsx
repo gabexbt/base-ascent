@@ -71,9 +71,12 @@ const MainApp: React.FC = () => {
       }
       setStatus(GameStatus.IDLE);
       setGameOverData(null);
-      stopAudio();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
     }
-  }, [activeTab, status, stopAudio]);
+  }, [activeTab, status]);
   
   // Payment Timeout Helper - REMOVED per user request
 
