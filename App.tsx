@@ -1204,7 +1204,7 @@ const MainApp: React.FC = () => {
 
       {/* Main Content Area - Scrollable Container for Tabs */}
       <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-transparent`} style={{ top: 'calc(70px + env(safe-area-inset-top))', bottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
-        <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT ? 'pb-0' : 'pb-8'}`}>
+        <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS ? 'pb-0' : 'pb-8'}`}>
           <div className="flex-1 flex flex-col relative w-full h-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
               <div className="flex flex-col items-center w-full h-full pb-4 px-4">
@@ -1319,15 +1319,15 @@ const MainApp: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-5 mb-4">
-                      <div className="w-full h-auto max-h-[24vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
-                         <img src={LOGO_URL} className="w-[88%] h-[88%] object-contain" alt="ASCENT" />
+                    <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-4 mb-4">
+                      <div className="w-full h-auto max-h-[26vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
+                         <img src={LOGO_URL} className="w-[96%] h-[96%] object-contain" alt="ASCENT" />
                       </div>
                     </div>
                     <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-6 mt-auto">
                        
                       {/* Ascents Counter */}
-                      <div className="flex flex-col items-center gap-1 mb-2 mt-4">
+                      <div className="flex flex-col items-center gap-1 mb-2 mt-3">
                         <span className="text-[10px] font-bold text-white/60 tracking-widest uppercase">Ascents Available</span>
                         <span className={`text-4xl font-black ${player?.ascentsRemaining === 0 ? 'text-red-500' : 'text-white'} drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-colors duration-300`}>
                           {player?.ascentsRemaining ?? 0}
@@ -1490,7 +1490,7 @@ const MainApp: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="h-8 shrink-0" />
+                  <div className="h-4 shrink-0" />
                 </div>
               </div>
             ) : activeTab === Tab.RANKINGS ? (
@@ -1582,7 +1582,7 @@ const MainApp: React.FC = () => {
                </div>
 
                       {/* Your Rank (Sticky) */}
-               <div className="shrink-0 px-4 py-3 bg-black z-20 relative border-t border-white/10">
+               <div className="shrink-0 px-4 py-2 bg-black z-20 relative border-t border-white/10">
                   <div className="p-2 border border-white/10 bg-black rounded-2xl space-y-1.5">
                       <div className="flex justify-between items-center px-1">
                          <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
