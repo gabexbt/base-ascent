@@ -61,6 +61,7 @@ const MainApp: React.FC = () => {
   const sessionGoldRef = useRef<HTMLDivElement>(null);
   const [isMinerLevelAnimating, setIsMinerLevelAnimating] = useState(false);
   const [isMinerUnlocking, setIsMinerUnlocking] = useState(false);
+  const [lastMinerAction, setLastMinerAction] = useState<'unlock' | 'upgrade' | null>(null);
   const prevMinerLevelRef = useRef<number>(0);
 
   useEffect(() => {
@@ -109,22 +110,6 @@ const MainApp: React.FC = () => {
 
   useEffect(() => {
     const current = player?.minerLevel || 0;
-    const prev = prevMinerLevelRef.current || 0;
-    if (current !== prev) {
-      if (current > 0) {
-        setIsMinerLevelAnimating(true);
-        const levelTimeout = setTimeout(() => setIsMinerLevelAnimating(false), 600);
-        if (prev === 0 && current === 1) {
-          setIsMinerUnlocking(true);
-          const unlockTimeout = setTimeout(() => setIsMinerUnlocking(false), 900);
-          return () => {
-            clearTimeout(levelTimeout);
-            clearTimeout(unlockTimeout);
-          };
-        }
-        return () => clearTimeout(levelTimeout);
-      }
-    }
     prevMinerLevelRef.current = current;
   }, [player?.minerLevel]);
 
@@ -853,7 +838,7 @@ const MainApp: React.FC = () => {
     const claimedAmount = passiveEarnings;
     setLastClaimedAmount(claimedAmount);
     setIsClaiming(true);
-    setShowClaimEffect(true);
+    setShowClaimEffect(false);
     
     const freezeEnd = Date.now() + 3000;
     setClaimFreezeUntil(freezeEnd);
@@ -861,9 +846,8 @@ const MainApp: React.FC = () => {
     try {
       await PlayerService.claimPassiveXp(player.fid);
       await loadData();
-      
       setIsClaiming(false);
-      playSuccessSound();
+      setShowClaimEffect(true);
       setTimeout(() => {
         setShowClaimEffect(false);
         setClaimFreezeUntil(null);
@@ -926,6 +910,8 @@ const MainApp: React.FC = () => {
     }
     
     playClickSound();
+    const actionType: 'unlock' | 'upgrade' = player.minerLevel === 0 ? 'unlock' : 'upgrade';
+    setLastMinerAction(actionType);
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, miner: 'loading' }));
@@ -935,6 +921,11 @@ const MainApp: React.FC = () => {
       setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
       setPaymentError("Transaction timed out");
     }, 15000);
+    const freezeEnd = Date.now() + 3000;
+    setClaimFreezeUntil(prev => {
+      if (!prev || prev < freezeEnd) return freezeEnd;
+      return prev;
+    });
     
     // Calculate pending passive XP before upgrade
     const currentMiner = MINER_LEVELS[player.minerLevel] || MINER_LEVELS[0]; // Use current level for pending calc
@@ -975,7 +966,6 @@ const MainApp: React.FC = () => {
 
       clearTimeout(safetyTimeout);
       setPaymentStatus(prev => ({ ...prev, miner: 'success' }));
-      playSuccessSound();
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
     } catch (e: any) {
       console.error("Miner Upgrade Error:", e);
@@ -1118,6 +1108,25 @@ const MainApp: React.FC = () => {
     const earnings = Math.floor(hours * currentMiner.xpPerHour) + (player.bankedPassiveXp || 0);
     return Math.max(0, earnings); // Prevent negative earnings
   }, [player, currentMiner, effectiveNow]);
+
+  useEffect(() => {
+    if (!showClaimEffect) return;
+    playSuccessSound();
+  }, [showClaimEffect, playSuccessSound]);
+
+  useEffect(() => {
+    if (paymentStatus.miner !== 'success') return;
+    const isUnlock = lastMinerAction === 'unlock';
+    setIsMinerLevelAnimating(true);
+    if (isUnlock) setIsMinerUnlocking(true);
+    playSuccessSound();
+    const levelTimeout = setTimeout(() => setIsMinerLevelAnimating(false), 600);
+    const unlockTimeout = isUnlock ? setTimeout(() => setIsMinerUnlocking(false), 900) : undefined;
+    return () => {
+      clearTimeout(levelTimeout);
+      if (unlockTimeout) clearTimeout(unlockTimeout);
+    };
+  }, [paymentStatus.miner, lastMinerAction, playSuccessSound]);
 
   const handleRankingChange = (type: 'skill' | 'grind') => {
     if (type === rankingType) return;
@@ -1606,7 +1615,7 @@ const MainApp: React.FC = () => {
                         {paymentStatus.miner === 'loading'
                           ? 'Processing...'
                           : paymentStatus.miner === 'success'
-                            ? 'UNLOCKED!'
+                            ? 'MINER UNLOCKED!'
                             : 'Unlock Miner ($0.99 USDC)'}
                       </button>
                     </div>
@@ -1625,7 +1634,13 @@ const MainApp: React.FC = () => {
                       <button 
                         onClick={handleClaim} 
                         disabled={passiveEarnings === 0 || isClaiming || player?.minerLevel === 0} 
-                        className={`w-full py-5 font-black text-xl rounded-[1.5rem] active:scale-95 disabled:opacity-20 transition-all uppercase relative overflow-hidden group/btn ${showClaimEffect ? 'bg-green-500 text-black shadow-[0_0_40px_rgba(34,197,94,0.4)]' : 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'}`}
+                        className={`w-full py-5 font-black text-xl rounded-[1.5rem] active:scale-95 disabled:opacity-20 transition-all uppercase relative overflow-hidden group/btn ${
+                          showClaimEffect
+                            ? 'bg-green-500 text-black shadow-[0_0_40px_rgba(34,197,94,0.4)]'
+                            : isClaiming
+                              ? 'bg-green-700/70 text-white/90 shadow-[0_0_24px_rgba(34,197,94,0.3)]'
+                              : 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'
+                        }`}
                       >
                         <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 italic"></div>
                         {isClaiming ? 'PROCESSING...' : showClaimEffect ? 'CLAIM SUCCESS!' : 'CLAIM XP'}
@@ -1646,7 +1661,7 @@ const MainApp: React.FC = () => {
                             {paymentStatus.miner === 'loading' 
                               ? 'Processing...' 
                               : paymentStatus.miner === 'success' 
-                                ? 'UPGRADE SUCCESSFUL!' 
+                                ? (lastMinerAction === 'unlock' ? 'MINER UNLOCKED!' : 'UPGRADE SUCCESSFUL!') 
                                 : paymentStatus.miner === 'error' 
                                   ? 'FAILED' 
                                   : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
