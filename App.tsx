@@ -828,6 +828,8 @@ const MainApp: React.FC = () => {
 
   const [isClaiming, setIsClaiming] = useState(false);
   const [showClaimEffect, setShowClaimEffect] = useState(false);
+  const [passiveFreezeXp, setPassiveFreezeXp] = useState<number | null>(null);
+  const [isPassiveFrozen, setIsPassiveFrozen] = useState(false);
   const [lastClaimedAmount, setLastClaimedAmount] = useState(0);
   const [claimFreezeUntil, setClaimFreezeUntil] = useState<number | null>(null);
 
@@ -839,7 +841,6 @@ const MainApp: React.FC = () => {
     setLastClaimedAmount(claimedAmount);
     setIsClaiming(true);
     setShowClaimEffect(false);
-    
     const freezeEnd = Date.now() + 3000;
     setClaimFreezeUntil(freezeEnd);
     
@@ -912,6 +913,8 @@ const MainApp: React.FC = () => {
     playClickSound();
     const actionType: 'unlock' | 'upgrade' = player.minerLevel === 0 ? 'unlock' : 'upgrade';
     setLastMinerAction(actionType);
+    setPassiveFreezeXp(passiveEarnings);
+    setIsPassiveFrozen(true);
     setProcessingPayment(true);
     setPaymentError(null);
     setPaymentStatus(prev => ({ ...prev, miner: 'loading' }));
@@ -920,12 +923,8 @@ const MainApp: React.FC = () => {
       setProcessingPayment(false);
       setPaymentStatus(prev => ({ ...prev, miner: 'idle' }));
       setPaymentError("Transaction timed out");
+      setIsPassiveFrozen(false);
     }, 15000);
-    const freezeEnd = Date.now() + 3000;
-    setClaimFreezeUntil(prev => {
-      if (!prev || prev < freezeEnd) return freezeEnd;
-      return prev;
-    });
     
     // Calculate pending passive XP before upgrade
     const currentMiner = MINER_LEVELS[player.minerLevel] || MINER_LEVELS[0]; // Use current level for pending calc
@@ -978,6 +977,7 @@ const MainApp: React.FC = () => {
     } finally {
       clearTimeout(safetyTimeout);
       setProcessingPayment(false);
+      setIsPassiveFrozen(false);
     }
   };
 
@@ -1106,8 +1106,10 @@ const MainApp: React.FC = () => {
     if (!player || player.minerLevel === 0) return 0;
     const hours = (effectiveNow - player.lastClaimAt) / 3600000;
     const earnings = Math.floor(hours * currentMiner.xpPerHour) + (player.bankedPassiveXp || 0);
-    return Math.max(0, earnings); // Prevent negative earnings
-  }, [player, currentMiner, effectiveNow]);
+    const raw = Math.max(0, earnings);
+    if (isPassiveFrozen && passiveFreezeXp !== null) return passiveFreezeXp;
+    return raw;
+  }, [player, currentMiner, effectiveNow, isPassiveFrozen, passiveFreezeXp]);
 
   useEffect(() => {
     if (!showClaimEffect) return;
@@ -1634,15 +1636,15 @@ const MainApp: React.FC = () => {
                       <button 
                         onClick={handleClaim} 
                         disabled={passiveEarnings === 0 || isClaiming || player?.minerLevel === 0} 
-                        className={`w-full py-5 font-black text-xl rounded-[1.5rem] active:scale-95 disabled:opacity-20 transition-all uppercase relative overflow-hidden group/btn ${
+                        className={`w-full py-5 font-black text-xl rounded-[1.5rem] active:scale-95 disabled:opacity-20 uppercase relative overflow-hidden group/btn ${
                           showClaimEffect
                             ? 'bg-green-500 text-black shadow-[0_0_40px_rgba(34,197,94,0.4)]'
                             : isClaiming
-                              ? 'bg-green-700/70 text-white/90 shadow-[0_0_24px_rgba(34,197,94,0.3)]'
+                              ? 'bg-white/70 text-black shadow-[0_0_18px_rgba(255,255,255,0.2)]'
                               : 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'
                         }`}
                       >
-                        <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 italic"></div>
+                        <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-300 italic"></div>
                         {isClaiming ? 'PROCESSING...' : showClaimEffect ? 'CLAIM SUCCESS!' : 'CLAIM XP'}
                       </button>
 
