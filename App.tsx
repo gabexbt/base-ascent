@@ -1856,7 +1856,7 @@ const MainApp: React.FC = () => {
                       },
                       {
                         q: "What do I get from unlocking the Miner?",
-                        a: "Unlocking the Miner qualifies you for the Season 1 Airdrop and allows you to earn XP passively. The higher the level of your Miner the higher the allocation you might get on the airdrop."
+                        a: "Unlocking the Miner qualifies you for the future airdrop and allows you to earn XP passively. The higher the level of your Miner, the higher the allocation you will get on the airdrop."
                       },
                       {
                         q: "How do I qualify for rewards?",
