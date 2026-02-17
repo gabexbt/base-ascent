@@ -1586,7 +1586,7 @@ const MainApp: React.FC = () => {
                </div>
 
                       {/* Your Rank (Sticky) */}
-               <div className="shrink-0 px-4 py-1 bg-black z-20 relative border-t border-white/10">
+               <div className="shrink-0 px-4 py-1 mb-3 bg-black z-20 relative border-t border-white/10">
                   <div className="p-2 border border-white/10 bg-black rounded-2xl space-y-1.5">
                       <div className="flex justify-between items-center px-1">
                          <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
