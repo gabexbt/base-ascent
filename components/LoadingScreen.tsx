@@ -8,10 +8,10 @@ const ParticleBackground = () => {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       <div
-        className="w-full h-full bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/assets/background.png')" }}
+        className="w-full h-full bg-cover bg-center bg-no-repeat blur-sm"
+        style={{ backgroundImage: "url('/assets/loading_screen_bg.png')" }}
       />
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0 bg-black/60" />
     </div>
   );
 };

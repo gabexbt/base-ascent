@@ -124,12 +124,7 @@ const MainApp: React.FC = () => {
       }
       const audio = buttonAudioRef.current;
       audio.currentTime = 0;
-      const playPromise = audio.play();
-      if (playPromise && typeof playPromise.then === 'function') {
-        playPromise.catch(() => {
-          playUiBeep();
-        });
-      }
+      audio.play();
     } catch {
       playUiBeep();
     }
@@ -1173,8 +1168,10 @@ const MainApp: React.FC = () => {
     // Outer Wrapper - Mobile Simulator Container
       <div className="h-[100dvh] bg-black flex justify-center text-white font-sans">
       {/* Inner App Container */}
-      <div className="w-full max-w-[480px] h-[100dvh] relative bg-black shadow-2xl flex flex-col">
+      <div className="w-full max-w-[480px] h-[100dvh] relative bg-black shadow-2xl flex flex-col overflow-hidden">
       
+      <ParticleBackground dim={activeTab === Tab.ASCENT ? 0 : 0.2} />
+
       {/* Header - Always on top */}
       <header className="w-full max-w-[480px] px-6 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] flex justify-between items-center border-b border-white/10 bg-black/80 backdrop-blur-sm shrink-0 z-20 fixed top-0 left-1/2 -translate-x-1/2">
         <div className="flex items-center gap-3">
@@ -1189,17 +1186,14 @@ const MainApp: React.FC = () => {
       </header>
 
       {/* Main Content Area - Scrollable Container for Tabs */}
-      <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-black`} style={{ top: 'calc(70px + env(safe-area-inset-top))', bottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
+      <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-transparent`} style={{ top: 'calc(70px + env(safe-area-inset-top))', bottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
         <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT ? 'pb-0' : 'pb-8'}`}>
-          
-          <ParticleBackground dim={activeTab === Tab.ASCENT ? 0 : 0.2} />
-
           <div className="flex-1 flex flex-col relative w-full h-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
               <div className="flex flex-col items-center w-full h-full pb-4 px-4">
                 {status === GameStatus.PLAYING ? (
                   <>
-                    <div className="w-full max-w-[340px] flex-1 min-h-0 bg-black rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] relative ring-1 ring-white/10 z-10 mt-2 mb-4 select-none touch-none">
+                <div className="w-full max-w-[340px] flex-1 min-h-0 bg-black/90 rounded-3xl overflow-hidden border-[3px] border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.15)] relative ring-1 ring-white/20 z-10 mt-2 mb-4 select-none touch-none">
                       <GameEngine 
                         ref={gameRef}
                         isActive={true} 
@@ -1332,17 +1326,19 @@ const MainApp: React.FC = () => {
                           }
                         }} 
                         disabled={isPending || isStarting || processingPayment || loading} 
-                        className={`w-full max-w-[280px] py-5 border-[3px] 
+                        className={`group relative overflow-hidden w-full max-w-[280px] py-5 border-[3px] 
                           ${(player?.ascentsRemaining || 0) > 0 
-                            ? "border-white bg-white text-black" 
-                            : "border-[#FFD700] bg-[#FFD700] text-black shadow-[0_0_30px_rgba(255,215,0,0.6)] animate-pulse"} 
-                          font-black text-sm uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50 
-                          ${(player?.ascentsRemaining || 0) > 0 ? "shadow-[0_0_30px_rgba(255,255,255,0.3)]" : ""}`}
+                            ? "border-white bg-white text-black shadow-[0_0_32px_rgba(255,255,255,0.6)]" 
+                            : "border-[#FFD700] bg-[#FFD700] text-black shadow-[0_0_40px_rgba(255,215,0,0.9)]"} 
+                          font-black text-sm uppercase tracking-tight rounded-[2.5rem] active:scale-95 transition-all disabled:opacity-50`}
                       >
-                        {loading ? 'LOADING...' : 
-                         isPending ? 'SYNCING...' : 
-                         processingPayment ? 'PROCESSING...' :
-                         (player?.ascentsRemaining || 0) > 0 ? 'Tap to Start (-1 Ascent)' : 'RECHARGE (+10) - $0.10'}
+                        <div className="absolute inset-0 bg-white/30 translate-x-[-120%] group-hover:translate-x-[120%] transition-transform duration-600" />
+                        <span className="relative z-10">
+                          {loading ? 'LOADING...' : 
+                           isPending ? 'SYNCING...' : 
+                           processingPayment ? 'PROCESSING...' :
+                           (player?.ascentsRemaining || 0) > 0 ? 'Tap to Start (-1 Ascent)' : 'RECHARGE (+10) - $0.10'}
+                        </span>
                       </button>
 
                       {paymentError && (
@@ -1366,13 +1362,17 @@ const MainApp: React.FC = () => {
                 ) : <div className="flex-1 flex flex-col items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>}
               </div>
             ) : activeTab === Tab.UPGRADES ? (
-              <UpgradesTab 
-                player={player} 
-                onPurchase={handlePurchaseUpgrade} 
-                isProcessing={processingPayment} 
-              />
+              <div className="flex-1 w-full h-full px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-4">
+                <div className="w-full h-full rounded-[32px] bg-black/60 border border-white/10 backdrop-blur-md px-2 py-3">
+                  <UpgradesTab 
+                    player={player} 
+                    onPurchase={handlePurchaseUpgrade} 
+                    isProcessing={processingPayment} 
+                  />
+                </div>
+              </div>
             ) : activeTab === Tab.HARDWARE ? (
-              <div className="flex-1 flex flex-col items-center pb-[calc(5rem+env(safe-area-inset-bottom))] p-4 w-full h-full">
+              <div className="flex-1 flex flex-col items-center pb-[calc(6rem+env(safe-area-inset-bottom))] p-4 w-full h-full">
                 <div className="w-full flex justify-between items-start mb-2">
                   <div className="flex flex-col gap-1">
                     <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Auto Miner</h2>
@@ -1387,7 +1387,7 @@ const MainApp: React.FC = () => {
                 </div>
 
                 {/* Main Miner Frame Container */}
-                <div className="w-full flex-1 flex flex-col gap-2 min-h-0 pb-16">
+                <div className="w-full flex-1 flex flex-col gap-2 min-h-0 pb-20">
                   
                   {/* Airdrop Info Section */}
                   <div className="p-4 bg-white/5 border border-white/10 rounded-[2rem] backdrop-blur-md shrink-0">
@@ -1471,7 +1471,7 @@ const MainApp: React.FC = () => {
                             {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'Success' : paymentStatus.miner === 'error' ? 'Failed' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
                           </button>
                         ) : (
-                          <div className="py-5 border-2 border-dashed border-white/20 text-center opacity-30 font-black rounded-3xl uppercase">Max Level Reached</div>
+                      <div className="py-5 border-2 border-dashed border-white/30 text-center opacity-40 font-black rounded-3xl uppercase">Max Level Reached</div>
                         )}
                       </div>
                     )}
@@ -1611,14 +1611,8 @@ const MainApp: React.FC = () => {
                   </div>
                </div>
 
-               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
+               <div className="w-full p-6 border border-white/10 bg-black/70 rounded-[40px] backdrop-blur-md">
                  <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-4 tracking-widest text-center">RECRUITS</h3>
-                 {player?.referrerUsername && (
-                   <div className="text-[9px] text-center font-bold text-green-400 mb-4 uppercase tracking-wider animate-in fade-in slide-in-from-top-2">
-                      Referred by @{player.referrerUsername}
-                   </div>
-                 )}
-
                  <div className="flex items-center justify-between bg-black/50 border border-white/10 p-4 rounded-[28px] text-center mb-3">
                    <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{(player?.referralCount || 0).toLocaleString()}</span></div>
                    <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{(player?.referralXpEarned || 0).toLocaleString()} XP</span></div>
@@ -1629,25 +1623,8 @@ const MainApp: React.FC = () => {
                  <p className="text-[8px] opacity-30 text-center mt-2 italic px-4 uppercase font-bold">You earn 20% of all XP generated by your recruit's hardware automatically.</p>
                </div>
 
-               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
+               <div className="w-full p-6 border border-white/10 bg-black/70 rounded-[40px] backdrop-blur-md">
                   <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-5 tracking-widest text-center">TASKS</h3>
-               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px]">
-                  <h3 className="text-xs font-black uppercase opacity-30 text-center mb-4 tracking-[0.2em]">INVITE RECRUITS</h3>
-                  {player?.referrerUsername && (
-                    <div className="text-[9px] text-center font-bold text-green-400 mb-4 uppercase tracking-wider animate-in fade-in slide-in-from-top-2">
-                       Referred by @{player.referrerUsername}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between bg-black/50 border border-white/10 p-4 rounded-[28px] text-center mb-3">
-                    <div className="w-1/2"><span className="text-[9px] opacity-30 block uppercase font-bold">Referrals</span><span className="text-2xl font-black italic">{(player?.referralCount || 0).toLocaleString()}</span></div>
-                    <div className="w-1/2 border-l border-white/10"><span className="text-[9px] opacity-30 block uppercase font-bold">Referral XP</span><span className="text-xl font-black italic">{(player?.referralXpEarned || 0).toLocaleString()} XP</span></div>
-                  </div>
-                  <div onClick={handleCopy} className="p-4 bg-white/5 border border-white/20 rounded-2xl text-[9px] opacity-40 text-center tracking-widest uppercase cursor-pointer hover:bg-white/10 transition-all active:scale-98">
-                    {copied ? 'COPIED!' : `base-ascent.vercel.app/r/${player?.username || player?.fid}`}
-                  </div>
-                  <p className="text-[8px] opacity-30 text-center mt-2 italic px-4 uppercase font-bold">You earn 20% of all XP generated by your recruit's hardware automatically.</p>
-               </div>
                   <div className="space-y-3">
                      {[
                        { id: 'f-gabe', l: 'Follow gabe on Base', u: 'https://base.app/profile/gabexbt' },
@@ -1666,7 +1643,7 @@ const MainApp: React.FC = () => {
                </div>
 
                {/* FAQ Section */}
-               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] mt-2">
+               <div className="w-full p-6 border border-white/10 bg-black/70 rounded-[40px] mt-2 backdrop-blur-md">
                    <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] text-center mb-5 tracking-widest">FAQ</h3>
                   
                   <div className="space-y-2">
@@ -1717,7 +1694,8 @@ const MainApp: React.FC = () => {
                </div>
 
                {/* Audio Settings */}
-               <div className="w-full mt-2 p-6 border border-white/10 bg-black/60 rounded-[40px] flex flex-col gap-3">
+               <div className="w-full mt-2 p-6 border border-white/10 bg-black/80 rounded-[40px] flex flex-col gap-3 backdrop-blur-md">
+                 <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-3 tracking-widest text-center">SETTINGS</h3>
                  <div className="flex items-center justify-between">
                    <div className="text-[11px] font-bold text-white/80">Lobby Music</div>
                    <button

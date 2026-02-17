@@ -101,10 +101,10 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
   };
 
   return (
-    <div className="flex flex-col w-full bg-black text-white p-4 pb-12">
+    <div className="flex flex-col w-full h-full text-white">
       {/* Header */}
-      <div className="flex flex-col gap-3 mb-6 shrink-0">
-        <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10 backdrop-blur-sm">
+      <div className="flex flex-col gap-3 mb-4 shrink-0">
+        <div className="flex items-center justify-between bg-black/80 p-4 rounded-2xl border border-white/10 backdrop-blur-md">
           <div className="flex flex-col gap-1">
             <h2 className="text-3xl font-black italic uppercase tracking-tighter">Armory</h2>
             <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.25em]">UPGRADE YOUR HARDWARE</p>
@@ -116,7 +116,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
             </div>
           </div>
         </div>
-        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm">
+        <div className="p-4 bg-black/80 border border-white/10 rounded-2xl backdrop-blur-md">
           <p className="text-[10px] leading-relaxed opacity-60 uppercase font-bold text-left">
             Enhance your hardware to improve your gameplay, dominate the leaderboards, and boost your earning potential.
           </p>
@@ -130,7 +130,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
       )}
 
       {/* Upgrades List */}
-      <div className="space-y-3">
+      <div className="space-y-3 pb-6">
         {UPGRADES.map((config) => {
           // @ts-ignore
           const currentLevel = player.upgrades?.[config.id] || 0;
@@ -141,7 +141,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
           const isSuccess = purchaseStatus[config.id] === 'success';
 
           return (
-            <div key={config.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden group">
+            <div key={config.id} className="bg-black/80 border border-white/15 rounded-2xl p-4 flex items-center gap-4 relative overflow-hidden group backdrop-blur-md">
               {/* Background gradient effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
 

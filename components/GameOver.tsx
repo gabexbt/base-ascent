@@ -23,7 +23,11 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
       <div className="flex flex-col justify-center gap-6 w-full max-w-[320px] mb-6">
         <div className="space-y-2">
           <div className="text-[10px] opacity-40 uppercase font-black tracking-[0.4em]">{isHighScore ? 'NEW HIGH SCORE!' : 'ASCENT COMPLETE'}</div>
-          <div className={`text-5xl sm:text-6xl font-black italic tracking-tighter uppercase drop-shadow-[0_0_20px_rgba(255,215,0,0.6)] leading-tight ${isHighScore ? 'text-[#FFD700]' : 'text-white'}`}>
+          <div className={`text-5xl sm:text-6xl font-black italic tracking-tighter uppercase leading-tight ${
+            isHighScore 
+              ? 'text-[#FFD700] drop-shadow-[0_0_24px_rgba(255,215,0,0.9)]' 
+              : 'text-white drop-shadow-[0_0_22px_rgba(255,255,255,0.9)]'
+          }`}>
             {isHighScore ? 'LEGENDARY' : 'GAME OVER'}
           </div>
         </div>
@@ -75,16 +79,18 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
         {canPlay ? (
           <button
             onClick={onPlayAgain}
-            className="w-full bg-white text-black py-5 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] border-white shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)]"
+            className="w-full bg-white text-black py-5 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] border-white shadow-[0_0_26px_rgba(255,255,255,0.5)] hover:shadow-[0_0_36px_rgba(255,255,255,0.8)] relative overflow-hidden group"
           >
-            Play Again ({ascentsRemaining})
+            <div className="absolute inset-0 bg-white/30 translate-x-[-120%] group-hover:translate-x-[120%] transition-transform duration-600" />
+            <span className="relative z-10">Play Again ({ascentsRemaining})</span>
           </button>
         ) : (
           <button
             onClick={onRefill}
-            className="w-full bg-[#FFD700] text-black py-5 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] border-[#FFD700] shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)] animate-pulse"
+            className="w-full bg-[#FFD700] text-black py-5 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] border-[#FFD700] shadow-[0_0_26px_rgba(255,215,0,0.6)] hover:shadow-[0_0_40px_rgba(255,215,0,0.9)] relative overflow-hidden group"
           >
-            Refill Ascents ($0.10)
+            <div className="absolute inset-0 bg-white/40 translate-x-[-120%] group-hover:translate-x-[120%] transition-transform duration-600" />
+            <span className="relative z-10">Refill Ascents ($0.10)</span>
           </button>
         )}
         <button
