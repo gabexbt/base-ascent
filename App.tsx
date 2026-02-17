@@ -118,13 +118,20 @@ const MainApp: React.FC = () => {
     if (!isSfxOn) return;
     try {
       if (!buttonAudioRef.current) {
-        const audio = new Audio('/audio/button_click.mp3');
-        audio.volume = 0.25;
-        buttonAudioRef.current = audio;
+        const base = new Audio('/audio/button_click.mp3');
+        base.volume = 0.25;
+        base.preload = 'auto';
+        buttonAudioRef.current = base;
       }
-      const audio = buttonAudioRef.current;
-      audio.currentTime = 0;
-      audio.play();
+      const base = buttonAudioRef.current;
+      const audio = base.cloneNode(true) as HTMLAudioElement;
+      audio.volume = base.volume;
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.catch(() => {
+          playUiBeep();
+        });
+      }
     } catch {
       playUiBeep();
     }
@@ -1452,8 +1459,8 @@ const MainApp: React.FC = () => {
 
                     {player?.minerLevel === 0 && (
                       <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center p-8 text-center z-20">
-                        <div className="text-xl font-black italic uppercase mb-2">SYSTEM LOCKED</div>
-                        <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed mb-6">Unlock hardware to begin automated XP extraction.</p>
+                        <div className="text-xl font-black italic uppercase mb-2">MINER LOCKED</div>
+                        <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed mb-6">Unlock your miner to start extracting XP automatically.</p>
                         <button onClick={() => handleUpgradeMiner(1)} disabled={processingPayment} className="px-8 py-4 bg-white text-black font-black text-sm uppercase rounded-2xl active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]">
                           {paymentStatus.miner === 'loading' ? 'INITIALIZING...' : 'UNLOCK SYSTEM ($0.99)'}
                         </button>
