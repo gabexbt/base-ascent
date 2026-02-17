@@ -4,14 +4,41 @@ import { LOADING_MESSAGES, LOGO_URL } from '../constants';
 const LOAD_ICON_URL = LOGO_URL;
 
 const ParticleBackground = () => {
-  const _memo = useMemo(() => ({}), []);
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 60 }).map((_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        duration: 3 + Math.random() * 4,
+        delay: Math.random() * 5,
+        opacity: 0.05 + Math.random() * 0.15,
+        size: 1 + Math.random() * 2
+      })),
+    []
+  );
+
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      <div
-        className="w-full h-full bg-cover bg-center bg-no-repeat blur-sm"
-        style={{ backgroundImage: "url('/assets/loading_screen_bg.png')" }}
-      />
-      <div className="absolute inset-0 bg-black/60" />
+    <div className="absolute inset-0 pointer-events-none overflow-hidden bg-black">
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black" />
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="absolute rounded-full bg-white"
+          style={{
+            left: p.left,
+            top: p.top,
+            width: p.size,
+            height: p.size,
+            opacity: p.opacity,
+            animationName: 'pulse',
+            animationDuration: `${p.duration}s`,
+            animationDelay: `${p.delay}s`,
+            animationIterationCount: 'infinite',
+            animationTimingFunction: 'ease-in-out'
+          }}
+        />
+      ))}
     </div>
   );
 };

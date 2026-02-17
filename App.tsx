@@ -756,6 +756,7 @@ const MainApp: React.FC = () => {
 
   const handleClaim = async () => {
     if (player && !isClaiming) {
+      playClickSound();
       setLastClaimedAmount(passiveEarnings);
       setIsClaiming(true);
       setShowClaimEffect(false);
@@ -989,6 +990,7 @@ const MainApp: React.FC = () => {
   };
 
   const handleGoHome = () => {
+    playClickSound();
     setStatus(GameStatus.IDLE);
     setGameOverData(null);
     setActiveTab(Tab.ASCENT);
@@ -1302,7 +1304,7 @@ const MainApp: React.FC = () => {
                       </div>
                     </div>
 
-                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-6">
+                    <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-6 mb-6">
                       <div className="w-full h-auto max-h-[24vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
                          <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.4]" alt="ASCENT" />
                       </div>
@@ -1362,17 +1364,13 @@ const MainApp: React.FC = () => {
                 ) : <div className="flex-1 flex flex-col items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>}
               </div>
             ) : activeTab === Tab.UPGRADES ? (
-              <div className="flex-1 w-full h-full px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-4">
-                <div className="w-full h-full rounded-[32px] bg-black/60 border border-white/10 backdrop-blur-md px-2 py-3">
-                  <UpgradesTab 
-                    player={player} 
-                    onPurchase={handlePurchaseUpgrade} 
-                    isProcessing={processingPayment} 
-                  />
-                </div>
-              </div>
+              <UpgradesTab 
+                player={player} 
+                onPurchase={handlePurchaseUpgrade} 
+                isProcessing={processingPayment} 
+              />
             ) : activeTab === Tab.HARDWARE ? (
-              <div className="flex-1 flex flex-col items-center pb-[calc(6rem+env(safe-area-inset-bottom))] p-4 w-full h-full">
+              <div className="flex-1 flex flex-col items-center pb-[calc(7rem+env(safe-area-inset-bottom))] p-4 w-full h-full">
                 <div className="w-full flex justify-between items-start mb-2">
                   <div className="flex flex-col gap-1">
                     <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Auto Miner</h2>
@@ -1568,9 +1566,9 @@ const MainApp: React.FC = () => {
                    <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-black to-transparent pointer-events-none z-10"></div>
                </div>
 
-               {/* Your Rank (Sticky) */}
+                       {/* Your Rank (Sticky) */}
                <div className="shrink-0 px-4 pb-1 pt-1 bg-black z-20 relative border-t border-white/10">
-                  <div className="p-2 border border-white/10 bg-white/5 rounded-2xl space-y-1.5">
+                  <div className="p-2 border border-white/10 bg-black/90 rounded-2xl space-y-1.5">
                       <div className="flex justify-between items-center px-1">
                          <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
                          <div className="flex items-center gap-3">
@@ -1598,7 +1596,7 @@ const MainApp: React.FC = () => {
             </div>
           ) : (
             <div className="flex-1 flex flex-col gap-3 pr-1 pb-10 mt-6 items-center w-full">
-               <div className="w-full p-6 border border-white/10 bg-white/5 rounded-[40px] flex flex-col items-center">
+               <div className="w-full p-6 border border-white/10 bg-black/70 rounded-[40px] flex flex-col items-center backdrop-blur-md">
                   <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-5 tracking-widest">STATS</h3>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-6 w-full text-center">
                      <div><span className="text-[9px] font-black opacity-30 uppercase">Altitude Record</span><span className="text-xl font-black italic block">{player?.highScore || 0} Meters</span></div>
@@ -1697,7 +1695,7 @@ const MainApp: React.FC = () => {
                <div className="w-full mt-2 p-6 border border-white/10 bg-black/80 rounded-[40px] flex flex-col gap-3 backdrop-blur-md">
                  <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-3 tracking-widest text-center">SETTINGS</h3>
                  <div className="flex items-center justify-between">
-                   <div className="text-[11px] font-bold text-white/80">Lobby Music</div>
+                   <div className="text-[11px] font-bold text-white/80 uppercase tracking-widest">Lobby Music</div>
                    <button
                      onClick={() => { playClickSound(); setIsLobbyMusicOn(!isLobbyMusicOn); }}
                      className={`w-12 h-7 rounded-full flex items-center px-1 transition-all border ${isLobbyMusicOn ? 'bg-white text-black border-white shadow-[0_0_18px_rgba(255,255,255,0.6)]' : 'bg-zinc-900 text-white/40 border-white/20'}`}
@@ -1706,7 +1704,7 @@ const MainApp: React.FC = () => {
                    </button>
                  </div>
                  <div className="flex items-center justify-between">
-                   <div className="text-[11px] font-bold text-white/80">In-Game Music</div>
+                   <div className="text-[11px] font-bold text-white/80 uppercase tracking-widest">In-Game Music</div>
                    <button
                      onClick={() => { playClickSound(); setIsGameMusicOn(!isGameMusicOn); }}
                      className={`w-12 h-7 rounded-full flex items-center px-1 transition-all border ${isGameMusicOn ? 'bg-white text-black border-white shadow-[0_0_18px_rgba(255,255,255,0.6)]' : 'bg-zinc-900 text-white/40 border-white/20'}`}
@@ -1715,7 +1713,7 @@ const MainApp: React.FC = () => {
                    </button>
                  </div>
                  <div className="flex items-center justify-between">
-                   <div className="text-[11px] font-bold text-white/80">Sound Effects</div>
+                   <div className="text-[11px] font-bold text-white/80 uppercase tracking-widest">Sound Effects</div>
                    <button
                      onClick={() => { playClickSound(); setIsSfxOn(!isSfxOn); }}
                      className={`w-12 h-7 rounded-full flex items-center px-1 transition-all border ${isSfxOn ? 'bg-white text-black border-white shadow-[0_0_18px_rgba(255,255,255,0.6)]' : 'bg-zinc-900 text-white/40 border-white/20'}`}
