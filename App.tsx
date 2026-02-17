@@ -1495,10 +1495,9 @@ const MainApp: React.FC = () => {
               </div>
             ) : activeTab === Tab.RANKINGS ? (
             <div className="flex flex-col w-full h-full relative">
-              <div className="absolute inset-x-0 bottom-0 h-40 bg-black pointer-events-none -z-10" />
             {/* Scrollable List Wrapper */}
                <div className="flex-1 relative min-h-0">
-                   <div className="h-full overflow-y-auto pb-10 custom-scrollbar px-4 pt-4 space-y-3">
+                   <div className="h-full overflow-y-auto pb-6 custom-scrollbar px-4 pt-4 space-y-3">
                        
                        {/* Header & Controls */}
           <div className="flex justify-between items-center w-full shrink-0">
