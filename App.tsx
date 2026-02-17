@@ -1204,7 +1204,9 @@ const MainApp: React.FC = () => {
 
       {/* Main Content Area - Scrollable Container for Tabs */}
       <main className={`absolute inset-x-0 flex flex-col z-10 ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'overflow-hidden' : 'overflow-y-auto'} custom-scrollbar overscroll-none bg-transparent`} style={{ top: 'calc(70px + env(safe-area-inset-top))', bottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
-        <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS ? 'pb-0' : 'pb-8'}`}>
+        <div className={`w-full ${(activeTab === Tab.ASCENT || activeTab === Tab.RANKINGS) ? 'h-full' : 'min-h-full'} flex flex-col relative ${
+          activeTab === Tab.ASCENT ? 'pb-0' : activeTab === Tab.RANKINGS ? 'pb-2' : 'pb-8'
+        }`}>
           <div className="flex-1 flex flex-col relative w-full h-full" key={activeTab}>
             {activeTab === Tab.ASCENT ? (
               <div className="flex flex-col items-center w-full h-full pb-4 px-4">
@@ -1416,8 +1418,10 @@ const MainApp: React.FC = () => {
                       <div className="text-xl font-black italic">LEVEL {player?.minerLevel || 0}</div>
                     </div>
                     <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md">
-                      <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Mining Rate</div>
-                      <div className="text-lg font-black italic text-white text-center w-full">{currentMiner.xpPerHour.toLocaleString()} XP PER HOUR</div>
+                      <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Hourly Yield</div>
+                      <div className="text-lg font-black italic text-white text-center w-full">
+                        {`${Math.round(currentMiner.xpPerHour / 1000).toLocaleString()}K XP / HR`}
+                      </div>
                     </div>
                   </div>
 
@@ -1456,9 +1460,9 @@ const MainApp: React.FC = () => {
                   </div>
 
                   {/* Earnings & Claim Section */}
-                  <div className="p-6 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-6">
+                  <div className="p-5 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-6">
                     <div className="flex flex-col items-center text-center px-2">
-                      <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">ACCUMULATED EARNINGS</span>
+                      <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">STORED XP</span>
                       <div className={`text-4xl font-black italic tracking-tighter transition-all duration-300 ${showClaimEffect ? 'scale-110 text-green-400' : 'text-white'}`}>
                         +{showClaimEffect ? lastClaimedAmount.toLocaleString() : passiveEarnings.toLocaleString()}
                       </div>
