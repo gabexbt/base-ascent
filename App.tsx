@@ -1706,7 +1706,7 @@ const MainApp: React.FC = () => {
                            <div className="px-4 py-3 border border-[#FFD700]/20 bg-[#FFD700]/5 rounded-3xl space-y-2 flex flex-col justify-center">
                               <div className="flex justify-between items-center">
                                  <div className="text-[8px] font-black uppercase tracking-widest text-[#FFD700]">Airdrop Status</div>
-                                 <div className="text-[8px] font-black uppercase text-[#FFD700]">{Math.min(100, (globalRevenue / 2000) * 100).toFixed(1)}%</div>
+                                 <div className="text-[8px] font-black uppercase text-[#FFD700]">{Math.min(100, (globalRevenue / 3000) * 100).toFixed(1)}%</div>
                               </div>
                               <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-[#FFD700]/10">
                                  <div 
