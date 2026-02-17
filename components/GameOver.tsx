@@ -113,7 +113,7 @@ const GameOver: React.FC<GameOverProps> = ({
           >
             <div className="absolute inset-0 bg-white/30 translate-x-[-120%] group-hover:translate-x-[120%] transition-transform duration-600" />
             <span className="relative z-10">
-              {rechargeStatus === 'loading'
+              {rechargeStatus === 'loading' || (isProcessing && rechargeStatus !== 'success' && !refillJustSucceeded)
                 ? 'Processing...'
                 : rechargeStatus === 'success' || refillJustSucceeded
                   ? 'SUCCESS!'

@@ -62,6 +62,30 @@ const MainApp: React.FC = () => {
   const [isMinerUnlocking, setIsMinerUnlocking] = useState(false);
   const prevMinerLevelRef = useRef<number>(0);
 
+  useEffect(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('base_ascent_audio_settings_v1') : null;
+      if (raw) {
+        const parsed = JSON.parse(raw) as { lobby?: boolean; game?: boolean; sfx?: boolean };
+        if (typeof parsed.lobby === 'boolean') setIsLobbyMusicOn(parsed.lobby);
+        if (typeof parsed.game === 'boolean') setIsGameMusicOn(parsed.game);
+        if (typeof parsed.sfx === 'boolean') setIsSfxOn(parsed.sfx);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const payload = JSON.stringify({
+        lobby: isLobbyMusicOn,
+        game: isGameMusicOn,
+        sfx: isSfxOn,
+      });
+      localStorage.setItem('base_ascent_audio_settings_v1', payload);
+    } catch {}
+  }, [isLobbyMusicOn, isGameMusicOn, isSfxOn]);
+
   // Tab Switch Game Over Logic
   useEffect(() => {
     if (status === GameStatus.PLAYING && activeTab !== Tab.ASCENT) {
@@ -120,30 +144,6 @@ const MainApp: React.FC = () => {
     audio.play().catch(e => console.log("Game audio play failed:", e));
   }, [isGameMusicOn]);
 
-  const playUiBeep = useCallback(() => {
-    try {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      if (!uiAudioContextRef.current) {
-        uiAudioContextRef.current = new AudioCtx();
-      }
-      const ctx = uiAudioContextRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(1600, ctx.currentTime);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.08);
-    } catch {}
-  }, []);
-
   const playClickSound = useCallback(() => {
     if (!isSfxOn) return;
     try {
@@ -158,14 +158,12 @@ const MainApp: React.FC = () => {
       audio.volume = base.volume;
       const playPromise = audio.play();
       if (playPromise && typeof playPromise.then === 'function') {
-        playPromise.catch(() => {
-          playUiBeep();
-        });
+        playPromise.catch(() => {});
       }
     } catch {
-      playUiBeep();
+      // ignore
     }
-  }, [isSfxOn, playUiBeep]);
+  }, [isSfxOn]);
 
   const playSuccessSound = useCallback(() => {
     if (!isSfxOn) return;
@@ -296,7 +294,6 @@ const MainApp: React.FC = () => {
     const unlockAudio = () => {
       try {
         playClickSound();
-        playUiBeep();
       } catch {}
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('mousedown', unlockAudio);
@@ -1497,28 +1494,44 @@ const MainApp: React.FC = () => {
                     {/* Scanning Line Effect */}
                     <div className="absolute inset-x-0 h-[1px] bg-white/10 top-1/2 -translate-y-1/2 animate-scan pointer-events-none"></div>
 
-                    <div className={`absolute inset-0 pointer-events-none transition-opacity duration-700 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.26),transparent_65%)] ${isMinerUnlocking ? 'opacity-100' : 'opacity-0'}`}></div>
+                    <div className={`absolute inset-0 pointer-events-none transition-opacity duration-700 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.4),transparent_65%)] ${isMinerUnlocking ? 'opacity-100' : 'opacity-0'}`}></div>
 
-                    {/* Miner Image */}
-                    <div className="relative group">
-                      <div className={`absolute inset-0 bg-white/10 blur-3xl rounded-full transition-all duration-1000 ${player?.minerLevel === 0 ? 'opacity-0' : 'opacity-100 animate-pulse'}`}></div>
-                      <div className={`w-48 h-48 relative z-10 flex items-center justify-center transition-transform duration-500 ${player?.minerLevel === 0 ? 'opacity-30 grayscale' : 'drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]'} ${isMinerLevelAnimating ? 'scale-110' : 'scale-100'}`}>
-                        <img 
-                          key={player?.minerLevel}
-                          src={player?.minerLevel === 0 ? "/assets/miner/locked_miner.png" : `/assets/miner/miner_lvl_${player?.minerLevel}.png`}
-                          alt={`Miner Level ${player?.minerLevel}`}
-                          className={`w-full h-full object-contain ${player?.minerLevel > 0 ? 'group-hover:scale-110' : ''}`}
-                        />
+                    {player?.minerLevel === 0 ? (
+                      <div className="relative z-10 flex flex-col items-center justify-between w-full h-full">
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                          <div className="w-40 h-40 mb-3 flex items-center justify-center">
+                            <img
+                              src="/assets/miner/locked_miner.png"
+                              alt="Locked Miner"
+                              className="w-full h-full object-contain grayscale opacity-80"
+                            />
+                          </div>
+                          <div className="text-xl font-black italic uppercase mb-1">MINER LOCKED</div>
+                          <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed px-4">
+                            Unlock your miner to start extracting XP automatically and build passive XP.
+                          </p>
+                        </div>
+                        <div className="w-full mt-4">
+                          <button
+                            onClick={() => handleUpgradeMiner(1)}
+                            disabled={processingPayment}
+                            className="w-full py-4 bg-white text-black font-black text-sm uppercase rounded-2xl active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.4)]"
+                          >
+                            {paymentStatus.miner === 'loading' ? 'INITIALIZING...' : 'Unlock Miner ($0.99 USDC)'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-
-                    {player?.minerLevel === 0 && (
-                      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center p-8 text-center z-20">
-                        <div className="text-xl font-black italic uppercase mb-2">MINER LOCKED</div>
-                        <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest leading-relaxed mb-6">Unlock your miner to start extracting XP automatically.</p>
-                        <button onClick={() => handleUpgradeMiner(1)} disabled={processingPayment} className="px-8 py-4 bg-white text-black font-black text-sm uppercase rounded-2xl active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]">
-                          {paymentStatus.miner === 'loading' ? 'INITIALIZING...' : 'UNLOCK SYSTEM ($0.99)'}
-                        </button>
+                    ) : (
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-white/10 blur-3xl rounded-full transition-all duration-1000 opacity-100 animate-pulse"></div>
+                        <div className={`w-48 h-48 relative z-10 flex items-center justify-center transition-transform duration-500 drop-shadow-[0_0_30px_rgba(255,255,255,0.25)] ${isMinerLevelAnimating ? 'scale-125' : 'scale-100'}`}>
+                          <img
+                            key={player?.minerLevel}
+                            src={`/assets/miner/miner_lvl_${player?.minerLevel}.png`}
+                            alt={`Miner Level ${player?.minerLevel}`}
+                            className="w-full h-full object-contain group-hover:scale-110"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
