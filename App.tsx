@@ -759,8 +759,7 @@ const MainApp: React.FC = () => {
       // @ts-ignore
       const payment = await pay({
         amount: '0.10',
-        to: RECIPIENT_WALLET,
-        testnet: true
+        to: RECIPIENT_WALLET
       });
       const txId = payment?.id;
 
@@ -950,8 +949,7 @@ const MainApp: React.FC = () => {
       // @ts-ignore
       const payment = await pay({
         amount: cost.toFixed(2),
-        to: RECIPIENT_WALLET,
-        testnet: true
+        to: RECIPIENT_WALLET
       });
       const txId = payment?.id;
 
@@ -1014,8 +1012,7 @@ const MainApp: React.FC = () => {
         // @ts-ignore
         const payment = await pay({
           amount: '0.10',
-          to: RECIPIENT_WALLET,
-          testnet: true
+          to: RECIPIENT_WALLET
         });
         hash = payment?.id;
 
@@ -1174,8 +1171,7 @@ const MainApp: React.FC = () => {
        // @ts-ignore
        const payment = await pay({
           amount: '0.10',
-          to: RECIPIENT_WALLET,
-          testnet: true
+          to: RECIPIENT_WALLET
        });
        const txId = payment?.id;
       
