@@ -142,7 +142,7 @@ const MainApp: React.FC = () => {
     try {
       if (!successAudioRef.current) {
         const base = new Audio('/audio/success.mp3');
-        base.volume = 0.35;
+        base.volume = 0.45;
         base.preload = 'auto';
         successAudioRef.current = base;
       }
@@ -151,14 +151,12 @@ const MainApp: React.FC = () => {
       audio.volume = base.volume;
       const playPromise = audio.play();
       if (playPromise && typeof playPromise.then === 'function') {
-        playPromise.catch(() => {
-          playUiBeep();
-        });
+        playPromise.catch(() => {});
       }
     } catch {
-      playUiBeep();
+      // swallow
     }
-  }, [isSfxOn, playUiBeep]);
+  }, [isSfxOn]);
 
   const playLobbyMusic = useCallback(() => {
     if (!isLobbyMusicOn) return;
