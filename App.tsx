@@ -380,7 +380,7 @@ const MainApp: React.FC = () => {
                mergedPlayer.totalGold = 0;
             }
 
-            if (localData.ascentsRemaining !== undefined && localData.ascentsRemaining < mergedPlayer.ascentsRemaining) {
+            if (localData.ascentsRemaining !== undefined && localData.ascentsRemaining > mergedPlayer.ascentsRemaining) {
                mergedPlayer.ascentsRemaining = localData.ascentsRemaining;
             }
           }
@@ -1589,7 +1589,7 @@ const MainApp: React.FC = () => {
 
                       {/* Your Rank (Sticky) */}
                <div className="shrink-0 px-4 py-1 mb-3 bg-black z-20 relative border-t border-white/10">
-                  <div className="p-2 border border-white/10 bg-black rounded-2xl space-y-1.5">
+                  <div className="p-2 border border-white/40 bg-black rounded-2xl space-y-1.5 shadow-[0_0_28px_rgba(255,255,255,0.45)]">
                       <div className="flex justify-between items-center px-1">
                          <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
                          <div className="flex items-center gap-3">
