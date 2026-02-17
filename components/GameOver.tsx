@@ -17,6 +17,16 @@ interface GameOverProps {
 
 const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHighScore, onPlayAgain, onGoHome, onDoubleUp, isProcessing, doubleUpStatus, ascentsRemaining = 0, onRefill, hasDoubled = false }) => {
   const canPlay = ascentsRemaining > 0;
+  const [refillJustSucceeded, setRefillJustSucceeded] = React.useState(false);
+  const prevAscentsRef = React.useRef(ascentsRemaining);
+
+  React.useEffect(() => {
+    if (prevAscentsRef.current === 0 && ascentsRemaining > 0) {
+      setRefillJustSucceeded(true);
+      setTimeout(() => setRefillJustSucceeded(false), 1500);
+    }
+    prevAscentsRef.current = ascentsRemaining;
+  }, [ascentsRemaining]);
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-start py-6 px-6 text-center overflow-y-auto custom-scrollbar">
@@ -87,10 +97,18 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
         ) : (
           <button
             onClick={onRefill}
-            className="w-full bg-[#FFD700] text-black py-5 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] border-[#FFD700] shadow-[0_0_26px_rgba(255,215,0,0.6)] hover:shadow-[0_0_40px_rgba(255,215,0,0.9)] relative overflow-hidden group"
+            disabled={isProcessing}
+            className={
+              `w-full py-5 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] relative overflow-hidden group disabled:opacity-60 ` +
+              (refillJustSucceeded
+                ? 'bg-green-500 border-green-400 text-black shadow-[0_0_32px_rgba(34,197,94,0.8)] scale-[1.02]'
+                : 'bg-[#FFD700] border-[#FFD700] text-black shadow-[0_0_26px_rgba(255,215,0,0.6)] hover:shadow-[0_0_40px_rgba(255,215,0,0.9)]')
+            }
           >
             <div className="absolute inset-0 bg-white/40 translate-x-[-120%] group-hover:translate-x-[120%] transition-transform duration-600" />
-            <span className="relative z-10">Refill Ascents ($0.10)</span>
+            <span className="relative z-10">
+              {isProcessing ? 'Processing...' : refillJustSucceeded ? 'Refilled (+10)' : 'Refill Ascents ($0.10)'}
+            </span>
           </button>
         )}
         <button

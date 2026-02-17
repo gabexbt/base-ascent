@@ -789,7 +789,10 @@ const MainApp: React.FC = () => {
     const claimedAmount = passiveEarnings;
     setLastClaimedAmount(claimedAmount);
     setIsClaiming(true);
-    setShowClaimEffect(false);
+    setShowClaimEffect(true);
+    
+    const freezeEnd = Date.now() + 3000;
+    setClaimFreezeUntil(freezeEnd);
     
     try {
       await PlayerService.claimPassiveXp(player.fid);
@@ -797,11 +800,6 @@ const MainApp: React.FC = () => {
       playSuccessSound();
 
       setIsClaiming(false);
-      setShowClaimEffect(true);
-
-      const freezeEnd = Date.now() + 3000;
-      setClaimFreezeUntil(freezeEnd);
-
       setTimeout(() => {
         setShowClaimEffect(false);
         setClaimFreezeUntil(null);
@@ -898,7 +896,6 @@ const MainApp: React.FC = () => {
         testnet: true
       });
       const txId = payment?.id;
-      playSuccessSound();
 
       // Optimistic Update
       setPlayer({
@@ -914,6 +911,7 @@ const MainApp: React.FC = () => {
 
       clearTimeout(safetyTimeout);
       setPaymentStatus(prev => ({ ...prev, miner: 'success' }));
+      playSuccessSound();
       setTimeout(() => setPaymentStatus(prev => ({ ...prev, miner: 'idle' })), 1500);
     } catch (e: any) {
       console.error("Miner Upgrade Error:", e);
@@ -1080,6 +1078,8 @@ const MainApp: React.FC = () => {
   const handleDoubleUp = async () => {
     if (!gameOverData || !player || showDoubleSuccess) return;
     
+    playClickSound();
+
     // REMOVED: Incorrect check that blocked execution because player.highScore was already updated
     // if (gameOverData.score <= player.highScore) return;
 
@@ -1471,9 +1471,10 @@ const MainApp: React.FC = () => {
                       <div className={`absolute inset-0 bg-white/10 blur-3xl rounded-full transition-all duration-1000 ${player?.minerLevel === 0 ? 'opacity-0' : 'opacity-100 animate-pulse'}`}></div>
                       <div className={`w-48 h-48 relative z-10 flex items-center justify-center ${player?.minerLevel === 0 ? 'opacity-30 grayscale' : 'drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]'}`}>
                         <img 
+                          key={player?.minerLevel}
                           src={player?.minerLevel === 0 ? "/assets/miner/locked_miner.png" : `/assets/miner/miner_lvl_${player?.minerLevel}.png`}
                           alt={`Miner Level ${player?.minerLevel}`}
-                          className={`w-full h-full object-contain transition-transform duration-700 ${player?.minerLevel > 0 ? 'group-hover:scale-110' : ''}`}
+                          className={`w-full h-full object-contain transition-transform duration-700 animate-in fade-in duration-500 ${player?.minerLevel > 0 ? 'group-hover:scale-110' : ''}`}
                         />
                       </div>
                     </div>
@@ -1513,7 +1514,12 @@ const MainApp: React.FC = () => {
                           <button 
                             onClick={() => handleUpgradeMiner(player.minerLevel + 1)} 
                             disabled={processingPayment} 
-                            className="w-full py-5 border-2 border-white font-black text-lg hover:bg-white hover:text-black transition-all rounded-3xl disabled:opacity-50 uppercase shadow-[0_0_20px_rgba(255,255,255,0.05)]"
+                            className={
+                              `w-full py-5 border-2 font-black text-lg transition-all rounded-3xl disabled:opacity-50 uppercase shadow-[0_0_20px_rgba(255,255,255,0.05)] ` +
+                              (paymentStatus.miner === 'success'
+                                ? 'border-green-400 bg-green-500 text-black shadow-[0_0_35px_rgba(34,197,94,0.7)] scale-[1.02]'
+                                : 'border-white text-white hover:bg-white hover:text-black')
+                            }
                           >
                             {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'Success' : paymentStatus.miner === 'error' ? 'Failed' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
                           </button>
