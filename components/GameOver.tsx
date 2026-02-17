@@ -19,7 +19,7 @@ const GameOver: React.FC<GameOverProps> = ({ score, xpGained, goldGained, isHigh
   const canPlay = ascentsRemaining > 0;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center py-6 px-6 text-center overflow-y-auto custom-scrollbar">
+    <div className="w-full h-full flex flex-col items-center justify-start py-6 px-6 text-center overflow-y-auto custom-scrollbar">
       <div className="flex flex-col justify-center gap-6 w-full max-w-[320px] mb-6">
         <div className="space-y-2">
           <div className="text-[10px] opacity-40 uppercase font-black tracking-[0.4em]">{isHighScore ? 'NEW HIGH SCORE!' : 'ASCENT COMPLETE'}</div>
