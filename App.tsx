@@ -936,7 +936,9 @@ const MainApp: React.FC = () => {
     if (player.minerLevel > 0 && currentMiner) {
       const now = new Date();
       const lastClaim = new Date(player.lastClaimAt);
-      const hours = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+      let hours = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+      if (hours < 0) hours = 0;
+      if (hours > 24) hours = 24;
       const pending = Math.floor(hours * currentMiner.xpPerHour);
       newBankedXp += pending;
     }
@@ -1105,7 +1107,9 @@ const MainApp: React.FC = () => {
 
   const passiveEarnings = useMemo(() => {
     if (!player || player.minerLevel === 0) return 0;
-    const hours = (effectiveNow - player.lastClaimAt) / 3600000;
+    let hours = (effectiveNow - player.lastClaimAt) / 3600000;
+    if (hours < 0) hours = 0;
+    if (hours > 24) hours = 24;
     const earnings = Math.floor(hours * currentMiner.xpPerHour) + (player.bankedPassiveXp || 0);
     const raw = Math.max(0, earnings);
     if (isPassiveFrozen && passiveFreezeXp !== null) return passiveFreezeXp;
