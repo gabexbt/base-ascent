@@ -751,30 +751,37 @@ const MainApp: React.FC = () => {
 
   const [isClaiming, setIsClaiming] = useState(false);
   const [showClaimEffect, setShowClaimEffect] = useState(false);
-
   const [lastClaimedAmount, setLastClaimedAmount] = useState(0);
+  const [claimFreezeUntil, setClaimFreezeUntil] = useState<number | null>(null);
 
   const handleClaim = async () => {
-    if (player && !isClaiming) {
-      playClickSound();
-      setLastClaimedAmount(passiveEarnings);
-      setIsClaiming(true);
+    if (!player || isClaiming || passiveEarnings === 0) return;
+
+    playClickSound();
+    const claimedAmount = passiveEarnings;
+    setLastClaimedAmount(claimedAmount);
+    setIsClaiming(true);
+    setShowClaimEffect(false);
+    
+    try {
+      await PlayerService.claimPassiveXp(player.fid);
+      await loadData();
+      playSuccessSound();
+
+      setIsClaiming(false);
+      setShowClaimEffect(true);
+
+      const freezeEnd = Date.now() + 3000;
+      setClaimFreezeUntil(freezeEnd);
+
+      setTimeout(() => {
+        setShowClaimEffect(false);
+        setClaimFreezeUntil(null);
+      }, 3000);
+    } catch (e) {
+      console.error("Claim Error:", e);
+      setIsClaiming(false);
       setShowClaimEffect(false);
-      
-      try {
-        await PlayerService.claimPassiveXp(player.fid);
-        await loadData();
-        playSuccessSound();
-        setIsClaiming(false);
-        setShowClaimEffect(true);
-        setTimeout(() => setShowClaimEffect(false), 800);
-      } catch (e) {
-        console.error("Claim Error:", e);
-      } finally {
-        if (isClaiming) {
-          setTimeout(() => setIsClaiming(false), 800);
-        }
-      }
     }
   };
 
@@ -1007,12 +1014,20 @@ const MainApp: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const effectiveNow = useMemo(() => {
+    if (!claimFreezeUntil) return now;
+    if (now < claimFreezeUntil) {
+      return player ? player.lastClaimAt : now;
+    }
+    return now;
+  }, [now, claimFreezeUntil, player]);
+
   const passiveEarnings = useMemo(() => {
     if (!player || player.minerLevel === 0) return 0;
-    const hours = (now - player.lastClaimAt) / 3600000;
+    const hours = (effectiveNow - player.lastClaimAt) / 3600000;
     const earnings = Math.floor(hours * currentMiner.xpPerHour) + (player.bankedPassiveXp || 0);
     return Math.max(0, earnings); // Prevent negative earnings
-  }, [player, currentMiner, now]);
+  }, [player, currentMiner, effectiveNow]);
 
   const handleRankingChange = (type: 'skill' | 'grind') => {
     if (type === rankingType) return;
@@ -1304,9 +1319,9 @@ const MainApp: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-6 mb-4">
-                      <div className="w-full h-auto max-h-[22vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
-                         <img src={LOGO_URL} className="w-[80%] h-[80%] object-contain" alt="ASCENT" />
+                    <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-5 mb-4">
+                      <div className="w-full h-auto max-h-[24vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
+                         <img src={LOGO_URL} className="w-[88%] h-[88%] object-contain" alt="ASCENT" />
                       </div>
                     </div>
                     <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-6 mt-auto">
@@ -1349,13 +1364,13 @@ const MainApp: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-4 w-full max-w-[280px] h-20">
-                        <div className="bg-white/5 border border-white/10 rounded-[1.2rem] flex flex-col items-center justify-center backdrop-blur-md relative overflow-hidden group">
+                      <div className="grid grid-cols-2 gap-3 w-full max-w-[260px]">
+                        <div className="bg-white/5 border border-white/10 rounded-[1.2rem] flex flex-col items-center justify-center py-2 backdrop-blur-md relative overflow-hidden group">
                           <div className="text-[8px] opacity-30 uppercase font-black relative z-10">Miner Level</div>
                           <div className="text-lg font-black italic relative z-10">LVL {player?.minerLevel || 0}</div>
                         </div>
-                        <div className="bg-white/5 border border-white/10 rounded-[1.2rem] flex flex-col items-center justify-center backdrop-blur-md">
-                          <div className="text-[8px] opacity-30 uppercase font-black">High Score</div>
+                        <div className="bg-white/5 border border-white/10 rounded-[1.2rem] flex flex-col items-center justify-center py-2 backdrop-blur-md">
+                          <div className="text-[8px] opacity-30 uppercase font-black">Altitude Record</div>
                           <div className="text-lg font-black italic">{(player?.highScore || 0).toLocaleString()} m</div>
                         </div>
                       </div>
@@ -1480,6 +1495,7 @@ const MainApp: React.FC = () => {
               </div>
             ) : activeTab === Tab.RANKINGS ? (
             <div className="flex flex-col w-full h-full relative">
+              <div className="absolute inset-x-0 bottom-0 h-40 bg-black pointer-events-none -z-10" />
             {/* Scrollable List Wrapper */}
                <div className="flex-1 relative min-h-0">
                    <div className="h-full overflow-y-auto pb-10 custom-scrollbar px-4 pt-4 space-y-3">

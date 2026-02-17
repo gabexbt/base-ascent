@@ -203,6 +203,7 @@ export const UpgradesTab: React.FC<UpgradesTabProps> = ({ player, onUpdate, onPu
           );
         })}
       </div>
+      <div className="h-6 shrink-0" />
     </div>
   );
 };
