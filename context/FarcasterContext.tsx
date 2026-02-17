@@ -42,7 +42,10 @@ export const FarcasterProvider: React.FC<{ children: ReactNode }> = ({ children 
         const referrerFid = urlParams.get('referrer') || urlParams.get('ref') || (pathSegments[1] === 'r' ? pathSegments[2] : null);
 
         // 4. Set State
-        const isDevMode = window.location.search.includes('dev=true') || window.location.hostname === 'localhost';
+        const isDevMode =
+          window.location.search.includes('dev=true') ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname !== 'base-ascent.vercel.app';
         
         // Improve username resolution
         let username = context.user.username;
@@ -63,7 +66,10 @@ export const FarcasterProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
       } catch (err) {
         console.error("SDK Load Error:", err);
-        const isDevMode = window.location.search.includes('dev=true') || window.location.hostname === 'localhost';
+        const isDevMode =
+          window.location.search.includes('dev=true') ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname !== 'base-ascent.vercel.app';
         
         if (isDevMode) {
           // Fallback for browser testing

@@ -386,7 +386,10 @@ const MainApp: React.FC = () => {
       if (referrer) PlayerService.log(`Active Referrer: ${referrer}`);
 
       // Fallback for non-frame environments (browser testing) ONLY if fid is missing
-      const isDevMode = window.location.search.includes('dev=true') || window.location.hostname === 'localhost';
+      const isDevMode =
+        window.location.search.includes('dev=true') ||
+        window.location.hostname === 'localhost' ||
+        window.location.hostname !== 'base-ascent.vercel.app';
       
       if (!fid) {
          if (isDevMode) {
