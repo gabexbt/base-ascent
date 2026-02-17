@@ -1411,19 +1411,21 @@ const MainApp: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Top Stats Row */}
-                  <div className="grid grid-cols-2 gap-2 shrink-0">
-                    <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md">
-                      <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Current Level</div>
-                      <div className="text-xl font-black italic">LEVEL {player?.minerLevel || 0}</div>
-                    </div>
-                    <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md">
-                      <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Hourly Yield</div>
-                      <div className="text-lg font-black italic text-white text-center w-full">
-                        {`${Math.round(currentMiner.xpPerHour / 1000).toLocaleString()}K XP / HR`}
+                  {/* Top Stats Row - only after unlock */}
+                  {player?.minerLevel > 0 && (
+                    <div className="grid grid-cols-2 gap-2 shrink-0">
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md">
+                        <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Current Level</div>
+                        <div className="text-xl font-black italic">LEVEL {player?.minerLevel || 0}</div>
+                      </div>
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-[2rem] flex flex-col items-center justify-center backdrop-blur-md">
+                        <div className="text-[9px] opacity-40 font-black uppercase tracking-widest mb-1">Hourly Yield</div>
+                        <div className="text-lg font-black italic text-white text-center w-full">
+                          {`${Math.round(currentMiner.xpPerHour / 1000).toLocaleString()}K XP / HR`}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Central Miner Frame - Horizontal Layout */}
                   <div className="flex-1 min-h-[200px] border-2 border-white/20 bg-black/40 rounded-[2.5rem] p-6 flex items-center justify-center relative overflow-hidden shadow-[inset_0_0_50px_rgba(255,255,255,0.05)]">
@@ -1459,25 +1461,25 @@ const MainApp: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Earnings & Claim Section */}
-                  <div className="p-5 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-6">
-                    <div className="flex flex-col items-center text-center px-2">
-                      <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">STORED XP</span>
-                      <div className={`text-4xl font-black italic tracking-tighter transition-all duration-300 ${showClaimEffect ? 'scale-110 text-green-400' : 'text-white'}`}>
-                        +{showClaimEffect ? lastClaimedAmount.toLocaleString() : passiveEarnings.toLocaleString()}
+                  {/* Earnings & Claim Section - only after unlock */}
+                  {player?.minerLevel > 0 && (
+                    <div className="p-5 bg-white/5 border border-white/10 rounded-[2.5rem] flex flex-col gap-4 backdrop-blur-md shrink-0 mb-6">
+                      <div className="flex flex-col items-center text-center px-2">
+                        <span className="text-[9px] opacity-40 font-black uppercase tracking-[0.2em] mb-1">STORED XP</span>
+                        <div className={`text-4xl font-black italic tracking-tighter transition-all duration-300 ${showClaimEffect ? 'scale-110 text-green-400' : 'text-white'}`}>
+                          +{showClaimEffect ? lastClaimedAmount.toLocaleString() : passiveEarnings.toLocaleString()}
+                        </div>
                       </div>
-                    </div>
 
-                    <button 
-                      onClick={handleClaim} 
-                      disabled={passiveEarnings === 0 || isClaiming || player?.minerLevel === 0} 
-                      className={`w-full py-5 font-black text-xl rounded-[1.5rem] active:scale-95 disabled:opacity-20 transition-all uppercase relative overflow-hidden group/btn ${showClaimEffect ? 'bg-green-500 text-black shadow-[0_0_40px_rgba(34,197,94,0.4)]' : 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'}`}
-                    >
-                      <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 italic"></div>
-                      {showClaimEffect ? 'SUCCESS!' : isClaiming ? 'CLAIMING...' : 'CLAIM XP'}
-                    </button>
+                      <button 
+                        onClick={handleClaim} 
+                        disabled={passiveEarnings === 0 || isClaiming || player?.minerLevel === 0} 
+                        className={`w-full py-5 font-black text-xl rounded-[1.5rem] active:scale-95 disabled:opacity-20 transition-all uppercase relative overflow-hidden group/btn ${showClaimEffect ? 'bg-green-500 text-black shadow-[0_0_40px_rgba(34,197,94,0.4)]' : 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.1)]'}`}
+                      >
+                        <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 italic"></div>
+                        {showClaimEffect ? 'SUCCESS!' : isClaiming ? 'CLAIMING...' : 'CLAIM XP'}
+                      </button>
 
-                    {player?.minerLevel > 0 && (
                       <div className="w-full pt-2 mb-2">
                         {nextMiner ? (
                           <button 
@@ -1488,11 +1490,11 @@ const MainApp: React.FC = () => {
                             {paymentStatus.miner === 'loading' ? 'Processing...' : paymentStatus.miner === 'success' ? 'Success' : paymentStatus.miner === 'error' ? 'Failed' : `Upgrade to Lvl ${player.minerLevel + 1} • $${nextMiner.cost.toFixed(2)}`}
                           </button>
                         ) : (
-                      <div className="py-5 border-2 border-dashed border-white/30 text-center opacity-40 font-black rounded-3xl uppercase">Max Level Reached</div>
+                          <div className="py-5 border-2 border-dashed border-white/30 text-center opacity-40 font-black rounded-3xl uppercase">Max Level Reached</div>
                         )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   <div className="h-4 shrink-0" />
                 </div>
