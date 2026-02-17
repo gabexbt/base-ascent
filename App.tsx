@@ -58,6 +58,9 @@ const MainApp: React.FC = () => {
   const gameRef = useRef<{ endGame: () => void }>(null);
   const sessionXpRef = useRef<HTMLDivElement>(null);
   const sessionGoldRef = useRef<HTMLDivElement>(null);
+  const [isMinerLevelAnimating, setIsMinerLevelAnimating] = useState(false);
+  const [isMinerUnlocking, setIsMinerUnlocking] = useState(false);
+  const prevMinerLevelRef = useRef<number>(0);
 
   // Tab Switch Game Over Logic
   useEffect(() => {
@@ -71,6 +74,27 @@ const MainApp: React.FC = () => {
   
   // Payment Timeout Helper - REMOVED per user request
 
+
+  useEffect(() => {
+    const current = player?.minerLevel || 0;
+    const prev = prevMinerLevelRef.current || 0;
+    if (current !== prev) {
+      if (current > 0) {
+        setIsMinerLevelAnimating(true);
+        const levelTimeout = setTimeout(() => setIsMinerLevelAnimating(false), 600);
+        if (prev === 0 && current === 1) {
+          setIsMinerUnlocking(true);
+          const unlockTimeout = setTimeout(() => setIsMinerUnlocking(false), 900);
+          return () => {
+            clearTimeout(levelTimeout);
+            clearTimeout(unlockTimeout);
+          };
+        }
+        return () => clearTimeout(levelTimeout);
+      }
+    }
+    prevMinerLevelRef.current = current;
+  }, [player?.minerLevel]);
 
   const playRandomTrack = useCallback(() => {
     if (audioRef.current) {
@@ -1281,6 +1305,7 @@ const MainApp: React.FC = () => {
                       ascentsRemaining={player?.ascentsRemaining}
                       onRefill={handleRechargeAscents}
                       hasDoubled={gameOverData.hasDoubled}
+                      rechargeStatus={paymentStatus.recharge}
                     />
                     {showDoubleSuccess && gameOverData && (
                       <div className="absolute inset-0 z-50 flex flex-col items-center justify-center animate-in fade-in duration-300">
@@ -1466,15 +1491,17 @@ const MainApp: React.FC = () => {
                     {/* Scanning Line Effect */}
                     <div className="absolute inset-x-0 h-[1px] bg-white/10 top-1/2 -translate-y-1/2 animate-scan pointer-events-none"></div>
 
+                    <div className={`absolute inset-0 pointer-events-none transition-opacity duration-700 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.26),transparent_65%)] ${isMinerUnlocking ? 'opacity-100' : 'opacity-0'}`}></div>
+
                     {/* Miner Image */}
                     <div className="relative group">
                       <div className={`absolute inset-0 bg-white/10 blur-3xl rounded-full transition-all duration-1000 ${player?.minerLevel === 0 ? 'opacity-0' : 'opacity-100 animate-pulse'}`}></div>
-                      <div className={`w-48 h-48 relative z-10 flex items-center justify-center ${player?.minerLevel === 0 ? 'opacity-30 grayscale' : 'drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]'}`}>
+                      <div className={`w-48 h-48 relative z-10 flex items-center justify-center transition-transform duration-500 ${player?.minerLevel === 0 ? 'opacity-30 grayscale' : 'drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]'} ${isMinerLevelAnimating ? 'scale-110' : 'scale-100'}`}>
                         <img 
                           key={player?.minerLevel}
                           src={player?.minerLevel === 0 ? "/assets/miner/locked_miner.png" : `/assets/miner/miner_lvl_${player?.minerLevel}.png`}
                           alt={`Miner Level ${player?.minerLevel}`}
-                          className={`w-full h-full object-contain transition-transform duration-700 animate-in fade-in duration-500 ${player?.minerLevel > 0 ? 'group-hover:scale-110' : ''}`}
+                          className={`w-full h-full object-contain ${player?.minerLevel > 0 ? 'group-hover:scale-110' : ''}`}
                         />
                       </div>
                     </div>
