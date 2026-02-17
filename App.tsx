@@ -1304,9 +1304,9 @@ const MainApp: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-6 mb-6">
-                      <div className="w-full h-auto max-h-[24vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
-                         <img src={LOGO_URL} className="max-w-full max-h-full object-contain scale-[1.4]" alt="ASCENT" />
+                    <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-6 mb-4">
+                      <div className="w-full h-auto max-h-[22vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
+                         <img src={LOGO_URL} className="w-[80%] h-[80%] object-contain" alt="ASCENT" />
                       </div>
                     </div>
                     <div className="flex flex-col items-center w-full shrink-0 gap-4 pb-6 mt-auto">
@@ -1370,7 +1370,7 @@ const MainApp: React.FC = () => {
                 isProcessing={processingPayment} 
               />
             ) : activeTab === Tab.HARDWARE ? (
-              <div className="flex-1 flex flex-col items-center pb-[calc(7rem+env(safe-area-inset-bottom))] p-4 w-full h-full">
+              <div className="flex-1 flex flex-col items-center pb-[calc(6rem+env(safe-area-inset-bottom))] p-4 w-full h-full">
                 <div className="w-full flex justify-between items-start mb-2">
                   <div className="flex flex-col gap-1">
                     <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Auto Miner</h2>
@@ -1480,9 +1480,9 @@ const MainApp: React.FC = () => {
               </div>
             ) : activeTab === Tab.RANKINGS ? (
             <div className="flex flex-col w-full h-full relative">
-               {/* Scrollable List Wrapper */}
+            {/* Scrollable List Wrapper */}
                <div className="flex-1 relative min-h-0">
-                   <div className="h-full overflow-y-auto pb-6 custom-scrollbar px-4 pt-4 space-y-3">
+                   <div className="h-full overflow-y-auto pb-10 custom-scrollbar px-4 pt-4 space-y-3">
                        
                        {/* Header & Controls */}
           <div className="flex justify-between items-center w-full shrink-0">
@@ -1564,12 +1564,10 @@ const MainApp: React.FC = () => {
                           )}
                        </div>
                    </div>
-                   {/* Fade Effect */}
-                   <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-black to-transparent pointer-events-none z-10"></div>
                </div>
 
-                       {/* Your Rank (Sticky) */}
-               <div className="shrink-0 px-4 pb-1 pt-1 bg-black z-20 relative border-t border-white/10">
+                      {/* Your Rank (Sticky) */}
+               <div className="shrink-0 px-4 py-3 bg-black z-20 relative border-t border-white/10">
                   <div className="p-2 border border-white/10 bg-black rounded-2xl space-y-1.5">
                       <div className="flex justify-between items-center px-1">
                          <div className="text-[9px] opacity-40 font-black uppercase tracking-widest">Your Rank</div>
