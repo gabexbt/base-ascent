@@ -38,8 +38,7 @@ const GameOver: React.FC<GameOverProps> = ({
   React.useEffect(() => {
     if (prevRechargeRef.current !== 'success' && rechargeStatus === 'success') {
       setRefillJustSucceeded(true);
-      const timeout = setTimeout(() => setRefillJustSucceeded(false), 1200);
-      return () => clearTimeout(timeout);
+      setTimeout(() => setRefillJustSucceeded(false), 2000);
     }
     prevRechargeRef.current = rechargeStatus;
   }, [rechargeStatus]);
@@ -108,7 +107,7 @@ const GameOver: React.FC<GameOverProps> = ({
             className={
               `w-full py-5 font-black text-xl uppercase rounded-[2rem] active:scale-95 transition-all border-[3px] relative overflow-hidden group ` +
               (refillJustSucceeded
-                ? 'bg-green-500 text-black border-green-400 shadow-[0_0_32px_rgba(34,197,94,0.8)] scale-[1.02]'
+                ? 'bg-[#FFD700] text-black border-[#FFD700] shadow-[0_0_40px_rgba(255,215,0,0.9)] scale-[1.02]'
                 : 'bg-white text-black border-white shadow-[0_0_26px_rgba(255,255,255,0.5)] hover:shadow-[0_0_36px_rgba(255,255,255,0.8)]')
             }
           >
