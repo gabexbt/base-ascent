@@ -141,12 +141,14 @@ const MainApp: React.FC = () => {
     if (!isSfxOn) return;
     try {
       if (!successAudioRef.current) {
-        const audio = new Audio('/audio/success.mp3');
-        audio.volume = 0.35;
-        successAudioRef.current = audio;
+        const base = new Audio('/audio/success.mp3');
+        base.volume = 0.35;
+        base.preload = 'auto';
+        successAudioRef.current = base;
       }
-      const audio = successAudioRef.current;
-      audio.currentTime = 0;
+      const base = successAudioRef.current;
+      const audio = base.cloneNode(true) as HTMLAudioElement;
+      audio.volume = base.volume;
       const playPromise = audio.play();
       if (playPromise && typeof playPromise.then === 'function') {
         playPromise.catch(() => {
@@ -244,17 +246,18 @@ const MainApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const handlePointer = (event: PointerEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target) return;
-      const button = target.closest('button') as HTMLButtonElement | null;
-      if (!button || button.disabled) return;
-      playClickSound();
+    const unlockAudio = () => {
+      try {
+        playClickSound();
+      } catch {}
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('mousedown', unlockAudio);
     };
-
-    document.addEventListener('pointerdown', handlePointer);
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('mousedown', unlockAudio, { once: true });
     return () => {
-      document.removeEventListener('pointerdown', handlePointer);
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('mousedown', unlockAudio);
     };
   }, [playClickSound]);
 
