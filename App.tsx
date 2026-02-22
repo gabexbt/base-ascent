@@ -47,6 +47,7 @@ const MainApp: React.FC = () => {
   const [gameOverData, setGameOverData] = useState<GameOverData | null>(null);
   const [globalRevenue, setGlobalRevenue] = useState(0);
   const [totalPlayers, setTotalPlayers] = useState(0);
+  const [isDailyClaiming, setIsDailyClaiming] = useState(false);
   const [isLobbyMusicOn, setIsLobbyMusicOn] = useState(true);
   const [isGameMusicOn, setIsGameMusicOn] = useState(true);
   const [isSfxOn, setIsSfxOn] = useState(true);
@@ -63,6 +64,19 @@ const MainApp: React.FC = () => {
   const [isMinerUnlocking, setIsMinerUnlocking] = useState(false);
   const [lastMinerAction, setLastMinerAction] = useState<'unlock' | 'upgrade' | null>(null);
   const prevMinerLevelRef = useRef<number>(0);
+
+  const todayDailyTaskId = useMemo(() => {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(now.getUTCDate()).padStart(2, '0');
+    return `daily-${year}-${month}-${day}`;
+  }, []);
+
+  const hasClaimedDailyTask = useMemo(
+    () => !!player?.completedTasks?.includes(todayDailyTaskId),
+    [player, todayDailyTaskId]
+  );
 
   useEffect(() => {
     try {

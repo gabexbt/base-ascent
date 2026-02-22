@@ -64,6 +64,7 @@ export enum Tab {
   UPGRADES = 'UPGRADES',
   HARDWARE = 'HARDWARE',
   RANKINGS = 'RANKINGS',
+  TASKS = 'TASKS',
   PROFILE = 'PROFILE'
 }
 
