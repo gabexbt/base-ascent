@@ -666,6 +666,28 @@ const MainApp: React.FC = () => {
     setTaskTimers(prev => ({ ...prev, [taskId]: { time: 10, focused: true } }));
   };
 
+  const handleDailyClaim = useCallback(async () => {
+    if (!player || hasClaimedDailyTask || isDailyClaiming) return;
+
+    setIsDailyClaiming(true);
+
+    setPlayer(prev => prev ? {
+      ...prev,
+      ascentsRemaining: (prev.ascentsRemaining || 0) + 10,
+      completedTasks: [...(prev.completedTasks || []), todayDailyTaskId]
+    } : prev);
+
+    try {
+      await PlayerService.completeTask(player.fid, todayDailyTaskId, 0, 0, 10);
+      playSuccessSound();
+      await loadData();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDailyClaiming(false);
+    }
+  }, [player, hasClaimedDailyTask, isDailyClaiming, todayDailyTaskId, playSuccessSound, loadData]);
+
   const [neynarLoading, setNeynarLoading] = useState(false);
   const [debugRefresh, setDebugRefresh] = useState(0); // For forcing debug console updates
 
@@ -1389,7 +1411,7 @@ const MainApp: React.FC = () => {
 
                   </>
                 ) : status === GameStatus.GAMEOVER && gameOverData ? (
-                  <div className="w-full h-full min-h-0">
+              <div className="w-full h-full min-h-0">
                     <GameOver 
                       score={gameOverData.score}
                       xpGained={gameOverData.xp}
@@ -1473,7 +1495,7 @@ const MainApp: React.FC = () => {
                     </div>
 
                     <div className="flex flex-col items-center justify-center z-10 w-full px-2 flex-shrink min-h-0 pt-4 mb-4">
-                      <div className="w-full h-auto max-h-[26vh] aspect-square flex items-center justify-center animate-pulse duration-[2000ms]">
+                      <div className="w-full max-w-[320px] h-auto max-h-[32vh] aspect-square flex items-center justify-center mx-auto animate-pulse duration-[2000ms]">
                          <img src={LOGO_URL} className="w-[96%] h-[96%] object-contain" alt="ASCENT" />
                       </div>
                     </div>
@@ -1815,6 +1837,42 @@ const MainApp: React.FC = () => {
                   </div>
                </div>
             </div>
+          ) : activeTab === Tab.TASKS ? (
+            <div className="flex-1 flex flex-col gap-3 pr-1 pb-10 mt-6 items-center w-full">
+               <div className="w-full p-6 border border-white/10 bg-black/70 rounded-[40px] backdrop-blur-md">
+                 <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-4 tracking-widest text-center">Daily Task</h3>
+                 <div className="flex flex-col items-center text-center gap-2">
+                   <div className="text-[10px] uppercase tracking-[0.25em] text-white/50 font-bold">Claim 10 Free Spins</div>
+                   <div className="text-[9px] text-white/40 uppercase tracking-[0.18em]">Resets every 24 hours</div>
+                   <button
+                     onClick={handleDailyClaim}
+                     disabled={hasClaimedDailyTask || isDailyClaiming}
+                     className={`w-full mt-2 py-3 rounded-[999px] text-[11px] font-black uppercase tracking-widest border border-white/20 active:scale-95 transition-all ${hasClaimedDailyTask ? 'bg-white/5 text-white/40' : 'bg-white text-black shadow-[0_0_24px_rgba(255,255,255,0.6)]'}`}
+                   >
+                     {hasClaimedDailyTask ? 'ALREADY CLAIMED' : isDailyClaiming ? 'CLAIMING...' : '+10 SPINS'}
+                   </button>
+                 </div>
+               </div>
+
+               <div className="w-full p-6 border border-white/10 bg-black/70 rounded-[40px] backdrop-blur-md">
+                  <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-5 tracking-widest text-center">Social Tasks</h3>
+                  <div className="space-y-3">
+                     {[
+                       { id: 'f-gabe', l: 'Follow gabe on Base', u: 'https://base.app/profile/gabexbt' },
+                       { id: 'f-x', l: 'Follow gabe on X', u: 'https://x.com/gabexbt' },
+                       { id: 'post-interaction', l: 'Like the Post on X', u: 'https://x.com/gabexbt/status/2023783762656719303?s=20' },
+                       { id: 'neynar-notifications', l: 'Pin App & Enable Notifications', u: '#' }
+                     ].map(t => (
+                        <div key={t.id} className="w-full p-4 border border-white/10 rounded-[28px] flex items-center justify-between bg-black/50">
+                           <div className="text-left"><div className="text-[10px] font-black uppercase">{t.l}</div><div className="text-[8px] opacity-40">+50K XP • 10K GOLD • 5 SPINS</div></div>
+                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={player?.completedTasks?.includes(t.id) || (taskTimers[t.id]?.time > 0)} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95 disabled:opacity-50 transition-all min-w-[100px]">
+                              {player?.completedTasks?.includes(t.id) ? 'COMPLETED' : taskTimers[t.id]?.time > 0 ? `VERIFYING (${taskTimers[t.id]?.time}s)` : 'COMPLETE TASK'}
+                           </button>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
           ) : (
             <div className="flex-1 flex flex-col gap-3 pr-1 pb-10 mt-6 items-center w-full">
                <div className="w-full p-6 border border-white/10 bg-black/70 rounded-[40px] flex flex-col items-center backdrop-blur-md">
@@ -1842,25 +1900,7 @@ const MainApp: React.FC = () => {
                  <p className="text-[8px] opacity-30 text-center mt-2 italic px-4 uppercase font-bold">AUTOMATICALLY EARN 20% OF ALL XP GENERATED BY YOUR RECRUIT'S MINER.</p>
                </div>
 
-               <div className="w-full p-6 border border-white/10 bg-black/70 rounded-[40px] backdrop-blur-md">
-                  <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] mb-5 tracking-widest text-center">TASKS</h3>
-                  <div className="space-y-3">
-                     {[
-                       { id: 'f-gabe', l: 'Follow gabe on Base', u: 'https://base.app/profile/gabexbt' },
-                       { id: 'f-x', l: 'Follow gabe on X', u: 'https://x.com/gabexbt' },
-                      { id: 'post-interaction', l: 'Like the Post on X', u: 'https://x.com/gabexbt/status/2023783762656719303?s=20' },
-                       { id: 'neynar-notifications', l: 'Pin App & Enable Notifications', u: '#' }
-                     ].map(t => (
-                        <div key={t.id} className="w-full p-4 border border-white/10 rounded-[28px] flex items-center justify-between bg-black/50">
-                           <div className="text-left"><div className="text-[10px] font-black uppercase">{t.l}</div><div className="text-[8px] opacity-40">+50K XP • 10K GOLD • 5 SPINS</div></div>
-                           <button onClick={() => handleTaskClick(t.id, t.u)} disabled={player?.completedTasks?.includes(t.id) || (taskTimers[t.id]?.time > 0)} className="text-[9px] font-black italic border border-white/20 px-3 py-1.5 rounded-xl active:scale-95 disabled:opacity-50 transition-all min-w-[100px]">
-                              {player?.completedTasks?.includes(t.id) ? 'COMPLETED' : taskTimers[t.id]?.time > 0 ? `VERIFYING (${taskTimers[t.id]?.time}s)` : 'COMPLETE TASK'}
-                           </button>
-                        </div>
-                     ))}
-                  </div>
-               </div>
-
+              
                {/* FAQ Section */}
                <div className="w-full p-6 border border-white/10 bg-black/70 rounded-[40px] mt-2 backdrop-blur-md">
                    <h3 className="text-2xl font-black italic uppercase text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.8)] text-center mb-5 tracking-widest">FAQ</h3>
@@ -1966,6 +2006,10 @@ const MainApp: React.FC = () => {
         <button onClick={() => { playClickSound(); setActiveTab(Tab.RANKINGS); }} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.RANKINGS ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Ranking />
           <span className="text-[9px] font-black uppercase tracking-widest">Ranks</span>
+        </button>
+        <button onClick={() => { playClickSound(); setActiveTab(Tab.TASKS); }} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.TASKS ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
+          <Icons.Tasks />
+          <span className="text-[9px] font-black uppercase tracking-widest">Tasks</span>
         </button>
         <button onClick={() => { playClickSound(); setActiveTab(Tab.PROFILE); }} className={`flex flex-col items-center gap-1.5 transition-all p-2 rounded-xl ${activeTab === Tab.PROFILE ? 'text-white bg-white/10' : 'text-white/40 hover:text-white/70'}`}>
           <Icons.Profile />
