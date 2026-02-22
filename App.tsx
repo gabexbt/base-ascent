@@ -48,6 +48,8 @@ const MainApp: React.FC = () => {
   const [globalRevenue, setGlobalRevenue] = useState(0);
   const [totalPlayers, setTotalPlayers] = useState(0);
   const [isDailyClaiming, setIsDailyClaiming] = useState(false);
+  const [dailyCountdown, setDailyCountdown] = useState<number | null>(null);
+  const [dailyJustClaimed, setDailyJustClaimed] = useState(false);
   const [isLobbyMusicOn, setIsLobbyMusicOn] = useState(true);
   const [isGameMusicOn, setIsGameMusicOn] = useState(true);
   const [isSfxOn, setIsSfxOn] = useState(true);
@@ -77,6 +79,40 @@ const MainApp: React.FC = () => {
     () => !!player?.completedTasks?.includes(todayDailyTaskId),
     [player, todayDailyTaskId]
   );
+
+  useEffect(() => {
+    if (!hasClaimedDailyTask) {
+      setDailyCountdown(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const now = new Date();
+      const next = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1,
+        0,
+        0,
+        0,
+        0
+      ));
+      const diffSeconds = Math.max(0, Math.floor((next.getTime() - now.getTime()) / 1000));
+      setDailyCountdown(diffSeconds);
+    };
+
+    updateCountdown();
+    const intervalId = setInterval(updateCountdown, 1000);
+    return () => clearInterval(intervalId);
+  }, [hasClaimedDailyTask]);
+
+  const formatDailyCountdown = (totalSeconds: number | null) => {
+    if (totalSeconds == null) return '00:00:00';
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return [hours, minutes, seconds].map(v => String(v).padStart(2, '0')).join(':');
+  };
 
   useEffect(() => {
     try {
@@ -680,6 +716,8 @@ const MainApp: React.FC = () => {
     try {
       await PlayerService.completeTask(player.fid, todayDailyTaskId, 0, 0, 10);
       playSuccessSound();
+      setDailyJustClaimed(true);
+      setTimeout(() => setDailyJustClaimed(false), 1500);
       await loadData();
     } catch (e) {
       console.error(e);
@@ -1847,10 +1885,27 @@ const MainApp: React.FC = () => {
                    <button
                      onClick={handleDailyClaim}
                      disabled={hasClaimedDailyTask || isDailyClaiming}
-                     className={`w-full mt-2 py-3 rounded-[999px] text-[11px] font-black uppercase tracking-widest border border-white/20 active:scale-95 transition-all ${hasClaimedDailyTask ? 'bg-white/5 text-white/40' : 'bg-white text-black shadow-[0_0_24px_rgba(255,255,255,0.6)]'}`}
+                     className={`w-full mt-2 py-3 rounded-[999px] text-[11px] font-black uppercase tracking-widest border border-white/20 active:scale-95 transition-all ${
+                       dailyJustClaimed
+                         ? 'bg-[#FFD700] text-black shadow-[0_0_24px_rgba(255,215,0,0.8)]'
+                         : hasClaimedDailyTask
+                           ? 'bg-white/5 text-white/40'
+                           : 'bg-white text-black shadow-[0_0_24px_rgba(255,255,255,0.6)]'
+                     }`}
                    >
-                     {hasClaimedDailyTask ? 'ALREADY CLAIMED' : isDailyClaiming ? 'CLAIMING...' : '+10 SPINS'}
+                     {dailyJustClaimed
+                       ? 'SUCCESS!'
+                       : hasClaimedDailyTask
+                         ? 'CLAIMED'
+                         : isDailyClaiming
+                           ? 'CLAIMING...'
+                           : 'COMPLETE TASK'}
                    </button>
+                   {hasClaimedDailyTask && (
+                     <div className="mt-2 text-[9px] text-white/40 uppercase tracking-[0.18em]">
+                       CLAIMED · {formatDailyCountdown(dailyCountdown)}
+                     </div>
+                   )}
                  </div>
                </div>
 
@@ -1861,7 +1916,11 @@ const MainApp: React.FC = () => {
                        { id: 'f-gabe', l: 'Follow gabe on Base', u: 'https://base.app/profile/gabexbt' },
                        { id: 'f-x', l: 'Follow gabe on X', u: 'https://x.com/gabexbt' },
                        { id: 'post-interaction', l: 'Like the Post on X', u: 'https://x.com/gabexbt/status/2023783762656719303?s=20' },
-                       { id: 'neynar-notifications', l: 'Pin App & Enable Notifications', u: '#' }
+                       { id: 'neynar-notifications', l: 'Pin App & Enable Notifications', u: '#' },
+                       { id: 'f-mks13', l: 'Follow Mks13 on X', u: 'https://x.com/mksvibe' },
+                       { id: 'f-update', l: 'Follow UPDATE on X', u: 'https://x.com/update003' },
+                       { id: 'f-zaen', l: 'Follow Zaen on X', u: 'https://x.com/zaenx21' },
+                       { id: 'f-greg', l: 'Follow Greg on X', u: 'https://x.com/hryhorii77' }
                      ].map(t => (
                         <div key={t.id} className="w-full p-4 border border-white/10 rounded-[28px] flex items-center justify-between bg-black/50">
                            <div className="text-left"><div className="text-[10px] font-black uppercase">{t.l}</div><div className="text-[8px] opacity-40">+50K XP • 10K GOLD • 5 SPINS</div></div>
