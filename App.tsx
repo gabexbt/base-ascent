@@ -67,47 +67,55 @@ const MainApp: React.FC = () => {
   const [lastMinerAction, setLastMinerAction] = useState<'unlock' | 'upgrade' | null>(null);
   const prevMinerLevelRef = useRef<number>(0);
 
-  const todayDailyTaskId = useMemo(() => {
-    const now = new Date();
-    const year = now.getUTCFullYear();
-    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(now.getUTCDate()).padStart(2, '0');
-    return `daily-${year}-${month}-${day}`;
-  }, []);
+  const [lastDailyClaimAt, setLastDailyClaimAt] = useState<number | null>(null);
 
-  const hasClaimedDailyTask = useMemo(
-    () => !!player?.completedTasks?.includes(todayDailyTaskId),
-    [player, todayDailyTaskId]
-  );
+  // Use a rolling 24-hour cooldown logic
+  useEffect(() => {
+    if (!player?.completedTasks) return;
+    
+    // Find all daily-claim-* tasks and get the most recent timestamp
+    const dailyClaims = player.completedTasks
+      .filter(id => id.startsWith('daily-claim-'))
+      .map(id => parseInt(id.split('daily-claim-')[1]))
+      .filter(ts => !isNaN(ts));
+    
+    if (dailyClaims.length > 0) {
+      const mostRecent = Math.max(...dailyClaims);
+      const now = Date.now();
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      
+      if (now - mostRecent < twentyFourHours) {
+        setLastDailyClaimAt(mostRecent);
+      } else {
+        setLastDailyClaimAt(null);
+      }
+    } else {
+      setLastDailyClaimAt(null);
+    }
+  }, [player?.completedTasks]);
+
+  const hasClaimedDailyTask = useMemo(() => lastDailyClaimAt !== null, [lastDailyClaimAt]);
 
   useEffect(() => {
-    if (!hasClaimedDailyTask) {
+    if (!hasClaimedDailyTask || lastDailyClaimAt === null) {
       setDailyCountdown(null);
       return;
     }
 
     const updateCountdown = () => {
-      const now = new Date();
-      const next = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() + 1,
-        0,
-        0,
-        0,
-        0
-      ));
-      const diffSeconds = Math.max(0, Math.floor((next.getTime() - now.getTime()) / 1000));
+      const now = Date.now();
+      const nextAvailable = lastDailyClaimAt + (24 * 60 * 60 * 1000);
+      const diffSeconds = Math.max(0, Math.floor((nextAvailable - now) / 1000));
       setDailyCountdown(diffSeconds);
     };
 
     updateCountdown();
     const intervalId = setInterval(updateCountdown, 1000);
     return () => clearInterval(intervalId);
-  }, [hasClaimedDailyTask]);
+  }, [hasClaimedDailyTask, lastDailyClaimAt]);
 
   const formatDailyCountdown = (totalSeconds: number | null) => {
-    if (totalSeconds == null) return '00:00:00';
+    if (totalSeconds == null) return '24:00:00';
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
@@ -707,24 +715,44 @@ const MainApp: React.FC = () => {
 
     setIsDailyClaiming(true);
 
+    const now = Date.now();
+    const claimId = `daily-claim-${now}`;
+
+    // Optimistically update ascents only, but don't set completedTasks yet
+    // to keep the button in CLAIMING state
     setPlayer(prev => prev ? {
       ...prev,
-      ascentsRemaining: (prev.ascentsRemaining || 0) + 10,
-      completedTasks: [...(prev.completedTasks || []), todayDailyTaskId]
+      ascentsRemaining: (prev.ascentsRemaining || 0) + 10
     } : prev);
 
     try {
-      await PlayerService.completeTask(player.fid, todayDailyTaskId, 0, 0, 10);
+      await PlayerService.completeTask(player.fid, claimId, 0, 0, 10);
       playSuccessSound();
+      
+      // Briefly show SUCCESS!
       setDailyJustClaimed(true);
-      setTimeout(() => setDailyJustClaimed(false), 1500);
-      await loadData();
+      
+      // After 1.5s, update the player state with the new claimId to switch to NEXT CLAIM state
+      setTimeout(async () => {
+        setDailyJustClaimed(false);
+        setPlayer(prev => prev ? {
+          ...prev,
+          completedTasks: [...(prev.completedTasks || []), claimId]
+        } : prev);
+        await loadData();
+      }, 1500);
+
     } catch (e) {
       console.error(e);
+      // Rollback ascents if failed
+      setPlayer(prev => prev ? {
+        ...prev,
+        ascentsRemaining: Math.max(0, (prev.ascentsRemaining || 0) - 10)
+      } : prev);
     } finally {
       setIsDailyClaiming(false);
     }
-  }, [player, hasClaimedDailyTask, isDailyClaiming, todayDailyTaskId, playSuccessSound, loadData]);
+  }, [player, hasClaimedDailyTask, isDailyClaiming, playSuccessSound, loadData]);
 
   const [neynarLoading, setNeynarLoading] = useState(false);
   const [debugRefresh, setDebugRefresh] = useState(0); // For forcing debug console updates
@@ -1886,26 +1914,23 @@ const MainApp: React.FC = () => {
                      onClick={handleDailyClaim}
                      disabled={hasClaimedDailyTask || isDailyClaiming}
                      className={`w-full mt-2 py-3 rounded-[999px] text-[11px] font-black uppercase tracking-widest border border-white/20 active:scale-95 transition-all ${
-                       dailyJustClaimed
-                         ? 'bg-[#FFD700] text-black shadow-[0_0_24px_rgba(255,215,0,0.8)]'
-                         : hasClaimedDailyTask
-                           ? 'bg-white/5 text-white/40'
-                           : 'bg-white text-black shadow-[0_0_24px_rgba(255,255,255,0.6)]'
+                       isDailyClaiming
+                         ? 'bg-white/10 text-white/40'
+                         : dailyJustClaimed
+                           ? 'bg-[#FFD700] text-black shadow-[0_0_24px_rgba(255,215,0,0.8)]'
+                           : hasClaimedDailyTask
+                             ? 'bg-white/5 text-white/40'
+                             : 'bg-white text-black shadow-[0_0_24px_rgba(255,255,255,0.6)]'
                      }`}
                    >
-                     {dailyJustClaimed
-                       ? 'SUCCESS!'
-                       : hasClaimedDailyTask
-                         ? 'CLAIMED'
-                         : isDailyClaiming
-                           ? 'CLAIMING...'
+                     {isDailyClaiming
+                       ? 'CLAIMING...'
+                       : dailyJustClaimed
+                         ? 'SUCCESS!'
+                         : hasClaimedDailyTask
+                           ? `NEXT CLAIM IN ${formatDailyCountdown(dailyCountdown)}`
                            : 'COMPLETE TASK'}
                    </button>
-                   {hasClaimedDailyTask && (
-                     <div className="mt-2 text-[9px] text-white/40 uppercase tracking-[0.18em]">
-                       CLAIMED · {formatDailyCountdown(dailyCountdown)}
-                     </div>
-                   )}
                  </div>
                </div>
 
